@@ -343,6 +343,17 @@ body::after{display:none;} /* kill noise overlay */
 .cl-warn{background:var(--gold2);border:1px solid #E8C76A;color:#8c5d0a;border-radius:var(--rs);padding:10px 14px;font-size:13px;line-height:1.55;margin-bottom:12px;display:none;}
 .cl-url{flex:1;min-width:220px;background:#fff;border:1.5px solid var(--border-2);border-radius:var(--rs);padding:8px 12px;font-size:12px;color:var(--ink-3);outline:none;}
 .ficha-field.ro .ficha-field-lbl::after{content:'';}
+/* ══ Importación masiva ══ */
+.sec-hd{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.bk-table td{padding:12px 14px;font-size:13px;vertical-align:top;}
+.bk-table th{padding:10px 14px;}
+.bk-table tbody tr{cursor:default;}
+.bk-file{font-size:11px;color:var(--ink-4);margin-top:3px;word-break:break-all;}
+.bk-state{color:var(--ink-2);}
+.bk-warn .bk-state{color:#8c5d0a;}
+.bk-err .bk-state{color:var(--terra);}
+.bk-opt{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--ink-2);margin-top:8px;line-height:1.5;cursor:pointer;}
+.bk-opt input{margin-top:3px;}
 @media(max-width:1100px){
   .home-main{grid-template-columns:1fr;}
   .home-sidebar{padding:48px 32px;}
@@ -433,7 +444,9 @@ body::after{display:none;} /* kill noise overlay */
     <div class="config-hint" id="config-hint">
       <strong>Acceso restringido —</strong> No se pudo leer el Sheet. Asegúrate de haber iniciado sesión con Google (botón arriba a la derecha) y de que tu cuenta tiene acceso al archivo. El nombre de la hoja debe ser exactamente <code>Base</code>.
     </div>
-    <div class="sec-hd"><div><h2>Cursos del programa</h2><p id="course-count" style="font-size:13px;color:var(--ink3);">Cargando…</p></div></div>
+    <div class="sec-hd"><div><h2>Cursos del programa</h2><p id="course-count" style="font-size:13px;color:var(--ink3);">Cargando…</p></div>
+      <div><button class="ficha-btn" onclick="document.getElementById('bulk-file-input').click()"><span class="ic" aria-hidden="true">↑</span> Importar varias fichas (.docx)</button>
+      <input type="file" id="bulk-file-input" accept=".docx" multiple style="display:none" onchange="uploadFichasBulk(this)"></div></div>
     <div class="period-tabs" id="period-tabs"></div>
     <div id="courses-container"><div class="loading-state"><div class="spinner"></div><p>Conectando con Google Sheets…</p></div></div>
   </div>
@@ -595,6 +608,24 @@ body::after{display:none;} /* kill noise overlay */
     </div>
     <div class="modal-actions" style="margin-top:18px">
       <button class="btn btn-ghost" onclick="closeClaudeFlow()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: bulk fichas -->
+<div class="overlay" id="modal-bulk">
+  <div class="modal modal-wide">
+    <div class="modal-ico"><span class="ic" aria-hidden="true">⇪</span></div>
+    <h2>Importar varias fichas</h2>
+    <p id="bk-sub" style="font-size:14px;color:var(--ink-3);margin-bottom:16px;"></p>
+    <div class="ct-wrap" style="margin-bottom:16px"><table class="ctable bk-table">
+      <thead><tr><th></th><th>Código</th><th>Curso</th><th>Contenido</th><th>Estado</th></tr></thead>
+      <tbody id="bk-body"></tbody></table></div>
+    <label class="bk-opt"><input type="checkbox" id="bk-overwrite" checked> Reemplazar los campos que ya tengan datos (competencia, temario, RA, criterios, evidencias y tabla de evaluación)</label>
+    <label class="bk-opt"><input type="checkbox" id="bk-push"> <span id="bk-push-lbl">Subir también al Maestro</span></label>
+    <div class="modal-actions" style="margin-top:18px">
+      <button class="btn btn-ghost" onclick="closeBulkModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="applyBulkFichas()"><span class="ic" aria-hidden="true">✓</span> Importar seleccionadas</button>
     </div>
   </div>
 </div>
@@ -1137,7 +1168,7 @@ async function importFromMaestro(sheetId) {
 }
 
 // ── WRITE course data to Maestro ──────────────────────
-async function writeCourseToMaestro(sheetId, courseCode, colMap) {
+async function writeCourseToMaestro(sheetId, courseCode, colMap, course = currentCourse) {
   let maestro = await readMaestro(sheetId);
 
   // Find target row number (1-based; row 1 = headers)
@@ -1150,7 +1181,7 @@ async function writeCourseToMaestro(sheetId, courseCode, colMap) {
 
   // Row doesn't exist yet — create it
   if (targetRow === -1) {
-    await ensureCourseRow(sheetId, currentCourse, maestro);
+    await ensureCourseRow(sheetId, course, maestro);
     maestro = await readMaestro(sheetId); // re-read after append
     for (let i = 0; i < maestro.rows.length; i++) {
       if ((maestro.rows[i][maestro.codeIdx] || '').trim() === courseCode) {
@@ -2229,7 +2260,7 @@ function toast(msg,type=''){
 document.getElementById('modal-add').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 document.getElementById('modal-prompts').addEventListener('click',e=>{if(e.target===e.currentTarget)closePromptEditor();});
 document.getElementById('modal-tematicas').addEventListener('click',e=>{if(e.target===e.currentTarget)closeTematicasEditor();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closePromptEditor();closeTematicasEditor();closeClaudeFlow();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closePromptEditor();closeTematicasEditor();closeClaudeFlow();closeBulkModal();}});
 
 renderProjects();
 initGoogleAuth();
@@ -2242,7 +2273,7 @@ initGoogleAuth();
 
 let fichaExtracted = {}; // { competencia, modulos, eva_tabla, e1, e2, e3 }
 
-async function uploadFicha(input) {
+async function uploadFichaLegacy(input) {
   const file = input.files[0];
   if (!file) return;
   input.value = ''; // reset so same file can be re-uploaded
@@ -3112,6 +3143,259 @@ function renderReviewItems(items, title){
 
 document.getElementById('modal-claude').addEventListener('click',e=>{if(e.target===e.currentTarget)closeClaudeFlow();});
 
+
+/* ══════════════════════════════════════════════════════
+   LECTOR ESTRUCTURADO DE FICHAS (.docx, formato CENFOTEC)
+   Lee las tablas del documento: datos generales, cuadro de
+   competencia (RA, criterios, evidencias), temario y tabla
+   de estrategias de evaluación con sus notas de diseño.
+══════════════════════════════════════════════════════ */
+const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+function wEls(node, tag){ return Array.from(node.getElementsByTagNameNS(W_NS, tag)); }
+function wKids(node, tag){ return Array.from(node.childNodes).filter(n=>n.localName===tag); }
+function wText(node){ return wEls(node,'t').map(t=>t.textContent).join(''); }
+function wParas(node){ return wEls(node,'p').map(p=>wText(p).replace(/\s+/g,' ').trim()).filter(Boolean); }
+
+async function readDocxXml(file){
+  if (!window.JSZip) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+  const zip = await JSZip.loadAsync(await file.arrayBuffer());
+  const f = zip.file('word/document.xml');
+  if (!f) throw new Error('El archivo no parece un .docx válido');
+  return f.async('string');
+}
+
+function parseFichaDocx(xmlStr){
+  const doc = new DOMParser().parseFromString(xmlStr, 'text/xml');
+  const body = wEls(doc,'body')[0];
+  const out = { datos:{}, cuadro:[], evaRows:[], mods:[] };
+  if (!body) return out;
+  const blocks = Array.from(body.childNodes).filter(n=>n.localName==='p'||n.localName==='tbl');
+
+  blocks.forEach(b=>{
+    if (b.localName!=='tbl') return;
+    const rows = wKids(b,'tr').map(tr=>wKids(tr,'tc').map(tc=>wParas(tc)));
+    if (!rows.length) return;
+    const head = (rows[0][0]||[]).join(' ');
+
+    // Datos generales: filas de dos celdas, la primera es "Código"
+    if (/^c[oó]digo$/i.test(head) && rows[0].length===2){
+      rows.forEach(r=>{ if(r.length>=2 && r[0].length) out.datos[r[0].join(' ')] = r[1].join('\n'); });
+      return;
+    }
+    // Cuadro de competencia
+    if (/competencias?\s+gen[eé]ricas/i.test(head) || rows.some(r=>/competencia\s+espec[ií]fica/i.test((r[0]||[]).join(' ')))){
+      let inRA = false;
+      rows.forEach((r,i)=>{
+        const first = (r[0]||[]).join(' ');
+        if (r.length===1 && /^competencia\s+espec[ií]fica/i.test(first)){
+          const nxt = rows[i+1]; if (nxt && nxt.length===1) out.competencia = (nxt[0]||[]).join(' ').trim();
+        }
+        if (r.length===1 && /^disposici[oó]n\s*:/i.test(first)) out.disposicion = first.replace(/^disposici[oó]n\s*:\s*/i,'').trim();
+        if (r.length===1 && /^competencia\s+general/i.test(first)){
+          const nxt = rows[i+1]; const v=(nxt&&nxt[0]||[]).join(' ').trim();
+          if (v && !/^[áa]rea de conocimiento\.\s*competencia$/i.test(v)) out.competenciaGeneral = v;
+        }
+        if (r.length>=3 && /^resultados?\s+de\s+aprendizaje$/i.test(first.trim()) && /^criterios?\s+de\s+desempe/i.test((r[1]||[]).join(' ').trim())){ inRA = true; return; }
+        if (inRA && r.length>=2 && first){
+          const ev = r[2]||[];
+          out.cuadro.push({ ra:first.trim(), criterios:(r[1]||[]).map(cleanItem).filter(Boolean),
+            actividad:(ev[0]||'').trim(), evidencias:ev.slice(1).map(cleanItem).filter(Boolean) });
+        }
+      });
+      return;
+    }
+    // Tabla de estrategias de evaluación
+    if (/estrategias?\s+de\s+evaluaci[oó]n/i.test(head) && /porcentaje/i.test((rows[0][1]||[]).join(' '))){
+      rows.slice(1).forEach(r=>{
+        const name=(r[0]||[]).join(' ').trim(); const pctTxt=(r[1]||[]).join(' ');
+        if (!name || /^total$/i.test(name)) return;
+        const pm = pctTxt.match(/(\d+)\s*%/); if (!pm) return;
+        const m = name.match(/^(.+?)\s*\((\d+)\)\s*(.*)$/);
+        let nm=name, count=1, nota='';
+        if (m){ nm=m[1].trim(); count=parseInt(m[2]); nota=m[3].trim().replace(/^\(/,'').replace(/\)$/,'').trim(); }
+        out.evaRows.push({ name:nm, count, pct:parseInt(pm[1]), nota });
+      });
+    }
+  });
+
+  // Temario: párrafos de cuerpo entre "Contenidos temáticos" y la siguiente sección
+  let inTem=false, cur=null;
+  for (const b of blocks){
+    if (b.localName!=='p') { if(inTem && cur) continue; else continue; }
+    const t = wText(b).replace(/\s+/g,' ').trim();
+    if (!t) continue;
+    if (/^contenidos?\s+tem[aá]ticos?$/i.test(t)){ inTem=true; continue; }
+    if (!inTem) continue;
+    if (/^(metodolog[ií]a|estrategias de aprendizaje|sistema de evaluaci[oó]n|recursos did[aá]cticos|bibliograf[ií]a|cronograma)/i.test(t) && t.length<70) break;
+    const mm = t.match(/^m[oó]dulo\s+(\d+)\s*[.:]\s*(.+)$/i);
+    if (mm){ cur={name:`Módulo ${mm[1]}. ${mm[2].trim()}`, subtemas:[]}; out.mods.push(cur); continue; }
+    if (cur) cur.subtemas.push(cleanItem(t));
+  }
+
+  // Código y nombre
+  out.codigo = (out.datos['Código']||'').trim();
+  out.nombre = (out.datos['Nombre']||'').trim();
+  if (!out.codigo){
+    const p = blocks.filter(b=>b.localName==='p').map(b=>wText(b).trim()).find(t=>/^[A-Z]{2,6}-\d{2,4}\b/.test(t));
+    if (p){ out.codigo = p.match(/^([A-Z]{2,6}-\d{2,4})/)[1]; out.nombre = out.nombre || p.replace(out.codigo,'').trim(); }
+  }
+  return out;
+}
+
+function fichaDocxToItems(d){
+  const items=[];
+  if (Object.keys(d.datos).length){
+    items.push({label:'Datos generales (solo lectura)', secId:null,
+      preview:Object.entries(d.datos).filter(([k])=>!/^profesor|sede$/i.test(k)).map(([k,v])=>`${k}: ${v.replace(/\n/g,' · ')}`).join('\n'), icon:'ℹ'});
+  }
+  if (d.competencia) items.push({label:'Competencia específica', secId:'competencia', value:d.competencia, icon:'🏆'});
+  if (d.disposicion) items.push({label:'Disposición', secId:'_disposicion', value:d.disposicion, icon:'◆'});
+  if (d.mods.length){
+    items.push({label:`Módulos y subtemas (${d.mods.length})`, secId:'modulos',
+      value:d.mods.map(m=>`${m.name}\n${m.subtemas.map(s=>'- '+s).join('\n')}`).join('\n\n'), icon:'📚'});
+  }
+  d.cuadro.slice(0,3).forEach((c,i)=>{
+    const n=i+1;
+    const act = c.actividad || d.evaRows[i]?.name || '';
+    items.push({label:`RA ${n}${act?' · '+act:''}`, secId:`ra${n}`, value:c.ra, icon:'🎯'});
+    if (c.criterios.length) items.push({label:`CD ${n} (${c.criterios.length} criterios)`, secId:`cd${n}`, value:c.criterios.join('\n'), icon:'📋'});
+    if (act) items.push({label:`Evidencia ${n}${c.evidencias.length?'':' (solo el nombre; la ficha no trae evidencias)'}`, secId:`e${n}`, value:[act,...c.evidencias].join('\n'), icon:'📎'});
+  });
+  if (d.evaRows.length){
+    const total=d.evaRows.reduce((t,r)=>t+r.pct,0);
+    items.push({label:`Tabla de evaluaciones${total!==100?' ⚠ suma '+total+'%':''}`, secId:'eva_tabla',
+      value:d.evaRows.map(r=>`${r.name} (${r.count}) | ${r.pct}%`).join('\n'),
+      preview:d.evaRows.map(r=>`${r.name} (${r.count}) — ${r.pct}%${r.nota?' · '+r.nota:''}`).join('\n'), icon:'📊'});
+    const notas=d.evaRows.filter(r=>r.nota).map(r=>({nombre:r.name, nota:r.nota}));
+    if (notas.length) items.push({label:'Notas de diseño de las actividades', secId:'_notas_eva', value:JSON.stringify(notas),
+      preview:notas.map(x=>`${x.nombre}: ${x.nota}`).join('\n'), icon:'🗒'});
+  }
+  return items;
+}
+
+// ── Una ficha (pantalla del curso) ─────────────────────
+async function uploadFicha(input){
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  document.getElementById('ficha-loading').classList.add('active');
+  document.getElementById('ficha-hint').style.display = 'none';
+  document.getElementById('ficha-result').classList.remove('visible');
+  try {
+    const xml = await readDocxXml(file);
+    const d = parseFichaDocx(xml);
+    let items = fichaDocxToItems(d);
+    const code = currentCourse?.['Código']||'';
+    if (d.codigo && code && d.codigo.toUpperCase()!==code.toUpperCase() &&
+        !confirm(`La ficha es de ${d.codigo}, pero tenés abierto ${code}. ¿Cargarla igual en ${code}?`)) {
+      items = null;
+    }
+    if (items && items.filter(i=>i.secId).length) {
+      renderReviewItems(items, `Datos extraídos de la ficha ${d.codigo||''} — revisá y aplicá cada sección`);
+    } else if (items) {
+      // Formato desconocido: usar el lector anterior por texto
+      fichaExtracted = parseFicha(xmlToText(xml));
+      renderFichaResult(fichaExtracted);
+    }
+  } catch(e) {
+    toast('Error leyendo el .docx: ' + e.message, 'error');
+  }
+  document.getElementById('ficha-loading').classList.remove('active');
+  document.getElementById('ficha-hint').style.display = '';
+}
+
+// ── Varias fichas (pantalla del proyecto) ──────────────
+let bulkFichas = [];
+const normCode = c => String(c||'').toUpperCase().replace(/\s+/g,'').trim();
+
+async function uploadFichasBulk(input){
+  const files = Array.from(input.files||[]);
+  input.value = '';
+  if (!files.length) return;
+  if (!currentProject){ toast('Abrí un proyecto primero','error'); return; }
+  toast(`Leyendo ${files.length} ficha${files.length>1?'s':''}…`);
+  bulkFichas = [];
+  for (const f of files){
+    const entry = { file:f.name, ok:false };
+    try {
+      const d = parseFichaDocx(await readDocxXml(f));
+      if (!d.codigo){ const m=f.name.match(/([A-Z]{2,6}-\d{2,4})/i); if(m) d.codigo=m[1].toUpperCase(); }
+      entry.data = d;
+      entry.items = fichaDocxToItems(d).filter(i=>i.secId);
+      entry.code = d.codigo;
+      entry.course = (allCourses||[]).find(c=>normCode(c['Código'])===normCode(d.codigo));
+      entry.ok = !!entry.items.length;
+    } catch(e){ entry.error = e.message; }
+    bulkFichas.push(entry);
+  }
+  renderBulkModal();
+}
+
+function renderBulkModal(){
+  const sid = currentProject.sheetId;
+  const rows = bulkFichas.map((e,i)=>{
+    const existing = e.course ? Object.keys(maestroData[sid]?.[e.course['Código']]||{}).filter(k=>!k.startsWith('_')).length : 0;
+    let estado, cls='';
+    if (e.error){ estado=`No se pudo leer: ${escHtml(e.error)}`; cls='bk-err'; }
+    else if (!e.ok){ estado='No encontré datos de ficha'; cls='bk-err'; }
+    else if (!e.course){ estado=`El código ${escHtml(e.code||'?')} no está en la hoja Base`; cls='bk-warn'; }
+    else estado=`${e.items.length} campos${existing?` · ya tiene ${existing} guardados`:''}`;
+    const can = e.ok && e.course;
+    const ra = e.data?.cuadro?.length||0, mods=e.data?.mods?.length||0, ev=e.data?.evaRows?.length||0;
+    return `<tr class="${cls}">
+      <td><input type="checkbox" class="bk-chk" data-i="${i}" ${can?'checked':'disabled'}></td>
+      <td class="td-code">${escHtml(e.code||'—')}</td>
+      <td>${escHtml(e.course?(e.course['Curso']||e.course['Nombre']||''):(e.data?.nombre||e.file))}<div class="bk-file">${escHtml(e.file)}</div></td>
+      <td class="td-m">${e.data?`${mods} mód. · ${ra} RA · ${ev} eval.`:'—'}</td>
+      <td class="bk-state">${estado}</td></tr>`;
+  }).join('');
+  document.getElementById('bk-body').innerHTML = rows;
+  const n = bulkFichas.filter(e=>e.ok&&e.course).length;
+  document.getElementById('bk-sub').textContent = `${bulkFichas.length} archivo${bulkFichas.length>1?'s':''} leído${bulkFichas.length>1?'s':''} · ${n} listo${n!==1?'s':''} para importar`;
+  document.getElementById('bk-push').disabled = !gAccessToken;
+  document.getElementById('bk-push-lbl').textContent = gAccessToken ? 'Subir también al Maestro' : 'Subir también al Maestro (iniciá sesión con Google)';
+  document.getElementById('modal-bulk').classList.add('active');
+}
+function closeBulkModal(){ document.getElementById('modal-bulk')?.classList.remove('active'); }
+
+async function applyBulkFichas(){
+  const sid = currentProject.sheetId;
+  const overwrite = document.getElementById('bk-overwrite').checked;
+  const push = document.getElementById('bk-push').checked && !!gAccessToken;
+  const chosen = Array.from(document.querySelectorAll('.bk-chk:checked')).map(c=>bulkFichas[+c.dataset.i]).filter(e=>e&&e.ok&&e.course);
+  if (!chosen.length){ toast('No hay fichas seleccionadas','error'); return; }
+  if (!maestroData[sid]) maestroData[sid] = {};
+  let fields = 0;
+  chosen.forEach(e=>{
+    const code = e.course['Código'];
+    if (!maestroData[sid][code]) maestroData[sid][code] = {};
+    const local = maestroData[sid][code];
+    e.items.forEach(it=>{
+      if (!overwrite && local[it.secId]?.trim()) return;
+      local[it.secId] = it.value; fields++;
+    });
+  });
+  localStorage.setItem('dcd_maestro', JSON.stringify(maestroData));
+  autoBackup();
+  closeBulkModal();
+  renderTable(allCourses);
+  toast(`✓ ${chosen.length} ficha${chosen.length>1?'s':''} importada${chosen.length>1?'s':''} (${fields} campos)`, 'success');
+
+  if (push){
+    const sheetId = extractSheetId(currentProject.url);
+    let ok=0; const fails=[];
+    for (const e of chosen){
+      const code = e.course['Código'];
+      try {
+        toast(`Subiendo ${code} al Maestro…`);
+        await writeCourseToMaestro(sheetId, code, buildMaestroColMap(maestroData[sid][code]), e.course);
+        ok++;
+      } catch(err){ fails.push(`${code}: ${err.message}`); }
+    }
+    toast(fails.length ? `Maestro: ${ok} subidas, ${fails.length} con error (${fails[0]})` : `✓ ${ok} cursos subidos al Maestro`, fails.length?'error':'success');
+  }
+}
+document.getElementById('modal-bulk').addEventListener('click',e=>{if(e.target===e.currentTarget)closeBulkModal();});
 
 /* Icons are inline text glyphs — no render hook needed */
 window.__renderIcons = function(){};
