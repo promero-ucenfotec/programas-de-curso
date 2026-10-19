@@ -644,7 +644,7 @@ body::after{display:none;} /* kill noise overlay */
     <label class="bk-opt" style="margin:-4px 0 16px"><input type="checkbox" id="wx-maestro" checked> <span id="wx-maestro-lbl">Completar con los datos más recientes de la hoja Maestro</span></label>
     <div class="cl-steps">
       <div class="cl-step"><h3><span class="num">1</span> Ficha</h3><p>Datos generales, competencia, cuadro de competencia, temario y tabla de evaluación con sus notas. El resto queda como en la plantilla.</p><button class="btn btn-primary btn-sm" onclick="downloadWord('ficha')"><span class="ic" aria-hidden="true">⤓</span> Descargar ficha</button></div>
-      <div class="cl-step"><h3><span class="num">2</span> Programa completo</h3><p>Todo lo anterior más descripción, metodologías, estrategias, sistema de evaluación con rúbricas, recursos, bibliografía y cronograma.</p><button class="btn btn-primary btn-sm" onclick="downloadWord('programa')"><span class="ic" aria-hidden="true">⤓</span> Descargar programa</button></div>
+      <div class="cl-step"><h3><span class="num">2</span> Programa completo</h3><p>Todo lo anterior más descripción, metodologías, estrategias, sistema de evaluación con rúbricas, recursos y cronograma (la bibliografía la agregás vos).</p><button class="btn btn-primary btn-sm" onclick="downloadWord('programa')"><span class="ic" aria-hidden="true">⤓</span> Descargar programa</button></div>
     </div>
     <div class="modal-actions" style="margin-top:16px"><button class="btn btn-ghost" onclick="closeWordExport()">Cerrar</button></div>
   </div>
@@ -2973,8 +2973,7 @@ const PROGRAMA_SCHEMA = (code)=>`{
      "rubrica": [{"criterio": "criterio copiado de la ficha", "titulo": "", "niveles": ["1 punto", "2 puntos", "3 puntos", "4 puntos"]}]}
   ],
   "recursos_didacticos": [""],
-  "bibliografia": {"obligatoria": [""], "complementaria": [""]},
-  "cronograma": [{"sesion": 1, "modulo": 1, "subtemas": [""], "actividades": [""]}]
+  "cronograma": [{"sesion": 1, "modulo": 1, "subtemas": ["todos los subtemas del módulo"], "actividades": [""]}]
 }`;
 
 function buildFichaPrompt(){
@@ -3015,7 +3014,7 @@ function buildProgramaPrompt(){
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
 ${PROGRAMA_SCHEMA(code)}
 3. Recordá especialmente: el objeto de estudio va directo al objeto (sin "fundamentos de" ni "principios de"); ninguna tecnología concreta antes de recursos didácticos; actividades en minúscula y con artículo dentro de la oración ("las prácticas", "Las tareas favorecen"); sin "dotar" ni "de modo"; la evaluación formativa usa actividades distintas de las sumativas (resúmenes, mapas mentales, fichas de conceptos, glosario…) y el aprendizaje autónomo se vincula con ella; cada descripción de actividad tiene tres bloques (en qué consiste, qué deben realizar, qué contiene el entregable) y el estudio de casos resalta lo investigativo; el cronograma tiene una sola actividad por semana desde la sesión 2, entregas seguidas sin intercalar y duración fija en las dos actividades que no son el proyecto. Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
-4. Reglas del bloque: "actividades" lleva las tres actividades en el orden del cuadro, cada una con la rúbrica de todos sus criterios (en "titulo" va solo el título corto del criterio); "cronograma" lleva las sesiones 1 a 14 (la 15 es fija), "modulo" es el número del módulo y "actividades" contiene solo las líneas propias de la sesión (inicio o cierre de entregas), sin las dos líneas fijas de lectura y participación; cada elemento de una lista va sin viñetas ni numeración; no inventes bibliografía (si no podés verificarla, dejá las listas vacías).`);
+4. Reglas del bloque: "actividades" lleva las tres actividades en el orden del cuadro, cada una con la rúbrica de todos sus criterios (en "titulo" va solo el título corto del criterio); "cronograma" lleva las sesiones 1 a 14 (la 15 es fija), "modulo" es el número del módulo y "actividades" contiene solo las líneas propias de la sesión (inicio o cierre de entregas), sin las dos líneas fijas de lectura y participación; cada elemento de una lista va sin viñetas ni numeración. No busques ni propongas bibliografía: esa sección la completa el curriculista por aparte.`);
   return parts.join('\n\n');
 }
 
