@@ -641,6 +641,7 @@ body::after{display:none;} /* kill noise overlay */
     <div class="cl-warn" id="wx-warn"></div>
     <div class="fg"><label>Escuela (encabezado)</label><input type="text" id="wx-escuela" placeholder="Escuela de Ingeniería del Software"></div>
     <div class="fg"><label>Carrera (encabezado)</label><input type="text" id="wx-carrera" placeholder="Maestría Profesional en…"></div>
+    <label class="bk-opt" style="margin:-4px 0 16px"><input type="checkbox" id="wx-maestro" checked> <span id="wx-maestro-lbl">Completar con los datos más recientes de la hoja Maestro</span></label>
     <div class="cl-steps">
       <div class="cl-step"><h3><span class="num">1</span> Ficha</h3><p>Datos generales, competencia, cuadro de competencia, temario y tabla de evaluación con sus notas. El resto queda como en la plantilla.</p><button class="btn btn-primary btn-sm" onclick="downloadWord('ficha')"><span class="ic" aria-hidden="true">⤓</span> Descargar ficha</button></div>
       <div class="cl-step"><h3><span class="num">2</span> Programa completo</h3><p>Todo lo anterior más descripción, metodologías, estrategias, sistema de evaluación con rúbricas, recursos, bibliografía y cronograma.</p><button class="btn btn-primary btn-sm" onclick="downloadWord('programa')"><span class="ic" aria-hidden="true">⤓</span> Descargar programa</button></div>
@@ -1138,50 +1139,88 @@ async function ensureCourseRow(sheetId, course, maestro) {
 }
 
 // ── IMPORT existing Maestro data → local store ─────────
+/* ══════════════════════════════════════════════════════
+   CONVERSIÓN FILA DEL MAESTRO ⇄ CAMPOS DE LA APP
+══════════════════════════════════════════════════════ */
+const RUBRIC_SEP = ' | ';
+function rubricToText(rubrica){ return (rubrica||[]).map(r=>[r.titulo||r.criterio||'', ...(r.niveles||[]).slice(0,4)].join(RUBRIC_SEP)).join('\n'); }
+function textToRubric(t){
+  return String(t||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const p=l.split(/\s\|\s/); return {titulo:(p[0]||'').trim(), criterio:'', niveles:p.slice(1,5).map(x=>x.trim())}; });
+}
+function maestroRowToSaved(headers, row){
+  const g = col => { const i=headers.indexOf(col); return i>=0 ? String(row[i]||'').replace(/\r\n/g,'\n').trim() : ''; };
+  const o = {};
+  // Descripción: una parte por línea
+  const desc = g('Descripción');
+  if (desc){
+    const ls = desc.split('\n').map(x=>x.trim()).filter(Boolean);
+    const rest=[];
+    ls.forEach(l=>{
+      if (/^la importancia/i.test(l)) o.descripcion_import = l;
+      else if (/^en el curso/i.test(l)) o.descripcion_en_curso = l;
+      else if (/^este curso se relaciona/i.test(l)) o.descripcion_rasgos = l;
+      else if (/^las principales tem[aá]ticas/i.test(l)) {/* se genera sola */}
+      else rest.push(l);
+    });
+    if (rest.length) o.descripcion_objeto = rest.join(' ');
+  }
+  ['Competencia','RA1','CD1','E1','RA2','CD2','E2','RA3','CD3','E3'].forEach(c=>{ const v=g(c); if(v) o[c==='Competencia'?'competencia':c.toLowerCase()] = v; });
+  // Temario
+  const mods=[];
+  for (let i=1;i<=7;i++){
+    const m=g(`Modulo${i}`); if(!m) continue;
+    const subs=g(`Subtemas ${i}`).split('\n').map(cleanItem).filter(Boolean);
+    mods.push(`Módulo ${i}. ${stripModPrefix(m)}`+(subs.length?'\n'+subs.map(x=>'- '+x).join('\n'):''));
+  }
+  if (mods.length) o.modulos = mods.join('\n\n');
+  const met=g('Metodologías'); if(met) o.metodologias=met;
+  const est=g('Estrategias de Aprendizaje'); if(est) o.estrategias=est;
+  const tip=g('Tipo_Evaluacion_EN'); if(tip && /evaluaci[oó]n\s+diagn/i.test(tip)) o.eva_tipo=tip;
+  // Tabla de evaluación
+  const ev=[];
+  for (let i=1;i<=3;i++){ const n=g(`Eva_Tabla${i}`); if(!n) continue; const c=parseInt(g(`Cantidad_Eva_${i}`))||1; const p=parseInt(g(`Porcen_Tabla${i}`))||0; ev.push(`${n} (${c}) | ${p}%`); }
+  if (ev.length) o.eva_tabla = ev.join('\n');
+  [1,2,3].forEach(i=>{ const d=g(`Eva_Descrip_${i}`); if(d) o[`eva_desc${i}`]=d; });
+  // Rúbricas
+  const rub=[1,2,3].map(i=>({nombre:g(`Eva_Tabla${i}`), rubrica:textToRubric(g(`Eva_Rubric_${i}`))})).filter(r=>r.rubrica.length);
+  if (rub.length) o._rubricas = JSON.stringify(rub);
+  const r=g('Recursos'); if(r) o.recursos=r;
+  const bo=g('Bibliografia_Obligatoria'); if(bo) o.biblio_ob=bo;
+  const bc=g('Bibliografia_Complementaria'); if(bc) o.biblio_co=bc;
+  const cg=g('Competencia General'); if(cg) o._comp_general=cg;
+  const ct=g('Competencia Transversal'); if(ct) o._comp_transversal=ct;
+  // Datos generales
+  const dm={}; ['Nombre','Créditos','Lectivas','Teoria','Lab','Practica','Independiente','Total','Ubicación','Requisitos'].forEach(c=>{ const v=g(c); if(v) dm[c]=v; });
+  if (Object.keys(dm).length) o._datos_m = JSON.stringify(dm);
+  // Cronograma
+  const sch={}; let any=false;
+  for (let s=1;s<=14;s++){
+    const mod=g(`Cronograma_Modulo_${s}`), sub=g(`Cronograma_Subtema_${s}`), note=s>=2?g(`Actividades_EN_${s}`):'';
+    if (mod||sub||note){ sch[s]={mod:'', modName:mod, sub, actName:'', verb:'', note}; any=true; }
+  }
+  if (any) o.cronograma = JSON.stringify(sch);
+  return o;
+}
+
 async function importFromMaestro(sheetId) {
   const { headers, rows, codeIdx } = await readMaestro(sheetId);
   if (!rows.length) return 0;
-
-  // Build reverse map: column name → [secId, ...]
-  const colToSecs = {};
-  Object.entries(SEC_TO_COL).forEach(([secId, col]) => {
-    if (!colToSecs[col]) colToSecs[col] = [];
-    if (!colToSecs[col].includes(secId)) colToSecs[col].push(secId);
-  });
-
   if (!maestroData[sheetId]) maestroData[sheetId] = {};
   let imported = 0;
-
   rows.forEach(row => {
     const code = (row[codeIdx] || '').trim();
     if (!code) return;
     if (!maestroData[sheetId][code]) maestroData[sheetId][code] = {};
     const local = maestroData[sheetId][code];
-
-    headers.forEach((col, i) => {
-      const val = (row[i] || '').trim();
-      if (!val) return;
-      const secs = colToSecs[col];
-      if (!secs) return;
-      secs.forEach(secId => {
-        if (!local[secId]) { local[secId] = val; imported++; }
-      });
-    });
-
-    // Rebuild cronograma from individual session columns
-    if (!local.cronograma) {
-      const schData = {};
-      let hasAny = false;
-      for (let s = 1; s <= 14; s++) {
-        const mod  = (row[headers.indexOf(`Cronograma_Modulo_${s}`)]  || '').trim();
-        const sub  = (row[headers.indexOf(`Cronograma_Subtema_${s}`)] || '').trim();
-        const note = s >= 2 ? (row[headers.indexOf(`Actividades_EN_${s}`)] || '').trim() : '';
-        if (mod || sub || note) { schData[s] = { mod, sub, note }; hasAny = true; }
-      }
-      if (hasAny) { local.cronograma = JSON.stringify(schData); imported++; }
+    const conv = maestroRowToSaved(headers, row);
+    // Reparar campos que la versión anterior importaba mal
+    if (local.eva_tabla && !parseEvaTablaText(local.eva_tabla).length && conv.eva_tabla) local.eva_tabla = '';
+    if (local.descripcion_objeto && local.descripcion_objeto === local.descripcion_import) {
+      ['descripcion_objeto','descripcion_import','descripcion_en_curso','descripcion_rasgos'].forEach(k=>{ if(conv[k]!==undefined || local[k]===local.descripcion_objeto) local[k]=''; });
     }
+    if (local.modulos && !/m[oó]dulo\s+2/i.test(local.modulos) && /m[oó]dulo\s+2/i.test(conv.modulos||'')) local.modulos = '';
+    Object.entries(conv).forEach(([k,v]) => { if (v && !String(local[k]||'').trim()) { local[k] = v; imported++; } });
   });
-
   localStorage.setItem('dcd_maestro', JSON.stringify(maestroData));
   return imported;
 }
@@ -1970,6 +2009,11 @@ function buildMaestroColMap(saved) {
   [1,2,3].forEach(n => {
     if (saved[`eva_desc${n}`]) colMap[`Eva_Descrip_${n}`] = saved[`eva_desc${n}`];
   });
+
+  // ── Rúbricas y competencias del área ──────────────
+  safeJSON(saved._rubricas||'[]',[]).forEach((r,i)=>{ if(i<3 && r.rubrica?.length) colMap[`Eva_Rubric_${i+1}`] = rubricToText(r.rubrica); });
+  if (saved._comp_general) colMap['Competencia General'] = saved._comp_general;
+  if (saved._comp_transversal) colMap['Competencia Transversal'] = saved._comp_transversal;
 
   // ── Recursos / Bibliografía ───────────────────────
   if (saved.recursos)   colMap['Recursos'] = saved.recursos;
@@ -2952,7 +2996,8 @@ function buildFichaPrompt(){
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame la ficha completa, legible, para revisarla.
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
 ${FICHA_SCHEMA(code,name)}
-3. Reglas del bloque: tres actividades en el orden del cuadro (la primera es el proyecto con 15 criterios; las otras dos llevan 8 criterios); porcentajes enteros que suman 100; cada elemento de una lista va sin viñetas ni numeración; los textos del bloque son idénticos a los de la ficha mostrada.`);
+3. Recordá especialmente: ninguna tecnología concreta en la competencia, los resultados de aprendizaje, los criterios ni las evidencias (usá el término genérico); actividades en minúscula y con artículo dentro de la oración; sin "dotar" ni "de modo". Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
+4. Reglas del bloque: tres actividades en el orden del cuadro (la primera es el proyecto con 15 criterios; las otras dos llevan 8 criterios); porcentajes enteros que suman 100; cada elemento de una lista va sin viñetas ni numeración; los textos del bloque son idénticos a los de la ficha mostrada.`);
   return parts.join('\n\n');
 }
 
@@ -2969,7 +3014,8 @@ function buildProgramaPrompt(){
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame el programa completo, legible, para revisarlo.
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
 ${PROGRAMA_SCHEMA(code)}
-3. Reglas del bloque: "actividades" lleva las tres actividades en el orden del cuadro, cada una con la rúbrica de todos sus criterios; "cronograma" lleva las sesiones 1 a 14 (la 15 es fija), "modulo" es el número del módulo y "actividades" contiene solo las líneas propias de la sesión (inicio o cierre de entregas), sin las dos líneas fijas de lectura y participación; cada elemento de una lista va sin viñetas ni numeración; no inventes bibliografía (si no podés verificarla, dejá las listas vacías).`);
+3. Recordá especialmente: el objeto de estudio va directo al objeto (sin "fundamentos de" ni "principios de"); ninguna tecnología concreta antes de recursos didácticos; actividades en minúscula y con artículo dentro de la oración ("las prácticas", "Las tareas favorecen"); sin "dotar" ni "de modo"; la evaluación formativa usa actividades distintas de las sumativas (resúmenes, mapas mentales, fichas de conceptos, glosario…) y el aprendizaje autónomo se vincula con ella; cada descripción de actividad tiene tres bloques (en qué consiste, qué deben realizar, qué contiene el entregable) y el estudio de casos resalta lo investigativo; el cronograma tiene una sola actividad por semana desde la sesión 2, entregas seguidas sin intercalar y duración fija en las dos actividades que no son el proyecto. Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
+4. Reglas del bloque: "actividades" lleva las tres actividades en el orden del cuadro, cada una con la rúbrica de todos sus criterios (en "titulo" va solo el título corto del criterio); "cronograma" lleva las sesiones 1 a 14 (la 15 es fija), "modulo" es el número del módulo y "actividades" contiene solo las líneas propias de la sesión (inicio o cierre de entregas), sin las dos líneas fijas de lectura y participación; cada elemento de una lista va sin viñetas ni numeración; no inventes bibliografía (si no podés verificarla, dejá las listas vacías).`);
   return parts.join('\n\n');
 }
 
@@ -3130,9 +3176,36 @@ function programaToItems(d){
       sch[s]={mod:mi?String(mi):'', modName:mod?mod.name:(mi?`Módulo ${mi}`:''), sub:subs.join('\n'), actName:'', verb:'', note:cleanList(r.actividades).join('\n')};
     });
     const prev=Object.keys(sch).sort((a,b)=>a-b).map(s=>`S${s} · ${sch[s].modName||'—'}${sch[s].note?'\n   '+sch[s].note.replace(/\n/g,'\n   '):''}`).join('\n');
-    items.push({label:`Cronograma (${Object.keys(sch).length} sesiones)`, secId:'cronograma', value:JSON.stringify(sch), preview:prev, icon:'📅'});
+    const warns=checkCronograma(sch, parseEvaTablaText(currentSaved().eva_tabla||''));
+    items.push({label:`Cronograma (${Object.keys(sch).length} sesiones)${warns.length?` ⚠ ${warns.length} regla${warns.length>1?'s':''} sin cumplir`:' ✓ reglas cumplidas'}`, secId:'cronograma', value:JSON.stringify(sch),
+      preview:(warns.length?'⚠ '+warns.join('\n⚠ ')+'\n\n':'')+prev, icon:'📅'});
   }
   return items;
+}
+
+// Reglas del cronograma: una actividad por semana desde la 2, entregas seguidas sin
+// intercalar, duración fija en las actividades que no son el proyecto.
+function checkCronograma(sch, evaRows){
+  const warn=[]; const norm=t=>String(t||'').toLowerCase().trim();
+  const actOf = line => { const m=String(line).match(/^([^:]{2,120}):/); if(!m) return null; return m[1].replace(/\(\s*\d+\s*%\s*\)/,'').trim(); };
+  const closes = line => /\(\s*\d+\s*%\s*\)\s*:/.test(line) || /\b(finaliza|realiza)\b/i.test(line);
+  let open=null, start=0; const durs={}; const pctSum={};
+  for (let k=2;k<=14;k++){
+    const lines=String(sch[k]?.note||'').split('\n').map(x=>x.trim()).filter(Boolean);
+    const acts=[...new Set(lines.map(actOf).filter(Boolean).map(norm))];
+    if (!acts.length){ warn.push(k===2?'La sesión 2 no inicia ni entrega ninguna actividad':`La sesión ${k} no tiene actividad`); continue; }
+    if (acts.length>1){ warn.push(`La sesión ${k} tiene más de una actividad`); }
+    const a=acts[0];
+    if (open && open!==a){ warn.push(`En la sesión ${k} empieza otra actividad sin haber entregado ${open}`); open=null; }
+    if (!open){ open=a; start=k; }
+    lines.forEach(l=>{ const m=l.match(/\((\d+)\s*%\)/); if(m && norm(actOf(l))===a) pctSum[a]=(pctSum[a]||0)+parseInt(m[1]); });
+    if (lines.some(closes)){ (durs[a]=durs[a]||[]).push(k-start+1); open=null; }
+  }
+  if (open) warn.push(`La última entrega de ${open} no se cierra antes de la sesión 15`);
+  const proj = norm(evaRows[0]?.name);
+  Object.entries(durs).forEach(([a,ds])=>{ if(a!==proj && new Set(ds).size>1) warn.push(`Las entregas de ${a} no duran lo mismo (${ds.join(', ')} semanas)`); });
+  evaRows.forEach(r=>{ const got=pctSum[norm(r.name)]; if(got!==undefined && got!==r.pct) warn.push(`Los porcentajes de ${r.name} en el cronograma suman ${got}% y en la tabla ${r.pct}%`); });
+  return warn;
 }
 
 function renderReviewItems(items, title){
@@ -3483,6 +3556,29 @@ function replaceParas(protoPara, oldParas, texts, mapSegs){
   oldParas.forEach(p=>p.parentNode&&p.parentNode.removeChild(p));
 }
 function cellParas(tc){ return wKids(tc,'p'); }
+// Texto de tablas: Arial 10, interlineado 1.15
+const RPR_AFTER_SZ = ['highlight','u','effect','bdr','shd','fitText','vertAlign','rtl','cs','em','lang','eastAsianLayout','specVanish','oMath'];
+const PPR_AFTER_SPACING = ['ind','contextualSpacing','mirrorIndents','suppressOverlap','jc','textDirection','textAlignment','textboxTightWrap','outlineLvl','divId','cnfStyle','rPr','sectPr','pPrChange'];
+function tableRPr(rPr){
+  const doc=rPr.ownerDocument;
+  Array.from(rPr.childNodes).filter(n=>['rFonts','sz','szCs'].includes(n.localName)).forEach(n=>rPr.removeChild(n));
+  const f=wEl(doc,'rFonts'); ['ascii','hAnsi','cs','eastAsia'].forEach(a=>wAttr(f,a,'Arial'));
+  const st=wChild(rPr,'rStyle'); rPr.insertBefore(f, st?st.nextSibling:rPr.firstChild);
+  const ref=Array.from(rPr.childNodes).find(n=>RPR_AFTER_SZ.includes(n.localName))||null;
+  ['sz','szCs'].forEach(t=>{ const e=wEl(doc,t); wAttr(e,'val','20'); rPr.insertBefore(e, ref); });
+  return rPr;
+}
+function tableFmt(p){
+  const doc=p.ownerDocument;
+  let pPr=wChild(p,'pPr'); if(!pPr){ pPr=wEl(doc,'pPr'); p.insertBefore(pPr,p.firstChild); }
+  let sp=wChild(pPr,'spacing');
+  if(!sp){ sp=wEl(doc,'spacing'); const ref=Array.from(pPr.childNodes).find(n=>PPR_AFTER_SPACING.includes(n.localName))||null; pPr.insertBefore(sp,ref); }
+  wAttr(sp,'line','276'); wAttr(sp,'lineRule','auto');
+  let mrp=wChild(pPr,'rPr'); if(!mrp){ mrp=wEl(doc,'rPr'); const ref=Array.from(pPr.childNodes).find(n=>['sectPr','pPrChange'].includes(n.localName))||null; pPr.insertBefore(mrp,ref); }
+  tableRPr(mrp);
+  wKids(p,'r').forEach(r=>{ let rp=wChild(r,'rPr'); if(!rp){ rp=wEl(doc,'rPr'); r.insertBefore(rp,r.firstChild);} tableRPr(rp); });
+  return p;
+}
 function setCell(tc, texts, opts={}){
   const ps=cellParas(tc); const proto=(opts.protoPara||ps[0]).cloneNode(true);
   const rp=protoRPr(opts.protoPara||ps[0]);
@@ -3491,7 +3587,7 @@ function setCell(tc, texts, opts={}){
   list.forEach((t,i)=>{
     const segs = opts.segs ? opts.segs(t,i) : t;
     const pr = (opts.protoFor && opts.protoFor(i)) || proto;
-    tc.appendChild(clonePara(pr, segs, opts.rprFor?opts.rprFor(i):rp));
+    tc.appendChild(tableFmt(clonePara(pr, segs, opts.rprFor?opts.rprFor(i):rp)));
   });
 }
 function rowsOf(tbl){ return wKids(tbl,'tr'); }
@@ -3506,7 +3602,8 @@ function distLabel(r){
 
 function courseDatos(course, saved){
   const fd = safeJSON(saved._datos||'{}',{});
-  const c = course||{};
+  const dm = safeJSON(saved._datos_m||'{}',{});
+  const c = Object.assign({}, dm, Object.fromEntries(Object.entries(course||{}).filter(([k,v])=>String(v??'').trim())));
   const pick=(...vals)=>vals.map(v=>String(v??'').trim()).find(Boolean)||'';
   const lect=pick(c['Horas Docencia'],c['Lectivas']), teo=pick(c['Horas teoría'],c['Teoria']), lab=pick(c['Horas laboratorio'],c['Lab']), pra=pick(c['Horas práctica'],c['Practica']), ind=pick(c['Horas Independiente'],c['Independiente']), tot=pick(c['Total de horas'],c['Total']);
   const distBase = lect ? [`Horas lectivas: ${lect}`, `(Teoría: ${teo||0}, laboratorio: ${lab||0} y práctica: ${pra||0})`, `Horas de trabajo independiente: ${ind||''}`, `Total de horas: ${tot||''}`].join('\n') : '';
@@ -3535,7 +3632,7 @@ async function buildDocx(mode, opts){
   const xmlStr = await zip.file('word/document.xml').async('string');
   const doc = new DOMParser().parseFromString(xmlStr, 'text/xml');
   const body = wEls(doc,'body')[0];
-  const s = currentSaved(); const c = currentCourse||{};
+  const s = opts.saved || currentSaved(); const c = currentCourse||{};
   const prog = mode==='programa';
   const datos = courseDatos(c, s);
   const find = (re, from=0)=>{ const b=bodyBlocks(body); for(let i=from;i<b.length;i++){ if(b[i].localName==='p' && re.test(pText(b[i]))) return b[i]; } return null; };
@@ -3584,6 +3681,17 @@ async function buildDocx(mode, opts){
       let dispRow=rows.find(r=>cellsOf(r).length===1 && /^disposici[oó]n/i.test(wText(r).trim()));
       if (disp && !dispRow){ dispRow=compRow.cloneNode(true); compRow.parentNode.insertBefore(dispRow, compRow.nextSibling); }
       if (dispRow){ if(disp) setCell(cellsOf(dispRow)[0], [disp], {segs:t=>[{text:'Disposición:',bold:true},{text:' '+t,bold:false}]}); else dispRow.parentNode.removeChild(dispRow); }
+    }
+    // Competencia general y transversales (si el Maestro las trae)
+    const boldLead = t => { const m=String(t).match(/^([^.]{2,80}\.)\s*(.*)$/); return m?[{text:m[1],bold:true},{text:' '+m[2],bold:false}]:[{text:t,bold:false}]; };
+    const rowsG=rowsOf(tCuadro);
+    const iGen=rowsG.findIndex(r=>cellsOf(r).length===1 && /^competencia\s+general$/i.test(wText(r).trim()));
+    if (iGen>=0 && rowsG[iGen+1] && String(s._comp_general||'').trim()) setCell(cellsOf(rowsG[iGen+1])[0], [String(s._comp_general).trim()], {segs:boldLead});
+    const tvRow=rowsG.find(r=>cellsOf(r).length===1 && /^transversales?:/i.test(wText(r).trim()));
+    const tvList=String(s._comp_transversal||'').split('\n').map(cleanItem).filter(Boolean);
+    if (tvRow && tvList.length){
+      const ps=cellParas(cellsOf(tvRow)[0]); const item=ps.find(p=>wEls(p,'numPr').length);
+      if (item){ const iT=ps.indexOf(item); const rp=protoRPr(item); tvList.forEach(t=>item.parentNode.insertBefore(tableFmt(clonePara(item, boldLead(t), rp)), item)); item.parentNode.removeChild(item); }
     }
     const rows2=rowsOf(tCuadro);
     const iHead=rows2.findIndex(r=>cellsOf(r).length>=3 && /^resultados?\s+de\s+aprendizaje$/i.test(wText(cellsOf(r)[0]).trim()));
@@ -3728,9 +3836,13 @@ async function buildDocx(mode, opts){
         setCell(cs[1], [''], {protoPara:emptyP});
       } else {
         if (key && key===nextKey){ const v=wEl(doc,'vMerge'); wAttr(v,'val','restart'); tcPr.insertBefore(v, vmAt()); }
-        const mi=parseInt(d.mod)||0; const m=mods[mi-1];
-        const modName = d.modName || (m?m.name:'');
-        const subs = d.sub ? d.sub.split('\n').map(cleanItem).filter(Boolean) : (m?m.subtemas:[]);
+        const mi=parseInt(d.mod)||0;
+        const keyName = t => stripModPrefix(String(t||'')).toLowerCase().replace(/\s+/g,' ').trim();
+        const numIn = t => { const x=String(t||'').match(/m[oó]dulo\s+(\d+)/i); return x?parseInt(x[1]):0; };
+        const m = mi ? mods[mi-1] : (mods.find(x=>keyName(x.name)===keyName(d.modName||d.mod)) || mods[numIn(d.modName||d.mod)-1]);
+        const modName = (m?m.name:'') || d.modName || (mi?'':String(d.mod||''));
+        // El módulo siempre lleva todos sus subtemas del temario, no solo los de la sesión
+        const subs = (m && m.subtemas.length) ? m.subtemas : (d.sub ? d.sub.split('\n').map(cleanItem).filter(Boolean) : []);
         if (modName){
           const titleP=stripNum(modProto.cloneNode(true));
           setCell(cs[1], [modName, ...subs], { protoFor:j=>j===0?titleP:modProto, rprFor:j=>setBold(protoRPr(modProto), j===0) });
@@ -3760,7 +3872,16 @@ function openWordExport(){
   const w=document.getElementById('wx-warn');
   w.style.display = miss.length?'block':'none';
   w.textContent = miss.length?`A este curso le falta: ${miss.join(', ')}. Esos espacios quedarán vacíos en el documento.`:'';
+  const mc=document.getElementById('wx-maestro'); mc.disabled=!gAccessToken; mc.checked=!!gAccessToken;
+  document.getElementById('wx-maestro-lbl').textContent = gAccessToken ? 'Completar con los datos más recientes de la hoja Maestro' : 'Completar con la hoja Maestro (iniciá sesión con Google)';
   document.getElementById('modal-word').classList.add('active');
+}
+async function savedFromMaestroRow(){
+  const sheetId=extractSheetId(currentProject.url);
+  const { headers, rows, codeIdx } = await readMaestro(sheetId);
+  const code=normCode(currentCourse['Código']);
+  const row=rows.find(r=>normCode(r[codeIdx])===code);
+  return row ? maestroRowToSaved(headers,row) : null;
 }
 function closeWordExport(){ document.getElementById('modal-word')?.classList.remove('active'); }
 async function downloadWord(mode){
@@ -3769,7 +3890,18 @@ async function downloadWord(mode){
   try{ localStorage.setItem('dcd_word_'+currentProject.id, JSON.stringify({escuela,carrera})); }catch(e){}
   const btns=document.querySelectorAll('#modal-word .btn-primary'); btns.forEach(b=>b.disabled=true);
   try{
-    const blob = await buildDocx(mode, {escuela, carrera});
+    let saved = currentSaved();
+    if (document.getElementById('wx-maestro').checked && gAccessToken){
+      try{
+        const fromM = await savedFromMaestroRow();
+        if (fromM){
+          // Lo del Maestro manda; lo local completa lo que el Maestro no tenga
+          saved = Object.assign({}, saved);
+          Object.entries(fromM).forEach(([k,v])=>{ if(String(v||'').trim()) saved[k]=v; });
+        } else toast('Este curso todavía no tiene fila en el Maestro; se usan los datos de la app');
+      }catch(e){ toast('No se pudo leer el Maestro; se usan los datos de la app','error'); }
+    }
+    const blob = await buildDocx(mode, {escuela, carrera, saved});
     const code=currentCourse['Código']||'curso'; const name=(currentCourse['Curso']||currentCourse['Nombre']||'').trim();
     const fname = `${code}_${name}_${mode==='programa'?'Programa':'Ficha'}.docx`.replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,'_');
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname; document.body.appendChild(a); a.click();
