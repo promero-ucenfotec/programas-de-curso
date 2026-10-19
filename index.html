@@ -144,8 +144,8 @@ body::after{display:none;} /* kill noise overlay */
 .modal>p{font-size:14px;color:var(--ink-3);margin-bottom:28px;line-height:1.6;}
 .fg{margin-bottom:18px;}
 .fg label{display:block;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;}
-.fg input{width:100%;background:#fff;border:1.5px solid var(--border-2);border-radius:var(--rs);padding:12px 14px;color:var(--ink);font-family:var(--sans);font-size:14px;outline:none;transition:border-color 0.18s,box-shadow 0.18s;}
-.fg input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,106,234,0.15);}
+.fg input,.fg select{width:100%;background:#fff;border:1.5px solid var(--border-2);border-radius:var(--rs);padding:12px 14px;color:var(--ink);font-family:var(--sans);font-size:14px;outline:none;transition:border-color 0.18s,box-shadow 0.18s;}
+.fg input:focus,.fg select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,106,234,0.15);}
 .fg small{font-size:12px;color:var(--ink-4);margin-top:6px;display:block;line-height:1.5;}
 .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:28px;}
 
@@ -304,6 +304,57 @@ body::after{display:none;} /* kill noise overlay */
 
 /* Prompt editor modal */
 #modal-prompts .modal{max-width:820px;width:95%;}
+#modal-add .modal{max-height:92vh;overflow-y:auto;}
+
+/* ── Navegación rápida entre cursos ── */
+.cnav{position:fixed;top:0;left:0;bottom:0;width:320px;background:#fff;border-right:1px solid var(--border);z-index:300;transform:translateX(-100%);transition:transform .22s ease;display:flex;flex-direction:column;box-shadow:12px 0 40px rgba(11,27,51,.10);}
+.cnav.open{transform:none;}
+.cnav-head{padding:16px 16px 10px;border-bottom:1px solid var(--border);}
+.cnav-head .row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.cnav-head h3{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--blue-dark);margin:0;}
+.cnav-x{border:0;background:none;font-size:20px;color:var(--ink-3);cursor:pointer;line-height:1;}
+.cnav-search{width:100%;border:1.5px solid var(--border-2);border-radius:10px;padding:9px 12px;font-family:var(--sans);font-size:13px;outline:none;}
+.cnav-search:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,106,234,.15);}
+.cnav-stats{font-size:11px;color:var(--ink-3);margin-top:8px;}
+.cnav-list{flex:1;overflow-y:auto;padding:6px 8px 20px;}
+.cnav-group{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-4);padding:14px 10px 6px;}
+.cnav-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:9px;cursor:pointer;font-family:var(--sans);}
+.cnav-item:hover{background:var(--blue-50);}
+.cnav-item.active{background:var(--blue-100);}
+.cnav-item .c{font-size:11px;font-weight:700;color:var(--blue-dark);min-width:64px;}
+.cnav-item .n{font-size:12.5px;color:var(--ink-2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cnav-dots{display:flex;gap:4px;}
+.sdot{width:9px;height:9px;border-radius:50%;background:var(--bg-3);border:1px solid var(--border-2);}
+.sdot.on{background:#16A34A;border-color:#16A34A;}
+.cnav-legend{font-size:11px;color:var(--ink-3);display:flex;gap:12px;align-items:center;margin-top:6px;}
+.cnav-legend .sdot{display:inline-block;vertical-align:middle;margin-right:4px;}
+.cnav-backdrop{position:fixed;inset:0;background:rgba(11,27,51,.18);z-index:299;display:none;}
+.cnav-backdrop.open{display:block;}
+.nav-btn{border:1.5px solid var(--border-2);background:#fff;border-radius:9px;height:34px;min-width:34px;padding:0 10px;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px;}
+.nav-btn:hover:not(:disabled){border-color:var(--blue);color:var(--blue);}
+.nav-btn:disabled{opacity:.35;cursor:default;}
+.kbd{font-size:10px;border:1px solid var(--border-2);border-bottom-width:2px;border-radius:5px;padding:1px 5px;color:var(--ink-3);font-family:var(--sans);}
+/* Ruta del curso */
+.route{display:flex;align-items:center;gap:0;margin:0 56px;padding:14px 0 0;flex-wrap:wrap;}
+.route-step{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-3);padding:6px 12px;border-radius:999px;}
+.route-step .rs-n{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:var(--bg-3);color:var(--ink-3);}
+.route-step.done{color:#0F6E36;}
+.route-step.done .rs-n{background:#16A34A;color:#fff;}
+.route-step.next{background:var(--blue-50);color:var(--blue-dark);font-weight:600;}
+.route-step.next .rs-n{background:var(--blue);color:#fff;}
+.route-sep{width:28px;height:2px;background:var(--border-2);}
+.route-hint{margin-left:auto;font-size:12.5px;color:var(--ink-3);}
+.route-hint button{margin-left:8px;}
+.auto-btn.next-act{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:0 0 0 4px rgba(0,106,234,.15);}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--bg-3);color:var(--ink-3);margin-right:4px;}
+.chip.on{background:#DCFCE7;color:#0F6E36;}
+.proj-summary{display:flex;gap:14px;flex-wrap:wrap;margin:-12px 0 22px;font-size:13px;color:var(--ink-3);}
+.proj-summary strong{color:var(--ink);}
+@media (max-width:760px){.route{margin:0 24px}.route-hint{margin-left:0;width:100%;padding:6px 12px}}
+.tx-resumen{border:1px solid var(--border);border-radius:12px;padding:6px 14px;margin-bottom:16px;font-size:13px;}
+.tx-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--border);}
+.tx-row:last-child{border-bottom:0}
+.tx-row em{color:var(--terra);font-style:normal}
 .pe-list{display:flex;flex-direction:column;gap:0;max-height:240px;overflow-y:auto;margin-bottom:20px;border:1px solid var(--border);border-radius:var(--rs);}
 .pe-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.14s;}
 .pe-item:last-child{border-bottom:none;}
@@ -437,6 +488,8 @@ body::after{display:none;} /* kill noise overlay */
       <div class="sheets-dot" id="sheets-dot"></div>
       <span id="sheets-status-txt">Sin conexión</span>
     </div>
+    <button class="btn btn-ghost btn-sm" onclick="openProjectModal(currentProject.id)" style="margin-left:6px;" title="Carrera, nivel y escuela del proyecto"><span class="ic" aria-hidden="true">✎</span> Editar proyecto</button>
+    <button class="btn btn-ghost btn-sm" onclick="openTomoExport()" style="margin-left:6px;" title="Todos los programas en un Word, por cuatrimestre"><span class="ic" aria-hidden="true">⤓</span> Tomo II</button>
     <button class="btn btn-ghost btn-sm" onclick="syncSheets()" id="sync-btn" style="margin-left:6px;"><span class="ic" aria-hidden="true">⟳</span> Sincronizar</button>
   </div>
 
@@ -458,6 +511,9 @@ body::after{display:none;} /* kill noise overlay */
 <div id="screen-course" class="screen">
   <div class="topbar">
     <button class="back-btn" id="back-proj-btn"><span class="ic" aria-hidden="true">←</span> Cursos</button>
+    <button class="nav-btn" onclick="toggleCourseNav()" title="Lista de cursos (Ctrl + K)">☰ Cursos <span class="kbd">Ctrl K</span></button>
+    <button class="nav-btn" id="nav-prev" onclick="gotoSibling(-1)" title="Curso anterior (Alt + ↑)">‹</button>
+    <button class="nav-btn" id="nav-next" onclick="gotoSibling(1)" title="Curso siguiente (Alt + ↓)">›</button>
     <div id="topbar-course" style="font-weight:500;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:400px;color:var(--ink2)"></div>
     <div class="save-bar">
       <span class="save-lbl" id="save-lbl">✓ Guardado</span>
@@ -495,12 +551,13 @@ body::after{display:none;} /* kill noise overlay */
   <!-- Claude automation banner -->
   <div class="auto-banner">
     <span class="auto-lbl">Con Claude</span>
-    <button class="auto-btn" onclick="openClaudeFlow('ficha')"><span class="step">1</span> Hacer la ficha</button>
-    <button class="auto-btn" onclick="openClaudeFlow('programa')"><span class="step">2</span> Programa completo</button>
+    <button class="auto-btn" id="ab-ficha" onclick="openClaudeFlow('ficha')"><span class="step">1</span> Hacer la ficha</button>
+    <button class="auto-btn" id="ab-prog" onclick="openClaudeFlow('programa')"><span class="step">2</span> Programa completo</button>
     <button class="auto-btn ghost" onclick="openClaudeFlow(null)"><span class="ic" aria-hidden="true">⇩</span> Pegar respuesta de Claude</button>
     <span style="flex:1"></span>
-    <button class="auto-btn" onclick="openWordExport()"><span class="ic" aria-hidden="true">⤓</span> Descargar en Word</button>
+    <button class="auto-btn" id="ab-word" onclick="openWordExport()"><span class="ic" aria-hidden="true">⤓</span> Descargar en Word</button>
   </div>
+  <div class="route" id="course-route"></div>
 
   <!-- Ficha extracted result -->
   <div class="ficha-result" id="ficha-result">
@@ -565,10 +622,13 @@ body::after{display:none;} /* kill noise overlay */
 <div class="overlay" id="modal-add">
   <div class="modal">
     <div class="modal-ico"><span class="ic" aria-hidden="true">+</span></div>
-    <h2>Nuevo proyecto</h2>
+    <h2 id="proj-modal-title">Nuevo proyecto</h2>
     <p>Datos del programa y enlace de su Google Sheets.</p>
     <div class="fg"><label>Nombre del programa</label><input type="text" id="in-name" placeholder="Ej: BAE I, BIROB, Maestría Cloud…"></div>
-    <div class="fg"><label>Nombre de la carrera</label><input type="text" id="in-career" placeholder="Ej: Bachillerato en Administración de Empresas"></div>
+    <div class="fg"><label>Nombre completo de la carrera</label><input type="text" id="in-career" placeholder="Ej: Bachillerato en Administración de Empresas"></div>
+    <div class="fg"><label>Segundo nombre de la carrera <span style="font-weight:400;color:var(--ink-4)">(opcional, para una maestría con dos énfasis)</span></label><input type="text" id="in-career2" placeholder="Ej: Maestría Profesional en Ingeniería del Software con énfasis en…"><small>Si lo llenás, al descargar el Word elegís cuál de los dos nombres va en el encabezado.</small></div>
+    <div class="fg"><label>Nivel <span style="font-weight:400;color:var(--ink-4)">(tal como va en la tabla de datos generales)</span></label><input type="text" id="in-nivel" placeholder="Ej: Maestría profesional"></div>
+    <div class="fg"><label>Escuela</label><input type="text" id="in-escuela" placeholder="Ej: Escuela de Ingeniería del Software"></div>
     <div class="fg">
       <label>URL de Google Sheets</label>
       <input type="text" id="in-url" placeholder="https://docs.google.com/spreadsheets/d/…">
@@ -576,7 +636,7 @@ body::after{display:none;} /* kill noise overlay */
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="createProject()">Crear proyecto <span class="ic" aria-hidden="true">→</span></button>
+      <button class="btn btn-primary" id="proj-modal-btn" onclick="saveProjectModal()">Crear proyecto <span class="ic" aria-hidden="true">→</span></button>
     </div>
   </div>
 </div>
@@ -640,7 +700,7 @@ body::after{display:none;} /* kill noise overlay */
     <p style="font-size:14px;color:var(--ink-3);margin-bottom:16px;">Se usa la plantilla institucional tal cual; solo se llenan sus espacios con los datos guardados del curso.</p>
     <div class="cl-warn" id="wx-warn"></div>
     <div class="fg"><label>Escuela (encabezado)</label><input type="text" id="wx-escuela" placeholder="Escuela de Ingeniería del Software"></div>
-    <div class="fg"><label>Carrera (encabezado)</label><input type="text" id="wx-carrera" placeholder="Maestría Profesional en…"></div>
+    <div class="fg"><label>Carrera (encabezado)</label><select id="wx-carrera-sel" style="display:none;width:100%"></select><input type="text" id="wx-carrera" placeholder="Maestría Profesional en…"></div>
     <label class="bk-opt" style="margin:-4px 0 16px"><input type="checkbox" id="wx-maestro" checked> <span id="wx-maestro-lbl">Completar con los datos más recientes de la hoja Maestro</span></label>
     <div class="cl-steps">
       <div class="cl-step"><h3><span class="num">1</span> Ficha</h3><p>Datos generales, competencia, cuadro de competencia, temario y tabla de evaluación con sus notas. El resto queda como en la plantilla.</p><button class="btn btn-primary btn-sm" onclick="downloadWord('ficha')"><span class="ic" aria-hidden="true">⤓</span> Descargar ficha</button></div>
@@ -649,6 +709,39 @@ body::after{display:none;} /* kill noise overlay */
     <div class="modal-actions" style="margin-top:16px"><button class="btn btn-ghost" onclick="closeWordExport()">Cerrar</button></div>
   </div>
 </div>
+
+<!-- Modal: Tomo II -->
+<div class="overlay" id="modal-tomo">
+  <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto">
+    <div class="modal-ico"><span class="ic" aria-hidden="true">▤</span></div>
+    <h2>Descargar Tomo II</h2>
+    <p style="font-size:14px;color:var(--ink-3);margin-bottom:16px;">Todos los programas del proyecto en un solo Word, con portada, tabla de contenido y una separación por cuatrimestre. El nivel 0 sale como <strong>Nivelatorio</strong>.</p>
+    <div id="tx-resumen" class="tx-resumen"></div>
+    <div class="fg"><label>Carrera (encabezado de cada programa)</label><select id="tx-carrera-sel" style="display:none"></select><input type="text" id="tx-carrera"></div>
+    <div class="fg"><label>Escuela</label><input type="text" id="tx-escuela"></div>
+    <div class="fg"><label>Texto de la portada</label><textarea id="tx-portada" rows="3" style="width:100%;border:1.5px solid var(--border-2);border-radius:var(--rs);padding:10px 12px;font-family:var(--sans);font-size:14px;resize:vertical"></textarea></div>
+    <div class="fg"><label>Fecha de la portada</label><input type="text" id="tx-fecha" placeholder="Octubre, 2026"></div>
+    <label class="bk-opt"><input type="checkbox" id="tx-solo" checked> Incluir solo los cursos que ya tienen programa (competencia y temario)</label>
+    <label class="bk-opt" style="margin-bottom:12px"><input type="checkbox" id="tx-maestro" checked> Completar con los datos más recientes de la hoja Maestro</label>
+    <div id="tx-progress" style="font-size:13px;color:var(--ink-3);min-height:18px;margin-bottom:8px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeTomoExport()">Cancelar</button>
+      <button class="btn btn-primary" id="tx-btn" onclick="downloadTomo()"><span class="ic" aria-hidden="true">⤓</span> Descargar Tomo II</button>
+    </div>
+  </div>
+</div>
+
+<!-- Navegación rápida entre cursos -->
+<div class="cnav-backdrop" id="cnav-backdrop" onclick="toggleCourseNav(false)"></div>
+<aside class="cnav" id="cnav" aria-label="Cursos del proyecto">
+  <div class="cnav-head">
+    <div class="row"><h3 id="cnav-title">Cursos</h3><button class="cnav-x" onclick="toggleCourseNav(false)" aria-label="Cerrar">×</button></div>
+    <input class="cnav-search" id="cnav-search" placeholder="Buscar por código o nombre…" oninput="renderCourseNav()" onkeydown="cnavKey(event)">
+    <div class="cnav-legend"><span><span class="sdot on"></span>Ficha</span><span><span class="sdot on"></span>Programa</span></div>
+    <div class="cnav-stats" id="cnav-stats"></div>
+  </div>
+  <div class="cnav-list" id="cnav-list"></div>
+</aside>
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
@@ -1407,7 +1500,7 @@ function buildPrompt(pkey, course, saved, secId) {
     const name = course['Curso']||course['Nombre']||'';
     return customPrompts[pkey]
       .replace(/\[NOMBRE DEL CURSO\]/g, name)
-      .replace(/\[CARRERA\]/g, currentProject?.career||'');
+      .replace(/\[CARRERA\]/g, projectCareers().join(' / '));
   }
   const c = course;
   const s = saved;
@@ -1698,7 +1791,7 @@ function showCourseWork(course){
   meta.innerHTML=[
     course['Créditos']?`<span class="mpill"><span class="ic" aria-hidden="true">⚡</span> ${course['Créditos']} cr.</span>`:'',
     (course['Horas Docencia']||course['Lectivas'])?`<span class="mpill"><span class="ic" aria-hidden="true">🕐</span> ${course['Horas Docencia']||course['Lectivas']}h</span>`:'',
-    (course['Periodo']||course['Ubicación'])?`<span class="mpill"><span class="ic" aria-hidden="true">◉</span> Período ${course['Periodo']||course['Ubicación']}</span>`:'',
+    (course['Periodo']||course['Ubicación'])?`<span class="mpill"><span class="ic" aria-hidden="true">◉</span> ${escHtml(periodLabel(coursePeriod(course,{})))}</span>`:'',
     course['Requisitos']?`<span class="mpill" title="${course['Requisitos']}"><span class="ic" aria-hidden="true">☑</span> ${(course['Requisitos']||'').slice(0,28)}…</span>`:'',
   ].join('');
   document.getElementById('back-proj-btn').onclick=()=>showProject(currentProject.id);
@@ -1719,35 +1812,54 @@ function renderProjects(){
   projects.forEach(p=>{
     const card=document.createElement('div');
     card.className='project-card';
-    card.innerHTML=`<div class="pc-stripe"></div><div class="pc-icon"><span class="ic" aria-hidden="true">▤</span></div><h3>${p.name}</h3>${p.career?`<div style="font-size:12px;color:var(--ink3);margin-bottom:4px">${p.career}</div>`:''}<div class="pc-url">${p.url}</div><div class="pc-foot"><span class="pc-date">${new Date(p.created).toLocaleDateString('es-CR')}</span><button class="del-btn" onclick="event.stopPropagation();delProject('${p.id}')" title="Eliminar"><span class="ic" aria-hidden="true">×</span></button></div>`;
+    card.innerHTML=`<div class="pc-stripe"></div><div class="pc-icon"><span class="ic" aria-hidden="true">▤</span></div><h3>${p.name}</h3>${p.career?`<div style="font-size:12px;color:var(--ink3);margin-bottom:4px">${escHtml(p.career)}${p.career2?`<br>${escHtml(p.career2)}`:''}</div>`:''}<div class="pc-url">${p.url}</div><div class="pc-foot"><span class="pc-date">${new Date(p.created).toLocaleDateString('es-CR')}</span><span style="display:flex;gap:6px"><button class="del-btn" onclick="event.stopPropagation();openProjectModal('${p.id}')" title="Editar proyecto"><span class="ic" aria-hidden="true">✎</span></button><button class="del-btn" onclick="event.stopPropagation();delProject('${p.id}')" title="Eliminar"><span class="ic" aria-hidden="true">×</span></button></span></div>`;
     card.addEventListener('click',()=>showProject(p.id));
     grid.appendChild(card);
   });
   const add=document.createElement('div');
   add.className='add-card';
   add.innerHTML='<div class="plus">+</div><span>Agregar proyecto</span>';
-  add.onclick=()=>document.getElementById('modal-add').classList.add('active');
+  add.onclick=()=>openProjectModal(null);
   grid.appendChild(add);
   if(window.__renderIcons) window.__renderIcons();
 }
-function createProject(){
-  const name   = document.getElementById('in-name').value.trim();
-  const career = document.getElementById('in-career').value.trim();
-  const url    = document.getElementById('in-url').value.trim();
-  if(!name||!url){toast('Completa nombre y URL','error');return;}
-  if(!extractSheetId(url)){toast('URL inválida de Google Sheets','error');return;}
+let editingProjectId=null;
+const PROJ_FIELDS={name:'in-name',career:'in-career',career2:'in-career2',nivel:'in-nivel',escuela:'in-escuela',url:'in-url'};
+function openProjectModal(pid){
+  editingProjectId=pid||null;
+  const p=pid?projects.find(x=>x.id===pid):null;
+  Object.entries(PROJ_FIELDS).forEach(([k,id])=>{ document.getElementById(id).value = p ? (p[k]||'') : ''; });
+  document.getElementById('proj-modal-title').textContent = p ? 'Editar proyecto' : 'Nuevo proyecto';
+  document.getElementById('proj-modal-btn').innerHTML = p ? 'Guardar cambios' : 'Crear proyecto <span class="ic" aria-hidden="true">→</span>';
+  document.getElementById('modal-add').classList.add('active');
+}
+function saveProjectModal(){
+  const v={}; Object.entries(PROJ_FIELDS).forEach(([k,id])=>v[k]=document.getElementById(id).value.trim());
+  if(!v.name||!v.url){toast('Completa nombre y URL','error');return;}
+  if(!extractSheetId(v.url)){toast('URL inválida de Google Sheets','error');return;}
+  if(editingProjectId){
+    const p=projects.find(x=>x.id===editingProjectId);
+    Object.assign(p, v, {sheetId:extractSheetId(v.url)});
+    localStorage.setItem('dcd_projects',JSON.stringify(projects));
+    autoBackup(); closeModal(); renderProjects();
+    if(currentProject && currentProject.id===p.id){
+      document.getElementById('proj-name-disp').textContent = p.name;
+      document.getElementById('proj-url-disp').textContent = (p.url||'').slice(0,55)+'…';
+    }
+    toast(`✓ Proyecto "${p.name}" actualizado`,'success');
+    return;
+  }
   const id=Date.now().toString();
-  projects.push({id,name,career,url,sheetId:extractSheetId(url),created:Date.now()});
+  projects.push(Object.assign({id},v,{sheetId:extractSheetId(v.url),created:Date.now()}));
   localStorage.setItem('dcd_projects',JSON.stringify(projects));
   autoBackup();
   closeModal();
-  document.getElementById('in-name').value='';
-  document.getElementById('in-career').value='';
-  document.getElementById('in-url').value='';
   renderProjects();
-  toast(`✓ Proyecto "${name}" creado`,'success');
+  toast(`✓ Proyecto "${v.name}" creado`,'success');
   setTimeout(()=>showProject(id),350);
 }
+function createProject(){ editingProjectId=null; saveProjectModal(); }
+function projectCareers(p=currentProject){ return [p?.career, p?.career2].map(x=>String(x||'').trim()).filter(Boolean); }
 function delProject(id){
   if(!confirm('¿Eliminar este proyecto?')) return;
   projects=projects.filter(p=>p.id!==id);
@@ -1793,7 +1905,7 @@ function renderPeriodTabs(periods){
   tabs.innerHTML=`<button class="ptab active" onclick="filterP('all',this)">Todos</button>`;
   periods.forEach(p=>{
     const b=document.createElement('button');
-    b.className='ptab';b.textContent=`Período ${p}`;
+    b.className='ptab';b.textContent=periodLabel(/^\d+$/.test(String(p))?parseInt(p):p);
     b.onclick=function(){filterP(p,this);};
     tabs.appendChild(b);
   });
@@ -1815,9 +1927,10 @@ function renderTable(courses){
     const saved=maestroData[sid]?.[code]||{};
     const filled=ALL_SECS.filter(s=>saved[s.id]?.trim()).length;
     const pct=Math.round(filled/ALL_SECS.length*100);
-    let badge=pct===0?`<span class="badge b-empty">Pendiente</span>`:pct<100?`<span class="badge b-partial">${pct}% completado</span>`:`<span class="badge b-done">Completo</span>`;
+    const st=courseStage(saved);
+    let badge=`<span class="chip${st.ficha?' on':''}">${st.ficha?'✓':'○'} Ficha</span><span class="chip${st.programa?' on':''}">${st.programa?'✓':'○'} Programa</span>`;
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td class="td-code">${code}</td><td class="td-name">${c['Curso']||c['Nombre']||''}</td><td class="td-m">${c['Créditos']||''}</td><td class="td-m">${c['Periodo']||c['Ubicación']||''}</td><td>${badge}</td><td><div class="row-actions"><button class="mini-btn" data-act="ficha" title="Generar la ficha con Claude">1 · Ficha</button><button class="mini-btn" data-act="programa" title="Generar el programa completo con Claude">2 · Programa</button><button class="work-btn">Trabajar <span class="ic" aria-hidden="true">→</span></button></div></td>`;
+    tr.innerHTML=`<td class="td-code">${code}</td><td class="td-name">${c['Curso']||c['Nombre']||''}</td><td class="td-m">${c['Créditos']||''}</td><td class="td-m">${escHtml(periodLabel(coursePeriod(c,saved)))}</td><td>${badge}</td><td><div class="row-actions"><button class="mini-btn" data-act="ficha" title="Generar la ficha con Claude">1 · Ficha</button><button class="mini-btn" data-act="programa" title="Generar el programa completo con Claude">2 · Programa</button><button class="work-btn">Trabajar <span class="ic" aria-hidden="true">→</span></button></div></td>`;
     tr.querySelector('.work-btn').onclick=e=>{e.stopPropagation();showCourseWork(c);};
     tr.querySelectorAll('.mini-btn').forEach(b=>b.onclick=e=>{e.stopPropagation();showCourseWork(c);openClaudeFlow(b.dataset.act);});
     tr.onclick=()=>showCourseWork(c);
@@ -1825,7 +1938,11 @@ function renderTable(courses){
   });
   if(window.__renderIcons) window.__renderIcons();
   table.appendChild(tbody);wrap.appendChild(table);
-  cont.innerHTML='';cont.appendChild(wrap);
+  cont.innerHTML='';
+  const all=allCourses||[]; const nf=all.filter(c=>courseStage(savedForCourse(c)).ficha).length, np=all.filter(c=>courseStage(savedForCourse(c)).programa).length;
+  const sum=document.createElement('div'); sum.className='proj-summary';
+  sum.innerHTML=`<span><strong>${nf}</strong> de ${all.length} fichas listas</span><span><strong>${np}</strong> de ${all.length} programas listos</span><span>Tip: <span class="kbd">Ctrl K</span> para saltar a cualquier curso</span>`;
+  cont.appendChild(sum); cont.appendChild(wrap);
 }
 async function syncSheets(){
   const btn=document.getElementById('sync-btn');
@@ -1933,7 +2050,85 @@ function saveSection(){
   toast(`✓ "${currentSection.label}" guardado localmente`,'success');
 }
 
+/* ── Estado de cada curso y navegación rápida ── */
+function courseStage(saved){
+  saved=saved||{};
+  const ficha = fichaMissing(saved).length===0;
+  const programa = ficha && ['metodologias','estrategias','eva_desc1','cronograma'].every(k=>String(saved[k]||'').trim());
+  return {ficha, programa};
+}
+function orderedCourses(){
+  const col=new Intl.Collator('es',{numeric:true});
+  return (allCourses||[]).map(c=>({c, per:coursePeriod(c, savedForCourse(c))}))
+    .sort((a,b)=>((a.per??999)-(b.per??999)) || col.compare(a.c['Código']||'', b.c['Código']||''));
+}
+let cnavSel=0;
+function renderCourseNav(){
+  const list=document.getElementById('cnav-list'); if(!list||!currentProject) return;
+  const q=(document.getElementById('cnav-search').value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const all=orderedCourses();
+  const items=all.filter(({c})=>!q || ((c['Código']||'')+' '+(c['Curso']||c['Nombre']||'')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(q));
+  let html='', last, idx=0; const curCode=currentCourse?.['Código'];
+  items.forEach(({c,per})=>{
+    if(per!==last){ html+=`<div class="cnav-group">${escHtml(periodLabel(per))}</div>`; last=per; }
+    const st=courseStage(savedForCourse(c)); const code=c['Código']||'';
+    html+=`<button class="cnav-item${code===curCode?' active':''}${q&&idx===cnavSel?' kb':''}" data-code="${escHtml(code)}" title="${escHtml(c['Curso']||c['Nombre']||'')}"><span class="c">${escHtml(code)}</span><span class="n">${escHtml(c['Curso']||c['Nombre']||'')}</span><span class="cnav-dots"><span class="sdot${st.ficha?' on':''}" title="Ficha"></span><span class="sdot${st.programa?' on':''}" title="Programa"></span></span></button>`;
+    idx++;
+  });
+  list.innerHTML = html || '<div style="padding:16px;font-size:13px;color:var(--ink-3)">Ningún curso coincide.</div>';
+  list.querySelectorAll('.cnav-item').forEach(b=>b.onclick=()=>{ const c=allCourses.find(x=>x['Código']===b.dataset.code); if(c){ toggleCourseNav(false); showCourseWork(c);} });
+  const nf=all.filter(x=>courseStage(savedForCourse(x.c)).ficha).length, np=all.filter(x=>courseStage(savedForCourse(x.c)).programa).length;
+  document.getElementById('cnav-stats').textContent=`${nf} de ${all.length} fichas · ${np} de ${all.length} programas · ↑↓ y Enter para elegir`;
+  document.getElementById('cnav-title').textContent=currentProject.name||'Cursos';
+  list.querySelectorAll('.cnav-item.kb').forEach(b=>{ b.style.outline='2px solid var(--blue)'; b.scrollIntoView({block:'nearest'}); });
+}
+function cnavKey(e){
+  const n=document.querySelectorAll('#cnav-list .cnav-item').length;
+  if(e.key==='ArrowDown'){ cnavSel=Math.min(n-1,cnavSel+1); e.preventDefault(); renderCourseNav(); }
+  else if(e.key==='ArrowUp'){ cnavSel=Math.max(0,cnavSel-1); e.preventDefault(); renderCourseNav(); }
+  else if(e.key==='Enter'){ const b=document.querySelectorAll('#cnav-list .cnav-item')[e.target.value?cnavSel:0]; if(b) b.click(); }
+  else if(e.key==='Escape'){ toggleCourseNav(false); }
+  else cnavSel=0;
+}
+function toggleCourseNav(force){
+  const nav=document.getElementById('cnav'); const open = force===undefined ? !nav.classList.contains('open') : force;
+  if(open && !(allCourses||[]).length){ toast('Abrí un proyecto para ver sus cursos','error'); return; }
+  nav.classList.toggle('open',open); document.getElementById('cnav-backdrop').classList.toggle('open',open);
+  if(open){ const sb=document.getElementById('cnav-search'); sb.value=''; cnavSel=0; renderCourseNav(); setTimeout(()=>sb.focus(),60); setTimeout(()=>document.querySelector('#cnav-list .cnav-item.active')?.scrollIntoView({block:'center'}),80); }
+}
+function gotoSibling(d){
+  const all=orderedCourses(); const i=all.findIndex(x=>x.c['Código']===currentCourse?.['Código']);
+  const t=all[i+d]; if(t) showCourseWork(t.c);
+}
+function updateCourseRoute(){
+  const r=document.getElementById('course-route'); if(!r||!currentCourse) return;
+  const st=courseStage(currentSaved());
+  const next = !st.ficha ? 'ficha' : !st.programa ? 'programa' : 'word';
+  const step=(k,n,label,done)=>`<div class="route-step${done?' done':''}${next===k?' next':''}"><span class="rs-n">${done?'✓':n}</span>${label}</div>`;
+  const hints={ficha:['Siguiente paso: generá la ficha con Claude o subí la ficha aprobada.','openClaudeFlow(\'ficha\')','Hacer la ficha'],
+               programa:['Siguiente paso: la ficha está lista; generá el programa completo.','openClaudeFlow(\'programa\')','Programa completo'],
+               word:['El programa está completo: guardalo en el Maestro y descargalo en Word.','openWordExport()','Descargar en Word']};
+  const h=hints[next];
+  r.innerHTML = step('ficha',1,'Ficha',st.ficha)+'<span class="route-sep"></span>'+step('programa',2,'Programa',st.programa)+'<span class="route-sep"></span>'+step('word',3,'Word',false)
+    + `<div class="route-hint">${h[0]}<button class="btn btn-primary btn-sm" onclick="${h[1]}">${h[2]} →</button></div>`;
+  ['ab-ficha','ab-prog','ab-word'].forEach((id,i)=>document.getElementById(id)?.classList.toggle('next-act', ['ficha','programa','word'][i]===next));
+  const all=orderedCourses(); const i=all.findIndex(x=>x.c['Código']===currentCourse['Código']);
+  const pv=document.getElementById('nav-prev'), nx=document.getElementById('nav-next');
+  pv.disabled=i<=0; nx.disabled=i<0||i>=all.length-1;
+  pv.title = i>0 ? `Anterior: ${all[i-1].c['Código']} ${all[i-1].c['Curso']||''} (Alt + ↑)` : 'Primer curso';
+  nx.title = i>=0&&i<all.length-1 ? `Siguiente: ${all[i+1].c['Código']} ${all[i+1].c['Curso']||''} (Alt + ↓)` : 'Último curso';
+}
+document.addEventListener('keydown',e=>{
+  const onCourse=document.getElementById('screen-course')?.classList.contains('active');
+  const onProject=document.getElementById('screen-project')?.classList.contains('active');
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k' && (onCourse||onProject)){ e.preventDefault(); toggleCourseNav(); }
+  if(e.altKey && onCourse && (e.key==='ArrowDown'||e.key==='ArrowUp')){ e.preventDefault(); gotoSibling(e.key==='ArrowDown'?1:-1); }
+  if(e.key==='Escape' && document.getElementById('cnav')?.classList.contains('open')) toggleCourseNav(false);
+});
+
 function updateProgress(){
+  updateCourseRoute();
+  if(document.getElementById('cnav')?.classList.contains('open')) renderCourseNav();
   const sid=currentProject?.sheetId;
   const code=currentCourse?.['Código']||'';
   const saved=maestroData[sid]?.[code]||{};
@@ -2943,7 +3138,9 @@ function stripModPrefix(t){ return String(t||'').replace(/^(m[oó]dulo)\s+\d+[.:
 const SKIP_COURSE_KEYS = /^(Sesion_|Cronograma_|Actividades_EN_|Eva_|Porcen_|Cantidad_|Bibliografia|Metodolog|Estrategias|Recursos|Descripci|Tipo_Evaluacion)/i;
 function courseDataLines(course){
   const lines=[];
-  if(currentProject?.career) lines.push(`- Carrera: ${currentProject.career}`);
+  const cars=projectCareers();
+  if(cars.length) lines.push(`- Carrera: ${cars.join(' / ')}`);
+  if(currentProject?.nivel) lines.push(`- Nivel: ${currentProject.nivel}`);
   if(currentProject?.name) lines.push(`- Proyecto: ${currentProject.name}`);
   Object.entries(course||{}).forEach(([k,v])=>{
     const val=String(v??'').trim();
@@ -3681,10 +3878,10 @@ function courseDatos(course, saved){
     'Ubicación': pick(fd['Ubicación'], c['Ubicación'], c['Periodo']),
     'Requisitos': pick(c['Requisitos'], fd['Requisitos'], 'No aplica'),
     'Correquisitos': pick(c['Correquisitos'], fd['Correquisitos'], 'No aplica'),
-    'Nivel': pick(c['Nivel'], fd['Nivel']),
+    'Nivel': pick(currentProject?.nivel, c['Nivel'], fd['Nivel']),
     'Profesor': pick(fd['Profesor'], 'Por definir'),
     'Sede': pick(c['Sede'], fd['Sede'], 'Central'),
-    _escuela: pick(fd._escuela),
+    _escuela: pick(currentProject?.escuela, fd._escuela),
     _carrera: pick(fd._carrera, currentProject?.career),
   };
 }
@@ -3695,7 +3892,7 @@ async function buildDocx(mode, opts){
   const xmlStr = await zip.file('word/document.xml').async('string');
   const doc = new DOMParser().parseFromString(xmlStr, 'text/xml');
   const body = wEls(doc,'body')[0];
-  const s = opts.saved || currentSaved(); const c = currentCourse||{};
+  const s = opts.saved || currentSaved(); const c = opts.course || currentCourse||{};
   const prog = mode==='programa';
   const datos = courseDatos(c, s);
   const find = (re, from=0)=>{ const b=bodyBlocks(body); for(let i=from;i<b.length;i++){ if(b[i].localName==='p' && re.test(pText(b[i]))) return b[i]; } return null; };
@@ -3927,17 +4124,185 @@ async function buildDocx(mode, opts){
     }
   }
 
+  if (opts.returnDoc) return { zip, doc };
   const out = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + new XMLSerializer().serializeToString(doc).replace(/^<\?xml[^>]*\?>\s*/,'');
   zip.file('word/document.xml', out);
   return zip.generateAsync({type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', compression:'DEFLATE'});
+}
+
+/* ══════════════════════════════════════════════════════
+   TOMO II — todos los programas, agrupados por cuatrimestre
+══════════════════════════════════════════════════════ */
+const ORDINALES=['Primer','Segundo','Tercer','Cuarto','Quinto','Sexto','Séptimo','Octavo','Noveno','Décimo','Undécimo','Duodécimo'];
+function coursePeriod(c, saved){
+  const fd=safeJSON(saved?._datos||'{}',{});
+  const raw=String(c?.['Periodo']??c?.['Ubicación']??fd['Ubicación']??'').trim();
+  if(/nivel/i.test(raw)) return 0;
+  const m=raw.match(/\d+/); return m?parseInt(m[0]):null;
+}
+function periodLabel(n){
+  if(n===0) return 'Nivelatorio';
+  if(n==null) return 'Otros cursos';
+  return (ORDINALES[n-1]||(n+'º'))+' cuatrimestre';
+}
+function savedForCourse(c){ return maestroData[currentProject?.sheetId]?.[c['Código']]||{}; }
+function courseHasProgram(saved){ return !!(String(saved.competencia||'').trim() && String(saved.modulos||'').trim()); }
+
+function openTomoExport(){
+  if(!currentProject){ toast('Abrí un proyecto primero','error'); return; }
+  if(!allCourses?.length){ toast('Primero se deben cargar los cursos del proyecto','error'); return; }
+  let pref={}; try{ pref=JSON.parse(localStorage.getItem('dcd_tomo_'+currentProject.id)||'{}'); }catch(e){}
+  const cars=projectCareers(); const sel=document.getElementById('tx-carrera-sel'); const inp=document.getElementById('tx-carrera');
+  if(cars.length>1){ sel.innerHTML=cars.map(c=>`<option>${escHtml(c)}</option>`).join(''); sel.value=cars.includes(pref.carrera)?pref.carrera:cars[0]; sel.style.display=''; inp.style.display='none'; }
+  else { sel.style.display='none'; inp.style.display=''; inp.value=cars[0]||pref.carrera||''; }
+  document.getElementById('tx-escuela').value = currentProject.escuela || pref.escuela || '';
+  const carrera = cars[0]||'[carrera]';
+  document.getElementById('tx-portada').value = pref.portada || `Solicitud de apertura de la ${carrera} en modalidad presencial, con base en el artículo 27 del Reglamento General del CONESUP (TRÁMITE NUEVO)`;
+  const now=new Date(); const mes=now.toLocaleDateString('es-CR',{month:'long'});
+  document.getElementById('tx-fecha').value = pref.fecha || `${mes[0].toUpperCase()+mes.slice(1)}, ${now.getFullYear()}`;
+  const mc=document.getElementById('tx-maestro'); mc.disabled=!gAccessToken; mc.checked=!!gAccessToken;
+  // Resumen por cuatrimestre
+  const groups={}; allCourses.forEach(c=>{ const k=coursePeriod(c,savedForCourse(c)); (groups[k??'x']=groups[k??'x']||[]).push(c); });
+  const keys=Object.keys(groups).sort((a,b)=>(a==='x')-(b==='x')||a-b);
+  document.getElementById('tx-resumen').innerHTML = keys.map(k=>{
+    const cs=groups[k]; const sin=cs.filter(c=>!courseHasProgram(savedForCourse(c))).length;
+    return `<div class="tx-row"><strong>${periodLabel(k==='x'?null:+k)}</strong><span>${cs.length} curso${cs.length>1?'s':''}${sin?` · <em>${sin} sin programa</em>`:''}</span></div>`;
+  }).join('');
+  document.getElementById('tx-progress').textContent='';
+  document.getElementById('modal-tomo').classList.add('active');
+}
+function closeTomoExport(){ document.getElementById('modal-tomo').classList.remove('active'); }
+
+async function downloadTomo(){
+  const selC=document.getElementById('tx-carrera-sel');
+  const carrera=(selC.style.display!=='none'?selC.value:document.getElementById('tx-carrera').value).trim();
+  const escuela=document.getElementById('tx-escuela').value.trim();
+  const portada=document.getElementById('tx-portada').value.trim();
+  const fecha=document.getElementById('tx-fecha').value.trim();
+  const soloCompletos=document.getElementById('tx-solo').checked;
+  try{ localStorage.setItem('dcd_tomo_'+currentProject.id, JSON.stringify({carrera,escuela,portada,fecha})); }catch(e){}
+  const prog=document.getElementById('tx-progress'); const btn=document.getElementById('tx-btn'); btn.disabled=true;
+  try{
+    // Datos del Maestro (una sola lectura)
+    let mRows=null;
+    if(document.getElementById('tx-maestro').checked && gAccessToken){
+      prog.textContent='Leyendo la hoja Maestro…';
+      try{ const {headers,rows,codeIdx}=await readMaestro(extractSheetId(currentProject.url)); mRows={}; rows.forEach(r=>{ mRows[normCode(r[codeIdx])]=maestroRowToSaved(headers,r); }); }
+      catch(e){ toast('No se pudo leer el Maestro; se usan los datos de la app','error'); }
+    }
+    const list=allCourses.map(c=>{
+      let saved=Object.assign({}, savedForCourse(c));
+      const fm=mRows?.[normCode(c['Código'])]; if(fm) Object.entries(fm).forEach(([k,v])=>{ if(String(v||'').trim()) saved[k]=v; });
+      return {c, saved, per:coursePeriod(c,saved)};
+    }).filter(x=>!soloCompletos || courseHasProgram(x.saved));
+    if(!list.length){ toast('No hay cursos con programa para incluir','error'); btn.disabled=false; return; }
+    const collator=new Intl.Collator('es',{numeric:true});
+    list.sort((a,b)=>((a.per??999)-(b.per??999)) || collator.compare(a.c['Código']||'', b.c['Código']||''));
+
+    // Base: la plantilla, vaciada
+    const base = await buildDocx('programa',{returnDoc:true, saved:{}, course:{}});
+    const doc=base.doc, zip=base.zip; const body=wEls(doc,'body')[0];
+    const sectPr=wKids(body,'sectPr')[0];
+    Array.from(body.childNodes).forEach(n=>{ if(n!==sectPr) body.removeChild(n); });
+    const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    const el=(tag,attrs={},kids=[])=>{ const e=doc.createElementNS(W,'w:'+tag); Object.entries(attrs).forEach(([k,v])=>e.setAttributeNS(W,'w:'+k,v)); kids.forEach(k=>k&&e.appendChild(k)); return e; };
+    const run=(text,{b=false,sz=null,br=null}={})=>{ const rPr=el('rPr',{},[el('rFonts',{ascii:'Arial',hAnsi:'Arial',cs:'Arial'}), b?el('b'):null, sz?el('sz',{val:String(sz)}):null, sz?el('szCs',{val:String(sz)}):null]); const r=el('r',{},[rPr]); if(br) r.appendChild(el('br',{type:br})); if(text!=null){ const t=el('t',{},[]); t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve'); t.textContent=text; r.appendChild(t);} return r; };
+    const para=(runs,{jc=null,style=null,before=null,after=null}={})=>{ const pPr=el('pPr',{},[style?el('pStyle',{val:style}):null, (before!=null||after!=null)?el('spacing',Object.assign({}, before!=null?{before:String(before)}:{}, after!=null?{after:String(after)}:{})):null, jc?el('jc',{val:jc}):null]); return el('p',{},[pPr,...runs]); };
+    const add=n=>body.insertBefore(n,sectPr);
+    const pageBreak=()=>add(el('p',{},[el('r',{},[el('br',{type:'page'})])]));
+
+    // Portada
+    add(para([run('UNIVERSIDAD CENFOTEC',{b:true,sz:36})],{jc:'center',before:1800,after:1200}));
+    add(para([run(portada,{sz:28})],{jc:'center',after:1800}));
+    add(para([run('Tomo II. Programas de los cursos',{b:true,sz:32})],{jc:'center',after:2400}));
+    add(para([run(fecha,{sz:24})],{jc:'center'}));
+    pageBreak();
+
+    // Tabla de contenido (campo de Word; se actualiza al abrir)
+    add(para([run('Tabla de contenido',{b:true,sz:28})],{after:240}));
+    const tocP=el('p'); const fb=el('fldChar',{fldCharType:'begin',dirty:'true'});
+    tocP.appendChild(el('r',{},[fb]));
+    const it=el('instrText'); it.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve'); it.textContent=' TOC \\o "1-2" \\h \\z \\u ';
+    tocP.appendChild(el('r',{},[it])); tocP.appendChild(el('r',{},[el('fldChar',{fldCharType:'separate'})]));
+    tocP.appendChild(run('Al abrir el documento, Word pregunta si actualiza los campos: respondé que sí para ver la tabla con sus páginas (o clic derecho aquí → Actualizar campo).'));
+    tocP.appendChild(el('r',{},[el('fldChar',{fldCharType:'end'})]));
+    add(tocP);
+
+    // numeración y dibujos únicos
+    const numXml=await zip.file('word/numbering.xml').async('string');
+    const ndoc=new DOMParser().parseFromString(numXml,'text/xml'); const nroot=ndoc.documentElement;
+    let nextNum=Math.max(0,...Array.from(ndoc.getElementsByTagNameNS(W,'num')).map(n=>parseInt(n.getAttributeNS(W,'numId')||n.getAttribute('w:numId'))||0))+1;
+    const absOf={}; Array.from(ndoc.getElementsByTagNameNS(W,'num')).forEach(n=>{ const a=n.getElementsByTagNameNS(W,'abstractNumId')[0]; absOf[n.getAttributeNS(W,'numId')||n.getAttribute('w:numId')]=a.getAttributeNS(W,'val')||a.getAttribute('w:val'); });
+    let docPrId=1000; let bmId=1;
+
+    let lastPer;
+    for(let i=0;i<list.length;i++){
+      const {c,saved,per}=list[i];
+      if(per!==lastPer){
+        pageBreak();
+        add(para([run(periodLabel(per))],{style:'Heading1',jc:'center',before:5600}));
+        lastPer=per;
+      }
+      prog.textContent=`Armando ${c['Código']||''} (${i+1} de ${list.length})…`;
+      await new Promise(r=>setTimeout(r,0));
+      const one=await buildDocx('programa',{returnDoc:true, saved, course:c, escuela, carrera});
+      const b2=wEls(one.doc,'body')[0];
+      // listas: cada programa reinicia su numeración
+      const map={};
+      Array.from(b2.getElementsByTagNameNS(W,'numId')).forEach(n=>{
+        const v=n.getAttributeNS(W,'val')||n.getAttribute('w:val'); if(!v||v==='0') return;
+        if(!map[v]){ const nid=String(nextNum++); map[v]=nid;
+          const num=ndoc.createElementNS(W,'w:num'); num.setAttributeNS(W,'w:numId',nid);
+          const an=ndoc.createElementNS(W,'w:abstractNumId'); an.setAttributeNS(W,'w:val',absOf[v]||'0'); num.appendChild(an);
+          for(let l=0;l<9;l++){ const lo=ndoc.createElementNS(W,'w:lvlOverride'); lo.setAttributeNS(W,'w:ilvl',String(l)); const so=ndoc.createElementNS(W,'w:startOverride'); so.setAttributeNS(W,'w:val','1'); lo.appendChild(so); num.appendChild(lo); }
+          nroot.appendChild(num); }
+        n.setAttributeNS(W,'w:val',map[v]);
+      });
+      Array.from(b2.getElementsByTagName('*')).forEach(e=>{
+        ['w14:paraId','w14:textId'].forEach(a=>e.removeAttribute(a));
+        if(e.localName==='docPr') e.setAttribute('id',String(docPrId++));
+        if(e.localName==='bookmarkStart'||e.localName==='bookmarkEnd'){ const idv=e.getAttributeNS(W,'id')||e.getAttribute('w:id'); e.setAttributeNS(W,'w:id',String(bmId*1000+(parseInt(idv)||0))); if(e.localName==='bookmarkStart'){ const nm=e.getAttributeNS(W,'name')||e.getAttribute('w:name'); e.setAttributeNS(W,'w:name',(nm||'_b')+'_'+bmId); } }
+      });
+      bmId++;
+      pageBreak();
+      Array.from(b2.childNodes).forEach(n=>{ if(n.nodeType===1 && n.localName!=='sectPr') add(doc.importNode(n,true)); });
+    }
+
+    // Word actualiza la tabla de contenido al abrir
+    let settings=await zip.file('word/settings.xml').async('string');
+    if(!/updateFields/.test(settings)){
+      const m=settings.match(/<w:(hdrShapeDefaults|footnotePr|endnotePr|compat|docVars|rsids|clrSchemeMapping)\b/);
+      settings = m ? settings.replace(m[0], '<w:updateFields w:val="true"/>'+m[0]) : settings.replace('</w:settings>','<w:updateFields w:val="true"/></w:settings>');
+    }
+    zip.file('word/settings.xml', settings);
+    zip.file('word/numbering.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+new XMLSerializer().serializeToString(ndoc).replace(/^<\?xml[^>]*\?>\s*/,''));
+    zip.file('word/document.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+new XMLSerializer().serializeToString(doc).replace(/^<\?xml[^>]*\?>\s*/,''));
+    prog.textContent='Comprimiendo el documento…';
+    const blob=await zip.generateAsync({type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', compression:'DEFLATE'});
+    const fname=`Tomo_II_Programas_de_los_cursos_${currentProject.name}.docx`.replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,'_');
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname; document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    toast(`✓ Tomo II descargado con ${list.length} programas`,'success');
+    closeTomoExport();
+  }catch(e){ console.error(e); toast('No se pudo generar el Tomo II: '+e.message,'error'); prog.textContent=''; }
+  btn.disabled=false;
 }
 
 function openWordExport(){
   if(!currentCourse||!currentProject){ toast('Abrí un curso primero','error'); return; }
   const s=currentSaved(); const d=courseDatos(currentCourse,s);
   let pref={}; try{ pref=JSON.parse(localStorage.getItem('dcd_word_'+currentProject.id)||'{}'); }catch(e){}
-  document.getElementById('wx-escuela').value = d._escuela || pref.escuela || '';
-  document.getElementById('wx-carrera').value = d._carrera || pref.carrera || currentProject.career || '';
+  document.getElementById('wx-escuela').value = currentProject.escuela || d._escuela || pref.escuela || '';
+  const cars=projectCareers(); const sel=document.getElementById('wx-carrera-sel'); const inp=document.getElementById('wx-carrera');
+  if(cars.length>1){
+    sel.innerHTML=cars.map(c=>`<option>${escHtml(c)}</option>`).join('');
+    const want=[pref.carrera, d._carrera].find(x=>x && cars.includes(x));
+    sel.value = want || cars[0];
+    sel.style.display=''; inp.style.display='none';
+  } else {
+    sel.style.display='none'; inp.style.display='';
+    inp.value = cars[0] || d._carrera || pref.carrera || '';
+  }
   const miss=fichaMissing(s);
   const w=document.getElementById('wx-warn');
   w.style.display = miss.length?'block':'none';
@@ -3956,7 +4321,8 @@ async function savedFromMaestroRow(){
 function closeWordExport(){ document.getElementById('modal-word')?.classList.remove('active'); }
 async function downloadWord(mode){
   const escuela=document.getElementById('wx-escuela').value.trim();
-  const carrera=document.getElementById('wx-carrera').value.trim();
+  const selC=document.getElementById('wx-carrera-sel');
+  const carrera=(selC.style.display!=='none' ? selC.value : document.getElementById('wx-carrera').value).trim();
   try{ localStorage.setItem('dcd_word_'+currentProject.id, JSON.stringify({escuela,carrera})); }catch(e){}
   const btns=document.querySelectorAll('#modal-word .btn-primary'); btns.forEach(b=>b.disabled=true);
   try{
