@@ -3038,7 +3038,7 @@ function buildFichaPrompt(){
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame la ficha completa, legible, para revisarla.
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
 ${FICHA_SCHEMA(code,name)}
-3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; cada actividad lleva de 1 a 3 evidencias breves que nombran lo que el estudiante entrega al docente ("Documento escrito que detalla el proceso y los resultados", "Presentación oral que defiende…", "Código base en el que…", "Simulación del…"); ninguna tecnología concreta en la competencia, los resultados de aprendizaje, los criterios ni las evidencias (usá el término genérico); actividades en minúscula y con artículo dentro de la oración; sin "dotar" ni "de modo". Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
+3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; las entregas suman 8 como máximo (el proyecto suele llevar 3 avances) y cada actividad lleva de 1 a 3 evidencias breves que nombran lo que el estudiante entrega al docente ("Documento escrito que detalla el proceso y los resultados", "Presentación oral que defiende…", "Código base en el que…", "Simulación del…"); ninguna tecnología concreta en la competencia, los resultados de aprendizaje, los criterios ni las evidencias (usá el término genérico); actividades en minúscula y con artículo dentro de la oración; sin "dotar" ni "de modo". Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
 4. Reglas del bloque: tres actividades en el orden del cuadro (la primera es el proyecto con 15 criterios; las otras dos llevan 8 criterios); porcentajes enteros que suman 100; cada elemento de una lista va sin viñetas ni numeración; los textos del bloque son idénticos a los de la ficha mostrada.`);
   return parts.join('\n\n');
 }
@@ -3056,7 +3056,7 @@ function buildProgramaPrompt(){
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame el programa completo, legible, para revisarlo.
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
 ${PROGRAMA_SCHEMA(code)}
-3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; el objeto de estudio va directo al objeto (sin "fundamentos de" ni "principios de"); ninguna tecnología concreta antes de recursos didácticos; actividades en minúscula y con artículo dentro de la oración ("las prácticas", "Las tareas favorecen"); sin "dotar" ni "de modo"; la evaluación formativa usa actividades distintas de las sumativas (resúmenes, mapas mentales, fichas de conceptos, glosario…) y el aprendizaje autónomo se vincula con ella; cada descripción de actividad tiene tres bloques (en qué consiste, qué deben realizar, qué contiene el entregable); el tercer bloque es detallado y sí puede enumerar los apartados de cada evidencia (por ejemplo, "un documento escrito que contiene la portada, la introducción, el marco teórico…"); el estudio de casos resalta lo investigativo; el cronograma tiene una sola actividad por semana desde la sesión 2, entregas seguidas sin intercalar, duración fija en las dos actividades que no son el proyecto y nunca dos entregas seguidas de la misma actividad (entre una etapa del proyecto y la siguiente va al menos otra actividad, para dar tiempo a la retroalimentación). Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
+3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; el objeto de estudio va directo al objeto (sin "fundamentos de" ni "principios de"); ninguna tecnología concreta antes de recursos didácticos; actividades en minúscula y con artículo dentro de la oración ("las prácticas", "Las tareas favorecen"); sin "dotar" ni "de modo"; la evaluación formativa usa actividades distintas de las sumativas (resúmenes, mapas mentales, fichas de conceptos, glosario…) y el aprendizaje autónomo se vincula con ella; cada descripción de actividad tiene tres bloques (en qué consiste, qué deben realizar, qué contiene el entregable); la descripción es UN solo párrafo con cinco partes en este orden: qué es, cómo se hace (una sola oración, sin narrar etapa por etapa), qué se entrega (detallado, aquí sí se enumeran los apartados de cada evidencia), la modalidad con la cantidad de avances y la oración "Esta estrategia de evaluación utiliza la siguiente rúbrica:"; el estudio de casos resalta lo investigativo; el cronograma tiene una sola actividad por semana desde la sesión 2, entregas seguidas sin intercalar, duración fija en las dos actividades que no son el proyecto, ninguna entrega de más de 3 semanas, 8 entregas como máximo en total y nunca dos entregas seguidas de la misma actividad (entre una etapa del proyecto y la siguiente va al menos otra actividad, para dar tiempo a la retroalimentación). Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
 4. Reglas del bloque: "actividades" lleva las tres actividades en el orden del cuadro, cada una con sus evidencias (las de la ficha, o las que creaste si no tenía) y la rúbrica de todos sus criterios (en "titulo" va solo el título corto del criterio); "cronograma" lleva las sesiones 1 a 14 (la 15 es fija), "modulo" es el número del módulo y "actividades" contiene solo las líneas propias de la sesión (inicio o cierre de entregas), sin las dos líneas fijas de lectura y participación; cada elemento de una lista va sin viñetas ni numeración. No busques ni propongas bibliografía: esa sección la completa el curriculista por aparte.`);
   return parts.join('\n\n');
 }
@@ -3251,6 +3251,9 @@ function checkCronograma(sch, evaRows){
     if (lines.some(closes)){ (durs[a]=durs[a]||[]).push(k-start+1); open=null; lastClosed=a; }
   }
   if (open) warn.push(`La última entrega de ${open} no se cierra antes de la sesión 15`);
+  Object.entries(durs).forEach(([a,ds])=>{ const big=ds.filter(d=>d>3); if(big.length) warn.push(`Una entrega de ${a} dura ${Math.max(...big)} semanas (máximo 3)`); });
+  const totalEnt=Object.values(durs).reduce((t,ds)=>t+ds.length,0);
+  if (totalEnt>8) warn.push(`El cronograma tiene ${totalEnt} entregas (máximo 8)`);
   const proj = norm(evaRows[0]?.name);
   Object.entries(durs).forEach(([a,ds])=>{ if(a!==proj && new Set(ds).size>1) warn.push(`Las entregas de ${a} no duran lo mismo (${ds.join(', ')} semanas)`); });
   evaRows.forEach(r=>{ const got=pctSum[norm(r.name)]; if(got!==undefined && got!==r.pct) warn.push(`Los porcentajes de ${r.name} en el cronograma suman ${got}% y en la tabla ${r.pct}%`); });
@@ -3608,25 +3611,36 @@ function cellParas(tc){ return wKids(tc,'p'); }
 // Texto de tablas: Arial 10, interlineado 1.15
 const RPR_AFTER_SZ = ['highlight','u','effect','bdr','shd','fitText','vertAlign','rtl','cs','em','lang','eastAsianLayout','specVanish','oMath'];
 const PPR_AFTER_SPACING = ['ind','contextualSpacing','mirrorIndents','suppressOverlap','jc','textDirection','textAlignment','textboxTightWrap','outlineLvl','divId','cnfStyle','rPr','sectPr','pPrChange'];
-function tableRPr(rPr){
+function tableRPr(rPr, sz='20'){
   const doc=rPr.ownerDocument;
   Array.from(rPr.childNodes).filter(n=>['rFonts','sz','szCs'].includes(n.localName)).forEach(n=>rPr.removeChild(n));
   const f=wEl(doc,'rFonts'); ['ascii','hAnsi','cs','eastAsia'].forEach(a=>wAttr(f,a,'Arial'));
   const st=wChild(rPr,'rStyle'); rPr.insertBefore(f, st?st.nextSibling:rPr.firstChild);
   const ref=Array.from(rPr.childNodes).find(n=>RPR_AFTER_SZ.includes(n.localName))||null;
-  ['sz','szCs'].forEach(t=>{ const e=wEl(doc,t); wAttr(e,'val','20'); rPr.insertBefore(e, ref); });
+  ['sz','szCs'].forEach(t=>{ const e=wEl(doc,t); wAttr(e,'val',sz); rPr.insertBefore(e, ref); });
   return rPr;
 }
-function tableFmt(p){
+function tableFmt(p, sz='20'){
   const doc=p.ownerDocument;
   let pPr=wChild(p,'pPr'); if(!pPr){ pPr=wEl(doc,'pPr'); p.insertBefore(pPr,p.firstChild); }
   let sp=wChild(pPr,'spacing');
   if(!sp){ sp=wEl(doc,'spacing'); const ref=Array.from(pPr.childNodes).find(n=>PPR_AFTER_SPACING.includes(n.localName))||null; pPr.insertBefore(sp,ref); }
   wAttr(sp,'line','276'); wAttr(sp,'lineRule','auto');
   let mrp=wChild(pPr,'rPr'); if(!mrp){ mrp=wEl(doc,'rPr'); const ref=Array.from(pPr.childNodes).find(n=>['sectPr','pPrChange'].includes(n.localName))||null; pPr.insertBefore(mrp,ref); }
-  tableRPr(mrp);
-  wKids(p,'r').forEach(r=>{ let rp=wChild(r,'rPr'); if(!rp){ rp=wEl(doc,'rPr'); r.insertBefore(rp,r.firstChild);} tableRPr(rp); });
+  tableRPr(mrp, sz);
+  wKids(p,'r').forEach(r=>{ let rp=wChild(r,'rPr'); if(!rp){ rp=wEl(doc,'rPr'); r.insertBefore(rp,r.firstChild);} tableRPr(rp, sz); });
   return p;
+}
+// Tablas que van en Arial 12 (datos generales y estrategias de evaluación)
+function tableFmtAll(tbl, sz){ wEls(tbl,'p').forEach(p=>tableFmt(p, sz)); }
+// Párrafos de lista sin espacio después (el último conserva el de la plantilla)
+function noSpaceAfter(p){
+  const doc=p.ownerDocument;
+  let pPr=wChild(p,'pPr'); if(!pPr){ pPr=wEl(doc,'pPr'); p.insertBefore(pPr,p.firstChild); }
+  let sp=wChild(pPr,'spacing');
+  if(!sp){ sp=wEl(doc,'spacing'); const ref=Array.from(pPr.childNodes).find(n=>PPR_AFTER_SPACING.includes(n.localName))||null; pPr.insertBefore(sp,ref); }
+  wAttr(sp,'after','0');
+  let cs=wChild(pPr,'contextualSpacing'); if(cs) pPr.removeChild(cs);
 }
 function setCell(tc, texts, opts={}){
   const ps=cellParas(tc); const proto=(opts.protoPara||ps[0]).cloneNode(true);
@@ -3707,6 +3721,7 @@ async function buildDocx(mode, opts){
     const k=wText(cs[0]).replace(/\s+/g,' ').trim();
     if (k in datos) setCell(cs[1], String(datos[k]).split('\n'));
   });
+  if (tDatos) tableFmtAll(tDatos, '24');
 
   // 4. Descripción (solo programa)
   const hDesc = find(/^descripci[oó]n del curso$/i);
@@ -3783,7 +3798,11 @@ async function buildDocx(mode, opts){
   const fillListAfter = (introRe, texts)=>{
     const intro=find(introRe); if(!intro) return;
     const ph=after(intro); if(!ph || ph.localName!=='p') return;
+    const parent=ph.parentNode; const nextNode=after(ph);
     replaceParas(ph, [ph], texts);
+    // Los nuevos párrafos quedan entre intro y nextNode: sin espacio entre ellos
+    const items=[]; let n=after(intro); while(n && n!==nextNode){ if(n.localName==='p') items.push(n); n=after(n); }
+    items.slice(0,-1).forEach(noSpaceAfter);
   };
   if (prog){
     fillListAfter(/^en el presente curso, se utilizan/i, lines(s.metodologias));
@@ -3813,6 +3832,7 @@ async function buildDocx(mode, opts){
     });
     setCell(cellsOf(totalRow)[1], [`${evaRows.reduce((t,r)=>t+r.pct,0)}%`]);
   }
+  if (tEva) tableFmtAll(tEva, '24');
 
   // 9. Descripción de cada actividad + rúbrica
   const rub = safeJSON(s._rubricas||'[]',[]);
@@ -3822,8 +3842,9 @@ async function buildDocx(mode, opts){
     let prev=t.previousSibling; while(prev && prev.nodeType!==1) prev=prev.previousSibling;
     const name = r?.name || (String(s[`e${n}`]||'').split('\n')[0]||'').trim();
     if (prev && prev.localName==='p'){
-      const desc = prog ? String(s[`eva_desc${n}`]||'').trim().replace(new RegExp('^'+name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*(\\([^)]*\\))?\\.?\\s*','i'),'') : '';
-      fillPara(prev, [{text:`${name} (${distLabel(r)}).`,bold:true},{text:(desc?' '+desc:'')+' Esta actividad de evaluación utiliza la siguiente rúbrica:',bold:false}]);
+      const desc = prog ? String(s[`eva_desc${n}`]||'').trim().replace(new RegExp('^'+name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*(\\([^)]*\\))?\\.?\\s*','i'),'')
+        .replace(/\s*Esta (estrategia|actividad) de evaluaci[oó]n utiliza la siguiente r[uú]brica:?\s*$/i,'') : '';
+      fillPara(prev, [{text:`${name} (${distLabel(r)}).`,bold:true},{text:(desc?' '+desc:'')+' Esta estrategia de evaluación utiliza la siguiente rúbrica:',bold:false}]);
     }
     const crit = lines(s[`cd${n}`]);
     const rr = (rub.find(x=>(x.nombre||'').toLowerCase()===name.toLowerCase()) || rub[i] || {}).rubrica || [];
