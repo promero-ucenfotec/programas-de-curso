@@ -2969,7 +2969,7 @@ const PROGRAMA_SCHEMA = (code)=>`{
   "estrategias_aprendizaje": ["un texto por actividad, en el orden del cuadro"],
   "tipos_evaluacion": {"diagnostica": "", "formativa": "", "sumativa": ""},
   "actividades": [
-    {"nombre": "nombre exacto de la ficha", "descripcion": "",
+    {"nombre": "nombre exacto de la ficha", "evidencias": ["de 1 a 3"], "descripcion": "",
      "rubrica": [{"criterio": "criterio copiado de la ficha", "titulo": "", "niveles": ["1 punto", "2 puntos", "3 puntos", "4 puntos"]}]}
   ],
   "recursos_didacticos": [""],
@@ -2995,7 +2995,7 @@ function buildFichaPrompt(){
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame la ficha completa, legible, para revisarla.
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
 ${FICHA_SCHEMA(code,name)}
-3. Recordá especialmente: ninguna tecnología concreta en la competencia, los resultados de aprendizaje, los criterios ni las evidencias (usá el término genérico); actividades en minúscula y con artículo dentro de la oración; sin "dotar" ni "de modo". Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
+3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; cada actividad lleva de 1 a 3 evidencias breves que nombran lo que el estudiante entrega al docente ("Documento escrito que detalla el proceso y los resultados", "Presentación oral que defiende…", "Código base en el que…", "Simulación del…"); ninguna tecnología concreta en la competencia, los resultados de aprendizaje, los criterios ni las evidencias (usá el término genérico); actividades en minúscula y con artículo dentro de la oración; sin "dotar" ni "de modo". Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
 4. Reglas del bloque: tres actividades en el orden del cuadro (la primera es el proyecto con 15 criterios; las otras dos llevan 8 criterios); porcentajes enteros que suman 100; cada elemento de una lista va sin viñetas ni numeración; los textos del bloque son idénticos a los de la ficha mostrada.`);
   return parts.join('\n\n');
 }
@@ -3005,7 +3005,7 @@ function buildProgramaPrompt(){
   const code=c['Código']||''; const name=c['Curso']||c['Nombre']||'';
   const hilo=safeJSON(s._hilo||'null',null);
   const parts=[];
-  parts.push(`Usá la skill pc-programa-completo para completar el programa del curso ${code} ${name} a partir de la ficha aprobada que sigue. No modifiques la ficha: el temario, la competencia, los resultados de aprendizaje, los criterios, las evidencias y los nombres de las actividades se usan tal cual.`);
+  parts.push(`Usá la skill pc-programa-completo para completar el programa del curso ${code} ${name} a partir de la ficha aprobada que sigue. No modifiques la ficha: el temario, la competencia, los resultados de aprendizaje, los criterios, las evidencias y los nombres de las actividades se usan tal cual. La única excepción son las evidencias: si una actividad no las trae, creá de 1 a 3, breves, que nombren lo que el estudiante entrega al docente.`);
   parts.push(`DATOS DEL CURSO\n${courseDataLines(c)}`);
   if(hilo) parts.push(`HILO CONDUCTOR\n- Núcleo del curso: ${hilo.nucleo||''}\n- Objeto de estudio: ${hilo.objeto_estudio||''}\n- Producto principal: ${hilo.producto_principal||''}\n- Uso de la inteligencia artificial: ${hilo.uso_ia||''}`);
   parts.push(`FICHA APROBADA\n\nCOMPETENCIA DEL CURSO\n${s.competencia||'(pendiente)'}\n\nCONTENIDOS TEMÁTICOS\n${currentTemarioText(c,s)||'(pendientes)'}\n\nCUADRO DE COMPETENCIA\n${cuadroText(s)||'(pendiente)'}\n\nTABLA DE EVALUACIÓN\n${evaTablaText(s)||'(pendiente: proponé 40 % para el proyecto y 30 % para cada una de las otras dos)'}`);
@@ -3013,8 +3013,8 @@ function buildProgramaPrompt(){
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame el programa completo, legible, para revisarlo.
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
 ${PROGRAMA_SCHEMA(code)}
-3. Recordá especialmente: el objeto de estudio va directo al objeto (sin "fundamentos de" ni "principios de"); ninguna tecnología concreta antes de recursos didácticos; actividades en minúscula y con artículo dentro de la oración ("las prácticas", "Las tareas favorecen"); sin "dotar" ni "de modo"; la evaluación formativa usa actividades distintas de las sumativas (resúmenes, mapas mentales, fichas de conceptos, glosario…) y el aprendizaje autónomo se vincula con ella; cada descripción de actividad tiene tres bloques (en qué consiste, qué deben realizar, qué contiene el entregable) y el estudio de casos resalta lo investigativo; el cronograma tiene una sola actividad por semana desde la sesión 2, entregas seguidas sin intercalar y duración fija en las dos actividades que no son el proyecto. Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
-4. Reglas del bloque: "actividades" lleva las tres actividades en el orden del cuadro, cada una con la rúbrica de todos sus criterios (en "titulo" va solo el título corto del criterio); "cronograma" lleva las sesiones 1 a 14 (la 15 es fija), "modulo" es el número del módulo y "actividades" contiene solo las líneas propias de la sesión (inicio o cierre de entregas), sin las dos líneas fijas de lectura y participación; cada elemento de una lista va sin viñetas ni numeración. No busques ni propongas bibliografía: esa sección la completa el curriculista por aparte.`);
+3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; el objeto de estudio va directo al objeto (sin "fundamentos de" ni "principios de"); ninguna tecnología concreta antes de recursos didácticos; actividades en minúscula y con artículo dentro de la oración ("las prácticas", "Las tareas favorecen"); sin "dotar" ni "de modo"; la evaluación formativa usa actividades distintas de las sumativas (resúmenes, mapas mentales, fichas de conceptos, glosario…) y el aprendizaje autónomo se vincula con ella; cada descripción de actividad tiene tres bloques (en qué consiste, qué deben realizar, qué contiene el entregable); el tercer bloque es detallado y sí puede enumerar los apartados de cada evidencia (por ejemplo, "un documento escrito que contiene la portada, la introducción, el marco teórico…"); el estudio de casos resalta lo investigativo; el cronograma tiene una sola actividad por semana desde la sesión 2, entregas seguidas sin intercalar, duración fija en las dos actividades que no son el proyecto y nunca dos entregas seguidas de la misma actividad (entre una etapa del proyecto y la siguiente va al menos otra actividad, para dar tiempo a la retroalimentación). Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
+4. Reglas del bloque: "actividades" lleva las tres actividades en el orden del cuadro, cada una con sus evidencias (las de la ficha, o las que creaste si no tenía) y la rúbrica de todos sus criterios (en "titulo" va solo el título corto del criterio); "cronograma" lleva las sesiones 1 a 14 (la 15 es fija), "modulo" es el número del módulo y "actividades" contiene solo las líneas propias de la sesión (inicio o cierre de entregas), sin las dos líneas fijas de lectura y participación; cada elemento de una lista va sin viñetas ni numeración. No busques ni propongas bibliografía: esa sección la completa el curriculista por aparte.`);
   return parts.join('\n\n');
 }
 
@@ -3153,6 +3153,13 @@ function programaToItems(d){
   const teTxt=[te.diagnostica&&`Evaluación diagnóstica: ${te.diagnostica.trim()}`, te.formativa&&`Evaluación formativa: ${te.formativa.trim()}`, te.sumativa&&`Evaluación sumativa: ${te.sumativa.trim()}`].filter(Boolean).join('\n');
   if(teTxt) items.push({label:'Tipos de evaluación', secId:'eva_tipo', value:teTxt, icon:'🔍'});
   const acts=(d.actividades||[]).slice(0,3);
+  const sv=currentSaved();
+  acts.forEach((a,i)=>{ const evs=cleanList(a.evidencias); if(!evs.length) return;
+    const cur=String(sv[`e${i+1}`]||'').split('\n').map(x=>x.trim()).filter(Boolean);
+    const curEv=cur.slice(1).map(cleanItem).filter(Boolean);
+    if(curEv.join('|')===evs.join('|')) return;
+    const nm=cur[0]||a.nombre||'';
+    items.push({label:`Evidencias ${i+1} · ${nm}${curEv.length?' (cambian las de la ficha)':' (nuevas: la ficha no las traía)'}`, secId:`e${i+1}`, value:[nm,...evs].join('\n'), icon:'📎'}); });
   acts.forEach((a,i)=>{ if(a.descripcion) items.push({label:`Descripción evaluación ${i+1} · ${a.nombre||''}`, secId:`eva_desc${i+1}`, value:a.descripcion.trim(), icon:'📝'}); });
   const rub=acts.map(a=>({nombre:a.nombre||'', rubrica:(a.rubrica||[]).map(r=>({criterio:r.criterio||'', titulo:r.titulo||'', niveles:cleanList(r.niveles)}))})).filter(a=>a.rubrica.length);
   if(rub.length){
@@ -3188,7 +3195,7 @@ function checkCronograma(sch, evaRows){
   const warn=[]; const norm=t=>String(t||'').toLowerCase().trim();
   const actOf = line => { const m=String(line).match(/^([^:]{2,120}):/); if(!m) return null; return m[1].replace(/\(\s*\d+\s*%\s*\)/,'').trim(); };
   const closes = line => /\(\s*\d+\s*%\s*\)\s*:/.test(line) || /\b(finaliza|realiza)\b/i.test(line);
-  let open=null, start=0; const durs={}; const pctSum={};
+  let open=null, start=0, lastClosed=null; const durs={}; const pctSum={};
   for (let k=2;k<=14;k++){
     const lines=String(sch[k]?.note||'').split('\n').map(x=>x.trim()).filter(Boolean);
     const acts=[...new Set(lines.map(actOf).filter(Boolean).map(norm))];
@@ -3196,9 +3203,9 @@ function checkCronograma(sch, evaRows){
     if (acts.length>1){ warn.push(`La sesión ${k} tiene más de una actividad`); }
     const a=acts[0];
     if (open && open!==a){ warn.push(`En la sesión ${k} empieza otra actividad sin haber entregado ${open}`); open=null; }
-    if (!open){ open=a; start=k; }
+    if (!open){ if(lastClosed===a) warn.push(`En la sesión ${k} empieza otra entrega de ${a} justo después de la anterior (falta otra actividad en medio para la retroalimentación)`); open=a; start=k; }
     lines.forEach(l=>{ const m=l.match(/\((\d+)\s*%\)/); if(m && norm(actOf(l))===a) pctSum[a]=(pctSum[a]||0)+parseInt(m[1]); });
-    if (lines.some(closes)){ (durs[a]=durs[a]||[]).push(k-start+1); open=null; }
+    if (lines.some(closes)){ (durs[a]=durs[a]||[]).push(k-start+1); open=null; lastClosed=a; }
   }
   if (open) warn.push(`La última entrega de ${open} no se cierra antes de la sesión 15`);
   const proj = norm(evaRows[0]?.name);
