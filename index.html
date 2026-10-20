@@ -539,13 +539,15 @@ body::after{display:none;} /* kill noise overlay */
 
   <!-- Ficha upload banner -->
   <div class="ficha-banner">
-    <button class="ficha-btn" onclick="document.getElementById('ficha-file-input').click()"><span class="ic" aria-hidden="true">↑</span> Subir Ficha (.docx)</button>
+    <button class="ficha-btn" onclick="document.getElementById('ficha-file-input').click()"><span class="ic" aria-hidden="true">↑</span> Subir ficha o programa (.docx)</button>
     <div class="ficha-loading" id="ficha-loading">
       <div class="spinner" style="width:18px;height:18px;border-width:2px;margin:0"></div>
       <span>Extrayendo datos de la ficha…</span>
     </div>
-    <span class="ficha-hint" id="ficha-hint">Extrae competencia, módulos y sistema de evaluación automáticamente</span>
+    <span class="ficha-hint" id="ficha-hint">Lee la ficha o el programa completo (revisado) y carga cada sección para actualizarla rápido</span>
     <input type="file" id="ficha-file-input" accept=".docx" onchange="uploadFicha(this)">
+    <button class="ficha-btn" style="margin-left:4px" onclick="openEsbozo()"><span class="ic" aria-hidden="true">▦</span> Esbozo del experto (.xlsx)</button>
+    <input type="file" id="esbozo-file-input" accept=".xlsx,.xls" style="display:none" onchange="loadEsbozoFile(this)">
   </div>
 
   <!-- Claude automation banner -->
@@ -707,6 +709,24 @@ body::after{display:none;} /* kill noise overlay */
       <div class="cl-step"><h3><span class="num">2</span> Programa completo</h3><p>Todo lo anterior más descripción, metodologías, estrategias, sistema de evaluación con rúbricas, recursos y cronograma (la bibliografía la agregás vos).</p><button class="btn btn-primary btn-sm" onclick="downloadWord('programa')"><span class="ic" aria-hidden="true">⤓</span> Descargar programa</button></div>
     </div>
     <div class="modal-actions" style="margin-top:16px"><button class="btn btn-ghost" onclick="closeWordExport()">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- Modal: Esbozo del experto -->
+<div class="overlay" id="modal-esbozo">
+  <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto">
+    <div class="modal-ico"><span class="ic" aria-hidden="true">▦</span></div>
+    <h2>Esbozo del experto</h2>
+    <p style="font-size:14px;color:var(--ink-3);margin-bottom:14px;">Trae del Excel del experto los temas, el sistema de evaluación, el proyecto, el software, la bibliografía y los insumos para la competencia. Elegí la hoja de este curso.</p>
+    <div class="fg"><label>Archivo</label>
+      <div style="display:flex;gap:8px;align-items:center"><span id="esb-file" style="flex:1;font-size:13px;color:var(--ink-2)">Ningún archivo cargado</span><button class="btn btn-ghost btn-sm" onclick="document.getElementById('esbozo-file-input').click()">Elegir Excel…</button></div>
+    </div>
+    <div class="fg"><label>Hoja del curso</label><select id="esb-sheet" onchange="previewEsbozo()"></select></div>
+    <div id="esb-preview" class="tx-resumen" style="display:none"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeEsbozo()">Cancelar</button>
+      <button class="btn btn-primary" id="esb-btn" onclick="importEsbozo()" disabled>Revisar e importar →</button>
+    </div>
   </div>
 </div>
 
@@ -2311,18 +2331,44 @@ function buildTematicasSentence(saved) {
 
   let sentence = '';
   if (mods.length) {
-    const modNames = mods.map(m =>
-      m.name.replace(/^(m[oó]dulo|module)\s+\d+[.:]?\s*/i,'').trim().toLowerCase()
-    );
-    sentence += 'Las principales temáticas por abordar son ' + listToSpanish(modNames) + '.';
+    const modNames = mods.map(m => withArticles(lowerFirst(m.name.replace(/^(m[oó]dulo|module)\s+\d+[.:]?\s*/i,'').trim())));
+    sentence += 'Las principales temáticas por abordar son ' + listY(modNames) + '.';
   }
   if (evaRows.length) {
-    const evaList = evaRows.map(r => r.name.toLowerCase()).join(', ').replace(/,([^,]+)$/, ' y$1');
+    const evaList = evaRows.map((r,i) => articleFor(lowerFirst(r.name), i===0) + ' ' + lowerFirst(r.name));
     if (sentence) sentence += ' ';
-    sentence += 'Las estrategias de evaluación son ' + evaList + '.';
+    sentence += 'Las estrategias de evaluación son ' + listY(evaList) + '.';
   }
   return sentence;
 }
+
+// ── Artículos en las listas de temas y actividades ──
+// "análisis del problema" → "el análisis del problema"; "especificación y calidad" → "la especificación y la calidad"
+function lowerFirst(t){ t=String(t||'').trim(); if(!t) return t; const w=t.split(/\s+/)[0]; return /^[A-ZÁÉÍÓÚÑ]{2,}$/.test(w) ? t : t[0].toLowerCase()+t.slice(1); }
+const MASC_A = /^(sistema|problema|programa|tema|esquema|diagrama|mapa|d[ií]a|clima|idioma|dilema|paradigma|teorema|axioma|lema|planeta|aroma|drama|enigma|prisma|s[ií]ntoma|panorama)s?$/i;
+const FEM_IS = /^(s[ií]ntesis|tesis|crisis|hip[oó]tesis|di[aá]lisis|par[aá]lisis|praxis|dosis|metamorfosis|g[eé]nesis)$/i;
+function nounGender(word){
+  const w=String(word||'').toLowerCase();
+  if (MASC_A.test(w)) return 'm';
+  if (FEM_IS.test(w)) return 'f';
+  if (/(ci[oó]n|si[oó]n|dad|tad|tud|umbre|ie|ncia|ura|eza|[ií]a)s?$/.test(w) || /(ciones|siones|dades)$/.test(w)) return 'f';
+  if (/as?$/.test(w)) return 'f';
+  return 'm';
+}
+function isPlural(word){ const w=String(word||'').toLowerCase(); return /s$/.test(w) && !/(is|us)$/.test(w); }
+function articleFor(phrase, indefinite=false){
+  const w=String(phrase||'').trim().split(/\s+/)[0]||'';
+  const g=nounGender(w.replace(/(es|s)$/i, m=> isPlural(w)?'':m)) ; const pl=isPlural(w);
+  if (indefinite && !pl) return g==='f'?'una':'un';
+  return pl ? (g==='f'?'las':'los') : (g==='f'?'la':'el');
+}
+function withArticles(phrase){
+  let t=String(phrase||'').trim(); if(!t) return t;
+  if (!/^(el|la|los|las|un|una|lo)\s/i.test(t)) t = articleFor(t)+' '+t;
+  // Sustantivos abstractos coordinados con "y" también llevan su artículo
+  return t.replace(/\sy\s(?!(el|la|los|las|un|una)\s)([a-záéíóúñ]+(ci[oó]n|si[oó]n|dad|miento|aje|cia|ura|ismo|ía)s?)\b/gi, (m,_a,word)=>` y ${articleFor(word)} ${word}`);
+}
+function listY(arr){ if(arr.length<=1) return arr.join(''); return arr.slice(0,-1).join(', ')+' y '+arr[arr.length-1]; }
 
 // Join array as "a, b, c, así como d" (Spanish list)
 function listToSpanish(arr) {
@@ -3231,6 +3277,7 @@ function buildFichaPrompt(){
   if(tabla) parts.push(`ACTIVIDADES DE EVALUACIÓN PREVISTAS (respetá nombres, cantidades y porcentajes salvo que incumplan una regla)\n${tabla}`);
   const cuadro=cuadroText(s);
   if(cuadro) parts.push(`CUADRO DE COMPETENCIA EXISTENTE (mejoralo con las reglas de la skill)\n${cuadro}`);
+  const esb=esbozoPromptBlock(s,'ficha'); if(esb) parts.push(esb);
   parts.push(`INSTRUCCIONES DE ENTREGA
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame la ficha completa, legible, para revisarla.
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
@@ -3248,6 +3295,7 @@ function buildProgramaPrompt(){
   parts.push(`Usá la skill pc-programa-completo para completar el programa del curso ${code} ${name} a partir de la ficha aprobada que sigue. No modifiques la ficha: el temario, la competencia, los resultados de aprendizaje, los criterios, las evidencias y los nombres de las actividades se usan tal cual. La única excepción son las evidencias: si una actividad no las trae, creá de 1 a 3, breves, que nombren lo que el estudiante entrega al docente.`);
   parts.push(`DATOS DEL CURSO\n${courseDataLines(c)}`);
   if(hilo) parts.push(`HILO CONDUCTOR\n- Núcleo del curso: ${hilo.nucleo||''}\n- Objeto de estudio: ${hilo.objeto_estudio||''}\n- Producto principal: ${hilo.producto_principal||''}\n- Uso de la inteligencia artificial: ${hilo.uso_ia||''}`);
+  const esbP=esbozoPromptBlock(s,'programa'); if(esbP) parts.push(esbP);
   parts.push(`FICHA APROBADA\n\nCOMPETENCIA DEL CURSO\n${s.competencia||'(pendiente)'}\n\nCONTENIDOS TEMÁTICOS\n${currentTemarioText(c,s)||'(pendientes)'}\n\nCUADRO DE COMPETENCIA\n${cuadroText(s)||'(pendiente)'}\n\nTABLA DE EVALUACIÓN\n${evaTablaText(s)||'(pendiente: proponé 40 % para el proyecto y 30 % para cada una de las otras dos)'}`);
   parts.push(`INSTRUCCIONES DE ENTREGA
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame el programa completo, legible, para revisarlo.
@@ -3580,6 +3628,8 @@ function parseFichaDocx(xmlStr){
     if (cur) cur.subtemas.push(cleanItem(t));
   }
 
+  parseProgramaExtras(blocks, out);
+
   // Código y nombre
   out.codigo = (out.datos['Código']||'').trim();
   out.nombre = (out.datos['Nombre']||'').trim();
@@ -3588,6 +3638,204 @@ function parseFichaDocx(xmlStr){
     if (p){ out.codigo = p.match(/^([A-Z]{2,6}-\d{2,4})/)[1]; out.nombre = out.nombre || p.replace(out.codigo,'').trim(); }
   }
   return out;
+}
+
+// ── Secciones del programa completo (si el .docx las trae) ──
+function parseProgramaExtras(blocks, out){
+  const P = b => b.localName==='p' ? wText(b).replace(/\s+/g,' ').trim() : '';
+  const isHead = (b, re) => b.localName==='p' && re.test(P(b)) && P(b).length<80;
+  const idx = re => blocks.findIndex(b=>isHead(b,re));
+  const sliceBetween = (startRe, stopRe) => { const i=idx(startRe); if(i<0) return []; const out=[]; for(let k=i+1;k<blocks.length;k++){ if(stopRe && isHead(blocks[k],stopRe)) break; out.push(blocks[k]); } return out; };
+  const SECT = /^(descripci[oó]n del curso|cuadro de competencia|contenidos? tem[aá]ticos?|metodolog[ií]a de ense|estrategias de aprendizaje|sistema de evaluaci[oó]n|recursos did[aá]cticos|bibliograf[ií]a|cronograma)$/i;
+  const pr = out.programa = {};
+
+  // Descripción: un solo párrafo (o varios) hasta el cuadro de competencia
+  const desc = sliceBetween(/^descripci[oó]n del curso$/i, SECT).map(P).filter(Boolean).join(' ');
+  if (desc){
+    const cut = (txt, re) => { const m=txt.search(re); return m<0?[txt,'']:[txt.slice(0,m).trim(), txt.slice(m).trim()]; };
+    let rest=desc, objeto, imp, enc, tem, ras;
+    [rest, ras] = cut(rest, /Este curso se relaciona con los siguientes rasgos/i);
+    [rest, tem] = cut(rest, /Las principales tem[aá]ticas por abordar/i);
+    [rest, enc] = cut(rest, /En el curso\s*["“]/i);
+    [objeto, imp] = cut(rest, /La importancia de esta asignatura/i);
+    pr.descripcion = { objeto, imp, enc, ras };
+  }
+  // Listas con frase de entrada fija
+  const listAfter = (introRe) => { const i=blocks.findIndex(b=>b.localName==='p'&&introRe.test(P(b))); if(i<0) return []; const o=[]; for(let k=i+1;k<blocks.length;k++){ const b=blocks[k]; if(b.localName!=='p') break; const t=P(b); if(!t) continue; if(SECT.test(t)||/^(el curso se caracteriza|el sistema de evaluaci)/i.test(t)) break; o.push(cleanItem(t)); } return o; };
+  pr.metodologias = listAfter(/^en el presente curso, se utilizan/i);
+  pr.estrategias  = listAfter(/^las estrategias de aprendizaje que se emplean/i);
+  pr.tipos = blocks.filter(b=>b.localName==='p' && /^evaluaci[oó]n (diagn[oó]stica|formativa|sumativa)\s*:/i.test(P(b))).map(P);
+  // Recursos: sin los dos recursos institucionales fijos de la plantilla
+  pr.recursos = listAfter(/^para promover el aprendizaje de los estudiantes/i)
+    .filter(t=>!/^la biblioteca de la universidad/i.test(t) && !/google workspace for education/i.test(t));
+  // Bibliografía
+  const bib = (labRe) => { const i=blocks.findIndex(b=>b.localName==='p'&&labRe.test(P(b))); if(i<0) return []; const o=[]; for(let k=i+1;k<blocks.length;k++){ const b=blocks[k]; if(b.localName!=='p') break; const t=P(b); if(!t) continue; if(/^bibliograf[ií]a (obligatoria|complementaria)$/i.test(t)||SECT.test(t)) break; if(!/^\[?tbd\]?$/i.test(t)) o.push(cleanItem(t)); } return o; };
+  pr.biblio_ob = bib(/^bibliograf[ií]a obligatoria$/i);
+  pr.biblio_co = bib(/^bibliograf[ií]a complementaria$/i);
+  // Descripción de cada actividad + rúbrica (el párrafo justo antes de cada tabla de rúbrica)
+  pr.actividades = [];
+  blocks.forEach((b,i)=>{
+    if (b.localName!=='tbl') return;
+    const rows = wKids(b,'tr').map(tr=>wKids(tr,'tc').map(tc=>wParas(tc).join(' ')));
+    if (!rows.length || !/^criterios de desempe/i.test(rows[0][0]||'') || rows[0].length<5) return;
+    let k=i-1; while(k>=0 && blocks[k].localName==='p' && !P(blocks[k])) k--;
+    const dtxt = k>=0 && blocks[k].localName==='p' ? P(blocks[k]) : '';
+    const m = dtxt.match(/^(.+?)\s*\(([^)]*%[^)]*)\)\.\s*([\s\S]*)$/);
+    const nombre = m ? m[1].trim() : '';
+    const descripcion = (m ? m[3] : dtxt).replace(/\s*Esta (estrategia|actividad) de evaluaci[oó]n utiliza la siguiente r[uú]brica:?\s*$/i,'').trim();
+    const rubrica = rows.slice(1).filter(r=>r.length>=5 && r[0] && !/^total/i.test(r[0])).map(r=>({titulo:r[0], niveles:r.slice(1,5)}));
+    pr.actividades.push({ nombre, descripcion, rubrica });
+  });
+  // Cronograma
+  const tCron = blocks.find(b=>b.localName==='tbl' && /^sesi[oó]n$/i.test((wParas(wKids(wKids(b,'tr')[0],'tc')[0])[0]||'')));
+  if (tCron){
+    const sch={}; let curMod=null;
+    const modsList = out.mods||[];
+    wKids(tCron,'tr').slice(1).forEach(tr=>{
+      const cs=wKids(tr,'tc'); if(cs.length<3) return;
+      const ses=parseInt(wParas(cs[0])[0]); if(!(ses>=1&&ses<=14)) return;
+      const modPs=wParas(cs[1]);
+      if (modPs.length){ const mm=modPs[0].match(/^m[oó]dulo\s+(\d+)\s*[.:]\s*(.*)$/i); curMod = mm ? {n:mm[1], name:mm[2].trim()} : {n:'', name:modPs[0]}; }
+      const lines=wParas(cs[2]); const fixedN = ses===1?5:2;
+      const own=lines.slice(fixedN).map(cleanItem).filter(Boolean);
+      sch[ses]={ mod:curMod?String(curMod.n):'', modName:curMod?curMod.name:'', sub:'', actName:'', verb:'', note:own.join('\n') };
+    });
+    if (Object.keys(sch).length) pr.cronograma = sch;
+  }
+  if (!pr.descripcion && !pr.metodologias.length && !pr.actividades.length) out.programa = null;
+}
+
+/* ══════════════════════════════════════════════════════
+   ESBOZO DEL EXPERTO (Excel, una hoja por curso)
+══════════════════════════════════════════════════════ */
+let esbozoWB=null, esbozoFileName='';
+const normTxt = t => String(t??'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+async function ensureXLSX(){ if(!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'); }
+function openEsbozo(){
+  if(!currentCourse){ toast('Abrí un curso primero','error'); return; }
+  document.getElementById('modal-esbozo').classList.add('active');
+  if(esbozoWB) fillEsbozoSheets(); else document.getElementById('esbozo-file-input').click();
+}
+function closeEsbozo(){ document.getElementById('modal-esbozo').classList.remove('active'); }
+async function loadEsbozoFile(input){
+  const file=input.files[0]; input.value=''; if(!file) return;
+  try{
+    await ensureXLSX();
+    esbozoWB = XLSX.read(await file.arrayBuffer(), {type:'array'});
+    esbozoFileName = file.name;
+    fillEsbozoSheets();
+  }catch(e){ toast('No se pudo leer el Excel: '+e.message,'error'); }
+}
+function sheetRows(name){ const ws=esbozoWB.Sheets[name]; if(!ws||!ws['!ref']) return []; const rg=XLSX.utils.decode_range(ws['!ref']); rg.s.r=0; rg.s.c=0; return XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:'', range:rg, blankrows:true}); }
+function sheetCourseName(rows){ const r=rows.find(r=>/^nombre del curso/i.test(String(r[1]||'').trim())); return r?String(r[2]||'').trim():''; }
+function fillEsbozoSheets(){
+  document.getElementById('esb-file').textContent = esbozoFileName || 'Excel cargado';
+  const sel=document.getElementById('esb-sheet');
+  const code=normTxt(currentCourse['Código']), name=normTxt(currentCourse['Curso']||currentCourse['Nombre']);
+  const opts=esbozoWB.SheetNames.map(n=>{ const rows=sheetRows(n); return {n, curso:sheetCourseName(rows), ok:rows.some(r=>/^1\.\s*m[oó]dulos/i.test(String(r[1]||'')))}; });
+  let best = opts.find(o=>normTxt(o.n)===code) || opts.find(o=>o.curso && normTxt(o.curso)===name) || opts.find(o=>o.ok && normTxt(o.curso).includes(name)) || opts.find(o=>o.ok);
+  sel.innerHTML = opts.map(o=>`<option value="${escHtml(o.n)}"${o.ok?'':' disabled'}>${escHtml(o.n)}${o.curso?' — '+escHtml(o.curso):''}${o.ok?'':' (sin formato de esbozo)'}</option>`).join('');
+  if(best) sel.value=best.n;
+  previewEsbozo();
+}
+function parseEsbozoSheet(rows){
+  const B=r=>String(r[1]??'').trim(), C=r=>String(r[2]??'').trim(), D=r=>String(r[3]??'').trim(), E=r=>String(r[4]??'').trim();
+  const strip=t=>String(t||'').replace(/^\s*\d+\s*[.)]\s*/,'').replace(/\.\s*$/,'').trim();
+  const sec=r=>{ const m=B(r).match(/^(\d)\.\s/); return m?parseInt(m[1]):0; };
+  const out={ nombre:'', requisitos:'', cuatrimestre:'', modulos:[], evaluacion:[], cronograma:[], proyecto:{contexto:'',pasos:[]}, software:[], bibliografia:{}, competencia:[] };
+  let cur=0, hdr=null, bibGroup='';
+  rows.forEach((r,i)=>{
+    if(/^nombre del curso/i.test(B(r))){ out.nombre=C(r); return; }
+    if(/^requisitos/i.test(B(r))){ out.requisitos=C(r); return; }
+    if(/^cuatrimestre/i.test(B(r))){ out.cuatrimestre=C(r); return; }
+    const sn=sec(r); if(sn){ cur=sn; hdr=null; return; }
+    if(cur===1){
+      const mm=B(r).match(/^m[oó]dulo\s+(\d+)\s*[.:]?\s*(.*)$/i);
+      if(mm){ if(mm[2] && !/^x+$/i.test(mm[2])) out.modulos.push({name:mm[2].trim(), subtemas:[]}); return; }
+      const st=strip(C(r)); if(st && out.modulos.length) out.modulos[out.modulos.length-1].subtemas.push(st);
+    } else if(cur===2){
+      if(/^nombre$/i.test(B(r))){ hdr=true; return; }
+      const nm=B(r); if(!nm) return;
+      let pct=r[3]; pct = typeof pct==='number' ? (pct<=1?Math.round(pct*100):Math.round(pct)) : parseInt(String(pct).replace('%',''))||0;
+      out.evaluacion.push({nombre:nm, entregables:parseInt(r[2])||1, pct});
+    } else if(cur===3){
+      if(/^semana$/i.test(B(r))) return;
+      const sem=parseInt(r[1]); if(!sem) return;
+      out.cronograma.push({semana:sem, contenido:C(r), entregable:/^no hay/i.test(D(r))?'':D(r)});
+    } else if(cur===4){
+      if(/^contexto del proyecto/i.test(B(r))) return;
+      if(B(r)) out.proyecto.contexto += (out.proyecto.contexto?' ':'')+B(r);
+      const ps=strip(C(r)); if(ps) out.proyecto.pasos.push(ps);
+    } else if(cur===5){
+      if(/^nombre del software/i.test(B(r))) return;
+      const nm=strip(B(r)); if(!nm) return;
+      out.software.push({nombre:nm, url:C(r).split(/\s+/)[0]||'', descripcion:D(r).replace(/\s+/g,' ')});
+    } else if(cur===6){
+      const t=B(r); if(!t) return;
+      if(/^bibliograf[ií]a|^est[aá]ndares$/i.test(t) && t.length<45){ bibGroup=t; return; }
+      (out.bibliografia[bibGroup||'Bibliografía']=out.bibliografia[bibGroup||'Bibliografía']||[]).push(t.replace(/\s+/g,' '));
+    } else if(cur===7){
+      if(!hdr){ if(B(r)||C(r)||D(r)){ hdr=[B(r),C(r),D(r)]; } return; }
+      [B(r),C(r),D(r)].forEach((v,k)=>{ if(v && hdr[k]) out.competencia.push({campo:hdr[k].replace(/\s+$/,''), texto:v.replace(/\s+/g,' ')}); });
+    }
+  });
+  return out;
+}
+function previewEsbozo(){
+  const name=document.getElementById('esb-sheet').value; const box=document.getElementById('esb-preview');
+  if(!esbozoWB || !name){ box.style.display='none'; return; }
+  const e=parseEsbozoSheet(sheetRows(name)); window.__esbozo=e;
+  const nsub=e.modulos.reduce((t,m)=>t+m.subtemas.length,0);
+  const row=(k,v)=>`<div class="tx-row"><strong>${k}</strong><span>${v}</span></div>`;
+  box.innerHTML = row('Curso', escHtml(e.nombre||'—'))
+    + row('Temario', `${e.modulos.length} módulos · ${nsub} subtemas`)
+    + row('Evaluación', e.evaluacion.map(a=>`${escHtml(a.nombre)} (${a.entregables}) ${a.pct}%`).join(' · ')||'—')
+    + row('Proyecto', `${e.proyecto.pasos.length} pasos${e.proyecto.contexto?' + contexto':''}`)
+    + row('Software', e.software.map(s=>escHtml(s.nombre)).join(', ')||'—')
+    + row('Bibliografía', Object.values(e.bibliografia).reduce((t,l)=>t+l.length,0)+' referencias')
+    + row('Competencia', e.competencia.length?e.competencia.map(c=>escHtml(c.campo)).join(' · '):'—');
+  box.style.display='';
+  document.getElementById('esb-btn').disabled = !(e.modulos.length||e.evaluacion.length);
+}
+function importEsbozo(){
+  const e=window.__esbozo; if(!e) return;
+  const nameC=normTxt(currentCourse['Curso']||currentCourse['Nombre']);
+  if(e.nombre && nameC && normTxt(e.nombre)!==nameC && !confirm(`La hoja es de "${e.nombre}" y tenés abierto "${currentCourse['Curso']||currentCourse['Nombre']}". ¿Importarla igual?`)) return;
+  closeEsbozo();
+  const items=[];
+  if(e.modulos.length) items.push({label:`Temario del experto (${e.modulos.length} módulos)`, secId:'modulos',
+    value:e.modulos.map((m,i)=>`Módulo ${i+1}. ${m.name}\n${m.subtemas.map(s=>'- '+s).join('\n')}`).join('\n\n'), icon:'📚'});
+  if(e.evaluacion.length){ const tot=e.evaluacion.reduce((t,a)=>t+a.pct,0); const nEnt=e.evaluacion.reduce((t,a)=>t+a.entregables,0);
+    items.push({label:`Sistema de evaluación${tot!==100?' ⚠ suma '+tot+'%':''}${nEnt>8?' ⚠ '+nEnt+' entregas':''}`, secId:'eva_tabla',
+      value:e.evaluacion.map(a=>`${a.nombre} (${a.entregables}) | ${a.pct}%`).join('\n'), icon:'📊'}); }
+  const groups=Object.entries(e.bibliografia);
+  const ob=groups.filter(([g])=>/obligatoria/i.test(g)).flatMap(([,l])=>l);
+  const co=groups.filter(([g])=>!/obligatoria/i.test(g)).flatMap(([,l])=>l);
+  if(ob.length) items.push({label:`Bibliografía obligatoria (${ob.length})`, secId:'biblio_ob', value:ob.join('\n'), icon:'📕'});
+  if(co.length) items.push({label:`Bibliografía complementaria (${co.length})`, secId:'biblio_co', value:co.join('\n'), icon:'📗'});
+  const ins={ proyecto:e.proyecto, software:e.software, competencia:e.competencia, cronograma:e.cronograma, requisitos:e.requisitos, origen:esbozoFileName+' · '+document.getElementById('esb-sheet').value };
+  items.push({label:'Insumos del experto para Claude (proyecto, software, competencia, cronograma)', secId:'_esbozo', value:JSON.stringify(ins),
+    preview:[e.proyecto.contexto&&('Proyecto: '+e.proyecto.contexto.slice(0,220)+(e.proyecto.contexto.length>220?'…':'')),
+      e.proyecto.pasos.length&&(`Pasos (${e.proyecto.pasos.length}): `+e.proyecto.pasos.slice(0,6).join(' · ')+(e.proyecto.pasos.length>6?' …':'')),
+      e.software.length&&('Software: '+e.software.map(s=>s.nombre).join(', ')),
+      ...e.competencia.map(c=>`${c.campo}: ${c.texto.slice(0,160)}${c.texto.length>160?'…':''}`)].filter(Boolean).join('\n'), icon:'🧩'});
+  renderReviewItems(items, `Esbozo del experto — ${e.nombre||''}: revisá y aplicá (o "Aplicar todo"). Los insumos se suman a los prompts de Claude.`);
+}
+document.getElementById('modal-esbozo')?.addEventListener('click',ev=>{ if(ev.target===ev.currentTarget) closeEsbozo(); });
+function esbozoPromptBlock(s, mode){
+  const e=safeJSON(s._esbozo||'null',null); if(!e) return '';
+  const L=[];
+  if(mode==='ficha'){
+    if(e.proyecto?.contexto) L.push(`Contexto del proyecto según el experto: ${e.proyecto.contexto}`);
+    if(e.proyecto?.pasos?.length) L.push(`Pasos del proyecto según el experto (base para los 15 criterios del RA 1, en el mismo orden, sin copiarlos literalmente):\n${e.proyecto.pasos.map((p,i)=>`${i+1}. ${p}`).join('\n')}`);
+    if(e.competencia?.length) L.push(`Insumos del experto para la competencia:\n${e.competencia.map(c=>`- ${c.campo}: ${c.texto}`).join('\n')}`);
+  }
+  if(e.software?.length) L.push(`Software que propone el experto (en ${mode==='ficha'?'la ficha':'el programa'} se usa el término genérico; los nombres van solo en recursos didácticos):\n${e.software.map(x=>`- ${x.nombre}${x.descripcion?': '+x.descripcion:''}`).join('\n')}`);
+  if(mode==='programa'){
+    if(e.proyecto?.contexto) L.push(`Contexto del proyecto según el experto: ${e.proyecto.contexto}`);
+    if(e.cronograma?.length) L.push(`Cronograma que sugirió el experto (referencia; las reglas de la skill mandan):\n${e.cronograma.map(c=>`S${c.semana}: ${c.contenido}${c.entregable?' → '+c.entregable:''}`).join('\n')}`);
+  }
+  return L.length ? `ESBOZO DEL EXPERTO (respetá su intención; la redacción sigue las reglas de la skill)\n${L.join('\n\n')}` : '';
 }
 
 function fichaDocxToItems(d){
@@ -3618,6 +3866,30 @@ function fichaDocxToItems(d){
     if (notas.length) items.push({label:'Notas de diseño de las actividades', secId:'_notas_eva', value:JSON.stringify(notas),
       preview:notas.map(x=>`${x.nombre}: ${x.nota}`).join('\n'), icon:'🗒'});
   }
+  const pr=d.programa;
+  if (pr){
+    const ds=pr.descripcion||{};
+    if (ds.objeto) items.push({label:'Objeto de estudio', secId:'descripcion_objeto', value:ds.objeto, icon:'📖'});
+    if (ds.imp) items.push({label:'Importancia', secId:'descripcion_import', value:ds.imp, icon:'⭐'});
+    if (ds.enc) items.push({label:'En el curso…', secId:'descripcion_en_curso', value:ds.enc, icon:'🎯'});
+    if (ds.ras) items.push({label:'Rasgos de perfil', secId:'descripcion_rasgos', value:ds.ras, icon:'👤'});
+    if (pr.metodologias.length) items.push({label:`Metodologías (${pr.metodologias.length})`, secId:'metodologias', value:pr.metodologias.join('\n'), icon:'🧠'});
+    if (pr.estrategias.length) items.push({label:`Estrategias de aprendizaje (${pr.estrategias.length})`, secId:'estrategias', value:pr.estrategias.join('\n'), icon:'🎲'});
+    if (pr.tipos.length) items.push({label:'Tipos de evaluación', secId:'eva_tipo', value:pr.tipos.join('\n'), icon:'🔍'});
+    pr.actividades.slice(0,3).forEach((a,i)=>{ if(a.descripcion) items.push({label:`Descripción evaluación ${i+1}${a.nombre?' · '+a.nombre:''}`, secId:`eva_desc${i+1}`, value:a.descripcion, icon:'📝'}); });
+    const crits = [1,2,3].map(n=>(d.cuadro[n-1]?.criterios)||[]);
+    const rub = pr.actividades.slice(0,3).map((a,i)=>({ nombre: a.nombre || d.evaRows[i]?.name || '', rubrica: a.rubrica.map((r,j)=>({criterio:crits[i][j]||'', titulo:r.titulo, niveles:r.niveles})) })).filter(a=>a.rubrica.length);
+    if (rub.length) items.push({label:'Rúbricas (se guardan para la exportación)', secId:'_rubricas', value:JSON.stringify(rub),
+      preview:rub.map(a=>`${a.nombre} — ${a.rubrica.length} criterios, ${a.rubrica.length*4} puntos`).join('\n'), icon:'▦'});
+    if (pr.recursos.length) items.push({label:'Recursos didácticos', secId:'recursos', value:pr.recursos.join('\n'), icon:'🛠️'});
+    if (pr.biblio_ob.length) items.push({label:'Bibliografía obligatoria', secId:'biblio_ob', value:pr.biblio_ob.join('\n'), icon:'📕'});
+    if (pr.biblio_co.length) items.push({label:'Bibliografía complementaria', secId:'biblio_co', value:pr.biblio_co.join('\n'), icon:'📗'});
+    if (pr.cronograma){
+      const sch=pr.cronograma;
+      items.push({label:'Cronograma (sesiones 1 a 14)', secId:'cronograma', value:JSON.stringify(sch),
+        preview:Object.entries(sch).map(([k,v])=>`S${k} · Módulo ${v.mod}${v.note?' — '+v.note.split('\n').join(' / '):''}`).join('\n'), icon:'📅'});
+    }
+  }
   return items;
 }
 
@@ -3639,7 +3911,7 @@ async function uploadFicha(input){
       items = null;
     }
     if (items && items.filter(i=>i.secId).length) {
-      renderReviewItems(items, `Datos extraídos de la ficha ${d.codigo||''} — revisá y aplicá cada sección`);
+      renderReviewItems(items, `Datos extraídos ${d.programa?'del programa':'de la ficha'} ${d.codigo||''} — revisá y aplicá cada sección (o "Aplicar todo")`);
     } else if (items) {
       // Formato desconocido: usar el lector anterior por texto
       fichaExtracted = parseFicha(xmlToText(xml));
@@ -3925,7 +4197,8 @@ async function buildDocx(mode, opts){
   const protoNormal = find(/^en el presente curso, se utilizan/i);
   if (hDesc && prog){
     const p1=[s.descripcion_objeto, s.descripcion_import, s.descripcion_en_curso, buildTematicasSentence(s)].map(x=>String(x||'').trim()).filter(Boolean).join(' ');
-    const paras=[p1, String(s.descripcion_rasgos||'').trim()].filter(Boolean);
+    // Todo en un solo párrafo, rasgos incluidos (como en las versiones revisadas)
+    const paras=[[p1, String(s.descripcion_rasgos||'').trim()].filter(Boolean).join(' ')].filter(Boolean);
     let ref=after(hDesc);
     paras.forEach(t=>body.insertBefore(clonePara(protoNormal, t), ref));
   }
@@ -3954,6 +4227,8 @@ async function buildDocx(mode, opts){
       const ps=cellParas(cellsOf(tvRow)[0]); const item=ps.find(p=>wEls(p,'numPr').length);
       if (item){ const iT=ps.indexOf(item); const rp=protoRPr(item); tvList.forEach(t=>item.parentNode.insertBefore(tableFmt(clonePara(item, boldLead(t), rp)), item)); item.parentNode.removeChild(item); }
     }
+    // Ejes sin definir: "Eje. Por definir" en lugar del texto de plantilla
+    wEls(tCuadro,'p').forEach(p=>{ if(/^eje\.\s*competencia$/i.test(pText(p).trim())) fillPara(p, boldLead('Eje. Por definir'), protoRPr(p)); });
     const rows2=rowsOf(tCuadro);
     const iHead=rows2.findIndex(r=>cellsOf(r).length>=3 && /^resultados?\s+de\s+aprendizaje$/i.test(wText(cellsOf(r)[0]).trim()));
     const raRows=rows2.slice(iHead+1).filter(r=>cellsOf(r).length>=3);
@@ -4069,8 +4344,9 @@ async function buildDocx(mode, opts){
     const ph=intro && after(intro);
     if (ph && ph.localName==='p' && !pText(ph)) replaceParas(ph,[ph], lines(s.recursos));
     const fillAfterLabel=(re, texts)=>{ const lab=find(re); const ph=lab&&after(lab); if(ph&&ph.localName==='p'&&!pText(ph)) replaceParas(ph,[ph],texts); };
-    fillAfterLabel(/^bibliograf[ií]a obligatoria$/i, lines(s.biblio_ob));
-    fillAfterLabel(/^bibliograf[ií]a complementaria$/i, lines(s.biblio_co));
+    const orTBD=t=>{ const l=lines(t); return l.length?l:['[TBD]']; };
+    fillAfterLabel(/^bibliograf[ií]a obligatoria$/i, orTBD(s.biblio_ob));
+    fillAfterLabel(/^bibliograf[ií]a complementaria$/i, orTBD(s.biblio_co));
   }
 
   // 11. Cronograma (sesiones 1 a 14)
