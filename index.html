@@ -713,6 +713,8 @@ body::after{display:none;} /* kill noise overlay */
     <div class="cl-warn" id="wx-warn"></div>
     <div class="fg"><label>Escuela (encabezado)</label><input type="text" id="wx-escuela" placeholder="Escuela de Ingeniería del Software"></div>
     <div class="fg"><label>Carrera (encabezado)</label><select id="wx-carrera-sel" style="display:none;width:100%"></select><input type="text" id="wx-carrera" placeholder="Maestría Profesional en…"></div>
+    <label class="bk-opt" style="margin:-4px 0 10px"><input type="checkbox" id="wx-comun" onchange="toggleComun()"> Curso común: poner dos carreras en el encabezado</label>
+    <div class="fg" id="wx-car2-wrap" style="display:none"><label>Segunda carrera</label><input type="text" id="wx-carrera2" list="wx-car-list" placeholder="Escribí o elegí la otra carrera"><datalist id="wx-car-list"></datalist></div>
     <div class="fg"><label>Versión (va al final del nombre del archivo)</label><input type="text" id="wx-ver" placeholder="PRL1" style="max-width:160px"></div>
     <label class="bk-opt" style="margin:-4px 0 16px"><input type="checkbox" id="wx-maestro" checked> <span id="wx-maestro-lbl">Completar con los datos más recientes de la hoja Maestro</span></label>
     <div class="cl-steps">
@@ -4258,6 +4260,12 @@ async function buildDocx(mode, opts){
     const hp=cellParas(hdrCell).filter(p=>pText(p));
     if (opts.escuela && hp[1]) fillPara(hp[1], opts.escuela);
     if (opts.carrera && hp[2]) fillPara(hp[2], opts.carrera);
+    // Curso común: la segunda carrera va en su propia línea, con el mismo formato
+    if (opts.carrera2 && hp[2]){
+      const p2 = hp[2].cloneNode(true);
+      hp[2].parentNode.insertBefore(p2, hp[2].nextSibling);
+      fillPara(p2, opts.carrera2);
+    }
   }
   // 2. Título
   const title = Array.from(body.childNodes).find(n=>n.localName==='p' && /Heading2/.test(new XMLSerializer().serializeToString(wChild(n,'pPr')||doc.createElement('x'))));
@@ -4663,6 +4671,13 @@ function openWordExport(){
   const w=document.getElementById('wx-warn');
   w.style.display = miss.length?'block':'none';
   w.textContent = miss.length?`A este curso le falta: ${miss.join(', ')}. Esos espacios quedarán vacíos en el documento.`:'';
+  // Curso común: lista de todas las carreras conocidas (de todos los proyectos)
+  const allCars=[...new Set(projects.flatMap(p=>projectCareers(p)))];
+  document.getElementById('wx-car-list').innerHTML=allCars.map(c=>`<option value="${escHtml(c)}">`).join('');
+  let com=null; try{ com=JSON.parse(localStorage.getItem('dcd_comun_'+(currentCourse['Código']||''))||'null'); }catch(e){}
+  document.getElementById('wx-comun').checked = !!com?.on;
+  document.getElementById('wx-carrera2').value = com?.carrera2 || '';
+  toggleComun();
   let ver=''; try{ ver=localStorage.getItem('dcd_ver_'+(currentCourse['Código']||''))||''; }catch(e){}
   document.getElementById('wx-ver').value = ver || 'PRL1';
   const mc=document.getElementById('wx-maestro'); mc.disabled=!gAccessToken; mc.checked=!!gAccessToken;
@@ -4676,6 +4691,20 @@ async function savedFromMaestroRow(){
   const row=rows.find(r=>normCode(r[codeIdx])===code);
   return row ? maestroRowToSaved(headers,row) : null;
 }
+function wordCarrera1(){
+  const selC=document.getElementById('wx-carrera-sel');
+  return (selC.style.display!=='none' ? selC.value : document.getElementById('wx-carrera').value).trim();
+}
+function toggleComun(){
+  const on=document.getElementById('wx-comun').checked;
+  document.getElementById('wx-car2-wrap').style.display = on ? '' : 'none';
+  const in2=document.getElementById('wx-carrera2');
+  if (on && !in2.value.trim()){
+    // Si el proyecto ya tiene dos carreras, se propone la otra
+    const other=projectCareers().find(c=>c!==wordCarrera1());
+    if (other) in2.value=other;
+  }
+}
 function closeWordExport(){ document.getElementById('modal-word')?.classList.remove('active'); }
 function wordVersion(){
   return (document.getElementById('wx-ver')?.value||'').trim() || 'PRL1';
@@ -4687,9 +4716,12 @@ function wordFileName(mode){
 }
 async function prepareWordBlob(mode){
   const escuela=document.getElementById('wx-escuela').value.trim();
-  const selC=document.getElementById('wx-carrera-sel');
-  const carrera=(selC.style.display!=='none' ? selC.value : document.getElementById('wx-carrera').value).trim();
+  const carrera=wordCarrera1();
+  const comun=document.getElementById('wx-comun').checked;
+  let carrera2=comun ? document.getElementById('wx-carrera2').value.trim() : '';
+  if (carrera2 && carrera2===carrera) carrera2='';
   try{ localStorage.setItem('dcd_word_'+currentProject.id, JSON.stringify({escuela,carrera})); }catch(e){}
+  try{ localStorage.setItem('dcd_comun_'+(currentCourse['Código']||''), JSON.stringify({on:comun, carrera2:document.getElementById('wx-carrera2').value.trim()})); }catch(e){}
   try{ localStorage.setItem('dcd_ver_'+(currentCourse['Código']||''), wordVersion()); }catch(e){}
   let saved = currentSaved();
     if (document.getElementById('wx-maestro').checked && gAccessToken){
@@ -4702,7 +4734,7 @@ async function prepareWordBlob(mode){
         } else toast('Este curso todavía no tiene fila en el Maestro; se usan los datos de la app');
       }catch(e){ toast('No se pudo leer el Maestro; se usan los datos de la app','error'); }
     }
-  const blob = await buildDocx(mode, {escuela, carrera, saved});
+  const blob = await buildDocx(mode, {escuela, carrera, carrera2, saved});
   return { blob, fname: wordFileName(mode) };
 }
 async function downloadWord(mode){
