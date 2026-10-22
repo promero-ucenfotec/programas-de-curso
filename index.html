@@ -3339,7 +3339,7 @@ function buildFichaPrompt(){
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame la ficha completa, legible, para revisarla.
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
 ${FICHA_SCHEMA(code,name)}
-3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; las entregas suman 8 como máximo (el proyecto suele llevar 3 avances) y cada actividad lleva de 1 a 3 evidencias breves que nombran lo que el estudiante entrega al docente ("Documento escrito que detalla el proceso y los resultados", "Presentación oral que defiende…", "Código base en el que…", "Simulación del…"); ninguna tecnología concreta en la competencia, los resultados de aprendizaje, los criterios ni las evidencias (usá el término genérico); actividades en minúscula y con artículo dentro de la oración; sin "dotar" ni "de modo". Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
+3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; las entregas suman 8 como máximo (el proyecto lleva siempre 3 avances) y cada actividad lleva de 1 a 3 evidencias breves que nombran lo que el estudiante entrega al docente ("Documento escrito que detalla el proceso y los resultados", "Presentación oral que defiende…", "Código base en el que…", "Simulación del…"); ninguna tecnología concreta en la competencia, los resultados de aprendizaje, los criterios ni las evidencias (usá el término genérico); actividades en minúscula y con artículo dentro de la oración; sin "dotar" ni "de modo". Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
 4. Reglas del bloque: tres actividades en el orden del cuadro (la primera es el proyecto con 15 criterios; las otras dos llevan 8 criterios); porcentajes enteros que suman 100; cada elemento de una lista va sin viñetas ni numeración; los textos del bloque son idénticos a los de la ficha mostrada.`);
   return parts.join('\n\n');
 }
@@ -3383,7 +3383,7 @@ function buildProgramaPrompt(){
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame el programa completo, legible, para revisarlo.
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
 ${PROGRAMA_SCHEMA(code)}
-3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; el objeto de estudio va directo al objeto (sin "fundamentos de" ni "principios de"); ninguna tecnología concreta antes de recursos didácticos; actividades en minúscula y con artículo dentro de la oración ("las prácticas", "Las tareas favorecen"); sin "dotar" ni "de modo"; la evaluación formativa usa actividades distintas de las sumativas (resúmenes, mapas mentales, fichas de conceptos, glosario…) y el aprendizaje autónomo se vincula con ella; cada descripción de actividad tiene tres bloques (en qué consiste, qué deben realizar, qué contiene el entregable); la descripción es UN solo párrafo: qué es, cómo se hace (una sola oración, sin narrar etapa por etapa), "Esta actividad se compone de [n] entregables en los que el documento escrito contiene […], el código base incluye […] y la defensa oral […]" (aquí sí se enumeran los apartados de cada evidencia), la modalidad y "Esta estrategia de evaluación utiliza la siguiente rúbrica:"; ninguna palabra de contenido ni el nombre de una actividad se repite en oraciones vecinas (alterná con equivalentes como "el proyecto", "el sistema"); las metodologías tienen una sola acción del docente o de los estudiantes y un registro formal; "En el curso…" es la competencia escrita de manera completamente diferente (mismo sentido, otras palabras, sin repetir sus verbos ni sustantivos salvo el núcleo), no la descripción del proyecto; las temáticas y las estrategias de evaluación llevan siempre su artículo; las estrategias de aprendizaje dicen qué hacen los estudiantes ("permite que los estudiantes seleccionen…"); el estudio de casos resalta lo investigativo; el cronograma tiene una sola actividad por semana desde la sesión 2, entregas seguidas sin intercalar, duración fija en las dos actividades que no son el proyecto, ninguna entrega de más de 3 semanas, 8 entregas como máximo en total y nunca dos entregas seguidas de la misma actividad (entre una etapa del proyecto y la siguiente va al menos otra actividad, para dar tiempo a la retroalimentación). Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
+3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; el objeto de estudio va directo al objeto (sin "fundamentos de" ni "principios de"); ninguna tecnología concreta antes de recursos didácticos; actividades en minúscula y con artículo dentro de la oración ("las prácticas", "Las tareas favorecen"); sin "dotar" ni "de modo"; la evaluación formativa usa actividades distintas de las sumativas (resúmenes, mapas mentales, fichas de conceptos, glosario…) y el aprendizaje autónomo se vincula con ella; cada descripción de actividad tiene tres bloques (en qué consiste, qué deben realizar, qué contiene el entregable); la descripción es UN solo párrafo: qué es, cómo se hace (una sola oración, sin narrar etapa por etapa), "Esta actividad se compone de [n] entregables en los que el documento escrito contiene […], el código base incluye […] y la defensa oral […]" (aquí sí se enumeran los apartados de cada evidencia), la modalidad y "Esta estrategia de evaluación utiliza la siguiente rúbrica:"; ninguna palabra de contenido ni el nombre de una actividad se repite en oraciones vecinas (alterná con equivalentes como "el proyecto", "el sistema"); las metodologías tienen una sola acción del docente o de los estudiantes y un registro formal; "En el curso…" es la competencia escrita de manera completamente diferente (mismo sentido, otras palabras, sin repetir sus verbos ni sustantivos salvo el núcleo), no la descripción del proyecto; las temáticas y las estrategias de evaluación llevan siempre su artículo; las estrategias de aprendizaje dicen qué hacen los estudiantes ("permite que los estudiantes seleccionen…"); el estudio de casos resalta lo investigativo; el cronograma tiene una sola actividad por semana desde la sesión 2, entregas seguidas sin intercalar, duración fija en las dos actividades que no son el proyecto, ninguna entrega de más de 3 semanas, 8 entregas como máximo en total; el proyecto lleva siempre 3 avances repartidos a lo largo del curso, uno en cada tercio (el primero cierra a más tardar en la sesión 6, el segundo entre la 7 y la 10 y el tercero entre la 11 y la 14), nunca amontonados al final; y nunca dos entregas seguidas de la misma actividad (entre una etapa del proyecto y la siguiente va al menos otra actividad, para dar tiempo a la retroalimentación). Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
 4. Reglas del bloque: "actividades" lleva las tres actividades en el orden del cuadro, cada una con sus evidencias (las de la ficha, o las que creaste si no tenía) y la rúbrica de todos sus criterios (en "titulo" va solo el título corto del criterio); "cronograma" lleva las sesiones 1 a 14 (la 15 es fija), "modulo" es el número del módulo y "actividades" contiene solo las líneas propias de la sesión (inicio o cierre de entregas), sin las dos líneas fijas de lectura y participación; cada elemento de una lista va sin viñetas ni numeración. No busques ni propongas bibliografía: esa sección la completa el curriculista por aparte.`);
   return parts.join('\n\n');
 }
@@ -3565,7 +3565,7 @@ function checkCronograma(sch, evaRows){
   const warn=[]; const norm=t=>String(t||'').toLowerCase().trim();
   const actOf = line => { const m=String(line).match(/^([^:]{2,120}):/); if(!m) return null; return m[1].replace(/\(\s*\d+\s*%\s*\)/,'').trim(); };
   const closes = line => /\(\s*\d+\s*%\s*\)\s*:/.test(line) || /\b(finaliza|realiza)\b/i.test(line);
-  let open=null, start=0, lastClosed=null; const durs={}; const pctSum={};
+  let open=null, start=0, lastClosed=null; const durs={}; const pctSum={}; const closeAt={};
   for (let k=2;k<=14;k++){
     const lines=String(sch[k]?.note||'').split('\n').map(x=>x.trim()).filter(Boolean);
     const acts=[...new Set(lines.map(actOf).filter(Boolean).map(norm))];
@@ -3575,13 +3575,20 @@ function checkCronograma(sch, evaRows){
     if (open && open!==a){ warn.push(`En la sesión ${k} empieza otra actividad sin haber entregado ${open}`); open=null; }
     if (!open){ if(lastClosed===a) warn.push(`En la sesión ${k} empieza otra entrega de ${a} justo después de la anterior (falta otra actividad en medio para la retroalimentación)`); open=a; start=k; }
     lines.forEach(l=>{ const m=l.match(/\((\d+)\s*%\)/); if(m && norm(actOf(l))===a) pctSum[a]=(pctSum[a]||0)+parseInt(m[1]); });
-    if (lines.some(closes)){ (durs[a]=durs[a]||[]).push(k-start+1); open=null; lastClosed=a; }
+    if (lines.some(closes)){ (durs[a]=durs[a]||[]).push(k-start+1); (closeAt[a]=closeAt[a]||[]).push(k); open=null; lastClosed=a; }
   }
   if (open) warn.push(`La última entrega de ${open} no se cierra antes de la sesión 15`);
   Object.entries(durs).forEach(([a,ds])=>{ const big=ds.filter(d=>d>3); if(big.length) warn.push(`Una entrega de ${a} dura ${Math.max(...big)} semanas (máximo 3)`); });
   const totalEnt=Object.values(durs).reduce((t,ds)=>t+ds.length,0);
   if (totalEnt>8) warn.push(`El cronograma tiene ${totalEnt} entregas (máximo 8)`);
   const proj = norm(evaRows[0]?.name);
+  // El proyecto: siempre 3 avances, uno en cada tercio del curso
+  const pc=closeAt[proj]||[];
+  if (proj && pc.length && pc.length!==3) warn.push(`El proyecto tiene ${pc.length} avances (siempre van 3)`);
+  if (pc.length===3){
+    const ok = pc[0]<=6 && pc[1]>=7 && pc[1]<=10 && pc[2]>=11;
+    if (!ok) warn.push(`Los avances del proyecto cierran en las sesiones ${pc.join(', ')}: deben repartirse a lo largo del curso (uno hasta la sesión 6, otro entre la 7 y la 10 y el último entre la 11 y la 14)`);
+  }
   Object.entries(durs).forEach(([a,ds])=>{ if(a!==proj && new Set(ds).size>1) warn.push(`Las entregas de ${a} no duran lo mismo (${ds.join(', ')} semanas)`); });
   evaRows.forEach(r=>{ const got=pctSum[norm(r.name)]; if(got!==undefined && got!==r.pct) warn.push(`Los porcentajes de ${r.name} en el cronograma suman ${got}% y en la tabla ${r.pct}%`); });
   return warn;
@@ -3927,7 +3934,6 @@ function fichaDocxToItems(d){
       preview:Object.entries(d.datos).map(([k,v])=>`${k.replace(/^_/,'').replace('escuela','Escuela').replace('carrera','Carrera')}: ${v.replace(/\n/g,' · ')}`).join('\n'), icon:'ℹ'});
   }
   if (d.competencia) items.push({label:'Competencia específica', secId:'competencia', value:d.competencia, icon:'🏆'});
-  if (d.disposicion) items.push({label:'Disposición', secId:'_disposicion', value:d.disposicion, icon:'◆'});
   if (d.mods.length){
     items.push({label:`Módulos y subtemas (${d.mods.length})`, secId:'modulos',
       value:d.mods.map(m=>`${m.name}\n${m.subtemas.map(s=>'- '+s).join('\n')}`).join('\n\n'), icon:'📚'});
@@ -4185,6 +4191,14 @@ function tableFmt(p, sz='20'){
 // Tablas que van en Arial 12 (datos generales y estrategias de evaluación)
 function tableFmtAll(tbl, sz){ wEls(tbl,'p').forEach(p=>tableFmt(p, sz)); }
 // Párrafos de lista sin espacio después (el último conserva el de la plantilla)
+function spaceAfter(p, val){
+  const doc=p.ownerDocument;
+  let pPr=wChild(p,'pPr'); if(!pPr){ pPr=wEl(doc,'pPr'); p.insertBefore(pPr,p.firstChild); }
+  let sp=wChild(pPr,'spacing');
+  if(!sp){ sp=wEl(doc,'spacing'); const ref=Array.from(pPr.childNodes).find(n=>PPR_AFTER_SPACING.includes(n.localName))||null; pPr.insertBefore(sp,ref); }
+  wAttr(sp,'after',val);
+  let cs=wChild(pPr,'contextualSpacing'); if(cs) pPr.removeChild(cs);
+}
 function noSpaceAfter(p){
   const doc=p.ownerDocument;
   let pPr=wChild(p,'pPr'); if(!pPr){ pPr=wEl(doc,'pPr'); p.insertBefore(pPr,p.firstChild); }
@@ -4299,10 +4313,8 @@ async function buildDocx(mode, opts){
     if (iComp>=0 && rows[iComp+1]){
       const compRow=rows[iComp+1];
       setCell(cellsOf(compRow)[0], [String(s.competencia||'').trim()]);
-      const disp=String(s._disposicion||'').trim();
-      let dispRow=rows.find(r=>cellsOf(r).length===1 && /^disposici[oó]n/i.test(wText(r).trim()));
-      if (disp && !dispRow){ dispRow=compRow.cloneNode(true); compRow.parentNode.insertBefore(dispRow, compRow.nextSibling); }
-      if (dispRow){ if(disp) setCell(cellsOf(dispRow)[0], [disp], {segs:t=>[{text:'Disposición:',bold:true},{text:' '+t,bold:false}]}); else dispRow.parentNode.removeChild(dispRow); }
+      // La disposición ya no va en el cuadro de competencia: si la plantilla trae la fila, se quita
+      rows.filter(r=>cellsOf(r).length===1 && /^disposici[oó]n/i.test(wText(r).trim())).forEach(r=>r.parentNode.removeChild(r));
     }
     // Competencia general y transversales (si el Maestro las trae)
     const boldLead = t => { const m=String(t).match(/^([^.]{2,80}\.)\s*(.*)$/); return m?[{text:m[1],bold:true},{text:' '+m[2],bold:false}]:[{text:t,bold:false}]; };
@@ -4349,7 +4361,11 @@ async function buildDocx(mode, opts){
       const mp=modProto.cloneNode(true), sp=subProto.cloneNode(true);
       const mrp=protoRPr(modProto), srp=protoRPr(subProto);
       const ref=old[0];
-      mods.forEach(m=>{ body.insertBefore(clonePara(mp, m.name, mrp), ref); m.subtemas.forEach(x=>body.insertBefore(clonePara(sp, x, srp), ref)); });
+      mods.forEach(m=>{
+        body.insertBefore(clonePara(mp, m.name, mrp), ref);
+        let last=null; m.subtemas.forEach(x=>{ last=clonePara(sp, x, srp); body.insertBefore(last, ref); });
+        if (last) spaceAfter(last, '200');   // espacio después del último subtema de cada módulo
+      });
       old.forEach(p=>p.parentNode.removeChild(p));
     }
   }
