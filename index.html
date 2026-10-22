@@ -1446,7 +1446,7 @@ async function ensureCourseRow(sheetId, course, maestro) {
     'Independiente':course['Horas Independiente'] || course['Independiente'] || '',
     'Total':        course['Total de horas'] || course['Total'] || '',
     'Ubicación':    course['Periodo'] || course['Ubicación'] || '',
-    'Requisitos':   course['Requisitos'] || '',
+    'Requisitos':   course['Requisitos'] ? expandRequisitos(course['Requisitos']).replace(/\n/g,'; ') : '',
   };
   Object.entries(baseMap).forEach(([col, val]) => {
     const idx = headers.indexOf(col);
@@ -1927,7 +1927,7 @@ Incluir SIEMPRE al final:
 
 REGLAS: Una sola oración por recurso. Verbos nominalizados. Sin gerundios.
 
-Requisitos del curso: ${c['Requisitos']||'No especificados'}`,
+Requisitos del curso: ${c['Requisitos']?expandRequisitos(c['Requisitos']).replace(/\n/g,'; '):'No especificados'}`,
 
     biblio:`Propón REFERENCIAS BIBLIOGRÁFICAS en APA 7 para el curso "${name}":
 
@@ -4358,6 +4358,35 @@ function distLabel(r){
   return `${r.pct}%, ${Math.round(r.pct/r.count)}% cada ${femenino(r.name)?'una':'uno'}`;
 }
 
+// Requisitos: "SOFT-200, SOFT-201" → un curso por línea con su código y nombre completo
+function courseNameByCode(code){
+  const norm=x=>String(x||'').replace(/[\s-]+/g,'').toUpperCase();
+  const n=norm(code), same=x=>norm(x)===n;
+  const c=(allCourses||[]).find(x=>same(x['Código']));
+  if (c) return { code:String(c['Código']).trim(), name:String(c['Curso']||c['Nombre']||'').trim() };
+  // Respaldo: datos guardados de cualquier proyecto (por ejemplo, cursos comunes)
+  for (const courses of Object.values(maestroData||{})){
+    for (const [k,s] of Object.entries(courses||{})){
+      if (!same(k)) continue;
+      const d=safeJSON(s._datos||'{}',{}), m=safeJSON(s._datos_m||'{}',{});
+      const nm=String(d['Nombre']||m['Nombre']||'').trim(); if (nm) return { code:k, name:nm };
+    }
+  }
+  return null;
+}
+function expandRequisitos(text){
+  const t=String(text||'').trim();
+  if (!t || /^(no aplica|ninguno|n\/a|-+)$/i.test(t)) return t;
+  const parts=t.split(/\s*[,;\n]\s*|\s+y\s+(?=[A-Z]{2,6}-?\d)/).map(x=>x.trim()).filter(Boolean);
+  return parts.map(p=>{
+    const m=p.match(/^([A-Za-z]{2,6}-?\s?\d{1,4}[A-Za-z]?)(.*)$/);
+    if (!m) return p;
+    const code=m[1].replace(/\s+/g,'').toUpperCase(), rest=m[2].trim();
+    if (rest) return `${code} ${rest.replace(/^[-–:·]\s*/,'')}`;   // ya trae el nombre
+    const f=courseNameByCode(code);
+    return f && f.name ? `${f.code} ${f.name}` : code;
+  }).join('\n');
+}
 function courseDatos(course, saved){
   const fd = safeJSON(saved._datos||'{}',{});
   const dm = safeJSON(saved._datos_m||'{}',{});
@@ -4374,8 +4403,8 @@ function courseDatos(course, saved){
     'Modalidad': pick(c['Modalidad'], fd['Modalidad'], 'Presencial'),
     'Naturaleza': pick(c['Naturaleza'], fd['Naturaleza'], 'Teórico – Práctico'),
     'Ubicación': pick(fd['Ubicación'], c['Ubicación'], c['Periodo']),
-    'Requisitos': pick(c['Requisitos'], fd['Requisitos'], 'No aplica'),
-    'Correquisitos': pick(c['Correquisitos'], fd['Correquisitos'], 'No aplica'),
+    'Requisitos': expandRequisitos(pick(c['Requisitos'], fd['Requisitos'], 'No aplica')),
+    'Correquisitos': expandRequisitos(pick(c['Correquisitos'], fd['Correquisitos'], 'No aplica')),
     'Nivel': pick(currentProject?.nivel, c['Nivel'], fd['Nivel']),
     'Profesor': pick(fd['Profesor'], 'Por definir'),
     'Sede': pick(c['Sede'], fd['Sede'], 'Central'),
@@ -4420,7 +4449,15 @@ async function buildDocx(mode, opts){
   if (tDatos) rowsOf(tDatos).forEach(tr=>{
     const cs=cellsOf(tr); if(cs.length<2) return;
     const k=wText(cs[0]).replace(/\s+/g,' ').trim();
-    if (k in datos) setCell(cs[1], String(datos[k]).split('\n'));
+    if (k in datos){
+      setCell(cs[1], String(datos[k]).split('\n'));
+      // Requisitos con nombre completo: alineados a la izquierda para que no se estiren
+      if (/^(co)?rrequisitos$|^requisitos$/i.test(k)) cellParas(cs[1]).forEach(p=>{
+        let pPr=wChild(p,'pPr'); if(!pPr){ pPr=wEl(doc,'pPr'); p.insertBefore(pPr,p.firstChild); }
+        let jc=wChild(pPr,'jc'); if(!jc){ jc=wEl(doc,'jc'); const ref=Array.from(pPr.childNodes).find(n=>['textDirection','textAlignment','textboxTightWrap','outlineLvl','divId','cnfStyle','rPr','sectPr','pPrChange'].includes(n.localName))||null; pPr.insertBefore(jc,ref); }
+        wAttr(jc,'val','left');
+      });
+    }
   });
   if (tDatos) tableFmtAll(tDatos, '24');
 
