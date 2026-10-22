@@ -1785,7 +1785,7 @@ E3: ${s?.e3||'[Pendiente]'}`,
 
 REGLAS: Verbos nominalizados. Sin frases pedagógicas genéricas ("desarrollo del aprendizaje", "construcción del conocimiento").
 
-Sumativas: ${s?.e1||''} / ${s?.e2||''} / ${s?.e3||''}`,
+Sumativas: ${s?.e1||''} / ${s?.e2||''} / ${s?.e3||''}${(()=>{const v=tiposVariationBlock(); return v?'\n\n'+v:'';})()}`,
 
     eva_desc:(()=>{
       const n=(secId||'eva_desc1').replace('eva_desc','');
@@ -3346,15 +3346,16 @@ ${FICHA_SCHEMA(code,name)}
 
 
 // Metodologías de los cursos anteriores para variar la redacción entre programas
-function prevMetodologias(max=2){
+function prevMetodologias(max=2){ return prevField('metodologias', max); }
+function prevField(field, max=2){
   if (!currentProject || !currentCourse) return [];
   const code=currentCourse['Código'];
   const list=orderedCourses().map(x=>x.c);
   const idx=list.findIndex(c=>c['Código']===code);
-  const has=c=>c['Código']!==code && String(savedForCourse(c).metodologias||'').trim();
+  const has=c=>c['Código']!==code && String(savedForCourse(c)[field]||'').trim();
   const before=list.slice(0, idx<0?list.length:idx).reverse().filter(has);
   const after=idx<0?[]:list.slice(idx+1).filter(has);
-  return before.concat(after).slice(0,max).map(c=>({code:c['Código'], name:(c['Curso']||c['Nombre']||'').trim(), text:String(savedForCourse(c).metodologias).trim()}));
+  return before.concat(after).slice(0,max).map(c=>({code:c['Código'], name:(c['Curso']||c['Nombre']||'').trim(), text:String(savedForCourse(c)[field]).trim()}));
 }
 function metodologiasVariationBlock(){
   const prev=prevMetodologias(2);
@@ -3368,6 +3369,19 @@ Instrucción de variación: conservá las reglas y el estilo de la skill, pero r
 - Alterná el cierre ("para que", "de manera que", "de forma que") y la acción de los estudiantes ("distribuyan con sus pares" → "se organicen en equipos", "elaboren" → "construyan" o "diseñen").
 - Mantené una sola acción por metodología, el mismo registro formal y la misma longitud.`;
 }
+function tiposVariationBlock(){
+  const prev=prevField('eva_tipo', 2);
+  if (!prev.length) return '';
+  return `TIPOS DE EVALUACIÓN DE OTROS PROGRAMAS DE ESTA CARRERA (solo para variar la redacción; no se copian)
+${prev.map(p=>`— ${p.code} ${p.name}\n${p.text}`).join('\n\n')}
+
+Instrucción de variación: conservá las estructuras fijas de cada tipo (diagnóstica: "Al inicio de cada lección, el docente…"; formativa: "Durante el curso, se promueve…"; sumativa: "En este curso, los estudiantes ponen en práctica lo aprendido en…"), pero redactá con detalles sutilmente distintos a los de estos cursos:
+- El verbo de la definición cambia: si arriba dice "consiste en", aquí usá "radica en", "se define como" o "es"; lo mismo en la formativa y la sumativa.
+- La definición usa otro sustantivo núcleo: "la exploración inicial" → "el reconocimiento inicial" o "la identificación previa"; "el seguimiento continuo" → "el acompañamiento permanente" o "la valoración constante"; "la medición del logro" → "la valoración final" o "la constatación del logro".
+- La acción del docente en la diagnóstica cambia ("plantea" → "propone", "presenta" o "formula") y también el verbo de la utilidad ("facilita" → "permite", "orienta" o "favorece").
+- En la formativa, elegí otras dos actividades formativas o el otro conector ("con el propósito de" ↔ "para").
+- Mantené el mismo registro formal, los verbos nominalizados y la misma longitud.`;
+}
 function buildProgramaPrompt(){
   const c=currentCourse||{}; const s=currentSaved();
   const code=c['Código']||''; const name=c['Curso']||c['Nombre']||'';
@@ -3378,6 +3392,7 @@ function buildProgramaPrompt(){
   if(hilo) parts.push(`HILO CONDUCTOR\n- Núcleo del curso: ${hilo.nucleo||''}\n- Objeto de estudio: ${hilo.objeto_estudio||''}\n- Producto principal: ${hilo.producto_principal||''}\n- Uso de la inteligencia artificial: ${hilo.uso_ia||''}`);
   const esbP=esbozoPromptBlock(s,'programa'); if(esbP) parts.push(esbP);
   const varM=metodologiasVariationBlock(); if(varM) parts.push(varM);
+  const varT=tiposVariationBlock(); if(varT) parts.push(varT);
   parts.push(`FICHA APROBADA\n\nCOMPETENCIA DEL CURSO\n${s.competencia||'(pendiente)'}\n\nCONTENIDOS TEMÁTICOS\n${currentTemarioText(c,s)||'(pendientes)'}\n\nCUADRO DE COMPETENCIA\n${cuadroText(s)||'(pendiente)'}\n\nTABLA DE EVALUACIÓN\n${evaTablaText(s)||'(pendiente: proponé 40 % para el proyecto y 30 % para cada una de las otras dos)'}`);
   parts.push(`INSTRUCCIONES DE ENTREGA
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame el programa completo, legible, para revisarlo.
