@@ -461,6 +461,18 @@ button,input,select,textarea{font-family:inherit;}
 #modal-word .cl-step .btn{align-self:flex-start;}
 .wx-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;}
 
+/* Rasgos por grupo */
+.rg-card{border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;margin-bottom:12px;background:var(--desk);}
+.rg-top{display:flex;gap:10px;align-items:flex-end;margin-bottom:10px;}
+.rg-top .fg{flex:1;margin:0;}
+.rg-card textarea{width:100%;min-height:96px;border:1px solid var(--line-2);border-radius:var(--rs);padding:10px 12px;font-size:13.5px;line-height:1.55;resize:vertical;background:var(--paper);}
+.rg-courses{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.rg-course{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 6px;cursor:pointer;}
+.rg-course input{accent-color:var(--blue);}
+.rg-course.taken{opacity:.45;}
+.rg-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;font-size:12.5px;color:var(--ink-3);}
+.rg-tools select{border:1px solid var(--line-2);border-radius:6px;padding:4px 8px;font-size:12.5px;max-width:320px;}
+
 /* ═════════ Responsivo ═════════ */
 @media (max-width:1180px){
   .course-work{grid-template-columns:230px minmax(0,1fr);}
@@ -575,6 +587,7 @@ button,input,select,textarea{font-family:inherit;}
       </div>
       <span class="tb-sep" aria-hidden="true"></span>
       <button class="btn btn-quiet btn-sm" onclick="openProjectModal(currentProject.id)" title="Carrera, nivel y escuela del proyecto"><span class="ic" aria-hidden="true">✎</span> Editar proyecto</button>
+      <button class="btn btn-quiet btn-sm" onclick="openRasgosGrupos()" title="Rasgos del perfil compartidos por grupos de cursos afines"><span class="ic" aria-hidden="true">◎</span> Rasgos por grupo</button>
       <button class="btn btn-quiet btn-sm" onclick="openTomoExport()" title="Todos los programas en un Word, por cuatrimestre"><span class="ic" aria-hidden="true">⤓</span> Tomo II</button>
       <button class="btn btn-ghost btn-sm" onclick="syncSheets()" id="sync-btn"><span class="ic" aria-hidden="true">⟳</span> Sincronizar</button>
     </div>
@@ -865,6 +878,21 @@ button,input,select,textarea{font-family:inherit;}
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeEsbozo()">Cancelar</button>
       <button class="btn btn-primary" id="esb-btn" onclick="importEsbozo()" disabled>Revisar e importar →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Rasgos por grupo de cursos -->
+<div class="overlay" id="modal-rasgos">
+  <div class="modal modal-wide">
+    <div class="modal-ico"><span class="ic" aria-hidden="true">◎</span></div>
+    <h2>Rasgos del perfil por grupo</h2>
+    <p>Los cursos afines comparten los mismos tres rasgos. Armá un grupo, pegá o escribí sus rasgos y marcá los cursos que lo usan. Al guardar, cada curso del grupo queda con esos rasgos en el Word y en el Maestro, y Claude los copia textuales.</p>
+    <div id="rg-list"></div>
+    <button class="btn btn-ghost btn-sm" onclick="addRasgosGrupo()"><span class="ic" aria-hidden="true">+</span> Agregar grupo</button>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeRasgosGrupos()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveRasgosGrupos()"><span class="ic" aria-hidden="true">✓</span> Guardar grupos</button>
     </div>
   </div>
 </div>
@@ -1464,6 +1492,39 @@ async function ensureCourseRow(sheetId, course, maestro) {
    CONVERSIÓN FILA DEL MAESTRO ⇄ CAMPOS DE LA APP
 ══════════════════════════════════════════════════════ */
 const RUBRIC_SEP = ' | ';
+// Rúbrica cualitativa (método tradicional): criterio completo + "de manera …".
+// Niveles 1 y 4 son antónimos del mismo par; 2 y 3 toman un grado intermedio.
+const RUB_PARES = {
+  profundidad: ['escueta','profunda'],      // documenta, describe, explica, argumenta, analiza
+  coherencia:  ['incoherente','coherente'], // organiza, integra, relaciona, estructura, diseña
+  suficiencia: ['insuficiente','suficiente'],// identifica, define, determina, selecciona, compara
+  adecuacion:  ['inadecuada','adecuada'],   // aplica, utiliza, emplea, implementa, ejecuta
+  pertinencia: ['inapropiada','apropiada']  // resto
+};
+const RUB_MID2=['básica','incipiente','limitada'], RUB_MID3=['aceptable','regular','parcial'];
+function rubPairFor(crit){
+  const v=String(crit||'').trim().split(/\s+/)[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  if (/^(documenta|describe|explica|argumenta|analiza|examina|interpreta|fundamenta|sustenta|investiga|elabora|presenta|expone|defiende|sintetiza|discute)/.test(v)) return RUB_PARES.profundidad;
+  if (/^(organiza|integra|estructura|disena|modela|vincula|articula|clasifica|planifica|incorpora)/.test(v)) return RUB_PARES.coherencia;
+  if (/^(identifica|define|determina|selecciona|compara|contrasta|delimita|especifica|extrae|prioriza)/.test(v)) return RUB_PARES.suficiencia;
+  if (/^(aplica|utiliza|emplea|implementa|ejecuta|programa|desarrolla|codifica|despliega|automatiza|entrena|optimiza)/.test(v)) return RUB_PARES.adecuacion;
+  return RUB_PARES.pertinencia;
+}
+function qualitativeLevels(crit, k=0){
+  let c=String(crit||'').trim().replace(/[.;:\s]+$/,'');
+  if (!c) return ['','','',''];
+  const [lo,hi]=rubPairFor(c);
+  const m2=RUB_MID2[k%RUB_MID2.length], m3=RUB_MID3[(k+1)%RUB_MID3.length];
+  const join=adj=>`${c} de manera ${adj}.`;
+  return [join(lo), join(m2), join(m3), join(hi)];
+}
+// Los niveles numéricos ("de 0 a 4 de los 10…") ya no se usan: se reemplazan por los cualitativos
+function isNumericLevels(niv){ return (niv||[]).some(t=>/\b\d+\s*(a|o|y)\s*\d+\s+de\s+l[oa]s\s+\d+|\bl[oa]s\s+\d+\s+\w+|\b\d+\s+de\s+l[oa]s\s+\d+/i.test(String(t))); }
+function rubricLevelsFor(rk, critText, k){
+  const niv=(rk&&rk.niveles)||[];
+  if (niv.filter(x=>String(x||'').trim()).length===4 && !isNumericLevels(niv)) return niv;
+  return qualitativeLevels(rk?.criterio || critText, k);
+}
 function rubricToText(rubrica){ return (rubrica||[]).map(r=>[r.titulo||r.criterio||'', ...(r.niveles||[]).slice(0,4)].join(RUBRIC_SEP)).join('\n'); }
 function textToRubric(t){
   return String(t||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const p=l.split(/\s\|\s/); return {titulo:(p[0]||'').trim(), criterio:'', niveles:p.slice(1,5).map(x=>x.trim())}; });
@@ -1706,6 +1767,8 @@ REGLAS ESTRICTAS:
 - Sin conectores "mediante", "a través de"
 - Lenguaje cotidiano, sin tecnicismos excesivos
 - Una sola oración fluida y con peso disciplinar
+- Prueba de visualización: quien lo lea debe poder imaginar qué es. El atributo empieza con una categoría concreta (una rama de la computación, un tipo de programa, un tipo de documento), nunca con "las capacidades de…"
+  ✅ "La inteligencia artificial se define como la rama de la computación dedicada a la creación de programas capaces de aprender de los datos y de tomar decisiones para la automatización de tareas de análisis en una organización."
 
 EJEMPLO:
 "El monitoreo de redes se define como la supervisión continua del comportamiento operativo de la infraestructura de comunicación para la detección temprana de anomalías que comprometan la disponibilidad del servicio."
@@ -1719,7 +1782,8 @@ ESTRUCTURA:
 "La importancia de esta asignatura en la formación del profesional radica en que [el — de X] + [verbo nominalizado] + [beneficio profesional concreto]"
 
 REGLAS:
-- Enfoque PROFESIONAL (mundo laboral, no académico genérico)
+- Enfoque PROFESIONAL con componente laboral visible: nombra al profesional y lo que hace en su trabajo (por ejemplo, "permite que el ingeniero de software acuerde con los clientes el alcance de un producto antes de su programación")
+- Todo sustantivo abstracto lleva su complemento (reducción de qué, tiempos de respuesta en qué)
 - Verbos nominalizados
 - Máximo dos beneficios conectados
 - Sin frases: "el aprendizaje", "el conocimiento", "los fundamentos", "el dominio"
@@ -1766,6 +1830,9 @@ PROHIBIDO:
 - "mediante", "a través de", "por medio de"
 - Adjetivos valorativos: "adecuado", "correcto", "efectivo"
 - Repetir el verbo entre infinitivo y gerundio
+- Verbos que no combinan con su objeto (❌ "Diseñar la especificación" → ✅ "Especificar los requerimientos")
+- Artículo definido tras el verbo cuando el objeto es genérico (❌ "Desarrollar las aplicaciones" → ✅ "Desarrollar aplicaciones")
+- Cierres de disposición ("de manera ingeniosa", "de manera ética")
 
 EJEMPLO CORRECTO:
 ✅ "Desarrollar modelos de simulación robótica para predecir comportamiento de máquinas autónomas implementando algoritmos de cinemática que aseguren precisión del movimiento articular."
@@ -1859,6 +1926,7 @@ ESTRUCTURA: [Nombre actividad] + [permite/favorece/facilita/fomenta/propicia/pro
 
 LONGITUD: 40–50 palabras cada una.
 REGLA clave: verbos con artículos → ❌ "permite desarrollar" → ✅ "permite el desarrollo"
+VERBOS DE NIVEL ALTO para lo que hacen los estudiantes (argumenten, contrasten, valoren, formulen, fundamenten, integren, determinen); nunca seleccionen, escriban, midan, identifiquen ni describan.
 
 Inicia cada estrategia con el nombre de la actividad.
 
@@ -2389,7 +2457,7 @@ function buildMaestroColMap(saved) {
   const descObj    = saved.descripcion_objeto   || '';
   const descImp    = saved.descripcion_import   || '';
   const descCurso  = saved.descripcion_en_curso || '';
-  const descRasgos = saved.descripcion_rasgos   || '';
+  const descRasgos = courseRasgos(code, saved) || '';
 
   // Auto-generate: "Las principales temáticas por abordar son [...]. Las estrategias de evaluación son [...]."
   const tematicasSentence = buildTematicasSentence(saved);
@@ -2785,7 +2853,7 @@ function toast(msg,type=''){
 document.getElementById('modal-add').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 document.getElementById('modal-prompts').addEventListener('click',e=>{if(e.target===e.currentTarget)closePromptEditor();});
 document.getElementById('modal-tematicas').addEventListener('click',e=>{if(e.target===e.currentTarget)closeTematicasEditor();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closePromptEditor();closeTematicasEditor();closeClaudeFlow();closeBulkModal();closeGmailDraft();closeWordExport();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closePromptEditor();closeTematicasEditor();closeClaudeFlow();closeBulkModal();closeGmailDraft();closeRasgosGrupos();closeWordExport();}});
 
 renderProjects();
 initGoogleAuth();
@@ -3428,7 +3496,7 @@ const PROGRAMA_SCHEMA = (code)=>`{
   "tipos_evaluacion": {"diagnostica": "", "formativa": "", "sumativa": ""},
   "actividades": [
     {"nombre": "nombre exacto de la ficha", "evidencias": ["de 1 a 3"], "descripcion": "",
-     "rubrica": [{"criterio": "criterio copiado de la ficha", "titulo": "", "niveles": ["1 punto", "2 puntos", "3 puntos", "4 puntos"]}]}
+     "rubrica": [{"criterio": "criterio copiado de la ficha", "titulo": "frase nominal de 2 a 4 palabras", "niveles": ["criterio + de manera (antónimo bajo)", "criterio + de manera (grado básico)", "criterio + de manera (grado aceptable)", "criterio + de manera (antónimo alto)"]}]}
   ],
   "recursos_didacticos": [""],
   "cronograma": [{"sesion": 1, "modulo": 1, "subtemas": ["todos los subtemas del módulo"], "actividades": [""]}]
@@ -3455,6 +3523,10 @@ function buildFichaPrompt(){
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
 ${FICHA_SCHEMA(code,name)}
 3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; las entregas suman 8 como máximo (el proyecto lleva siempre 3 avances) y cada actividad lleva de 1 a 3 evidencias breves que nombran lo que el estudiante entrega al docente ("Documento escrito que detalla el proceso y los resultados", "Presentación oral que defiende…", "Código base en el que…", "Simulación del…"); ninguna tecnología concreta en la competencia, los resultados de aprendizaje, los criterios ni las evidencias (usá el término genérico); actividades en minúscula y con artículo dentro de la oración; sin "dotar" ni "de modo". Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
+5. Observaciones del revisor (versión RAM1), aplicalas sin excepción:
+- El verbo de la competencia combina con su objeto (nadie "diseña una especificación": se especifican los requerimientos; se desarrollan aplicaciones) y, si el objeto es genérico, va sin artículo ("Desarrollar aplicaciones de…", no "Desarrollar las aplicaciones de…").
+- El RA del proyecto deja ver el asunto disciplinar del curso, no solo el nombre del producto (por ejemplo, "Especifica los requerimientos de un sistema informático en el informe técnico…", no "Elabora el informe técnico…").
+- Criterios sin los verbos Reconoce, Construye ni Configura.
 4. Reglas del bloque: tres actividades en el orden del cuadro (la primera es el proyecto con 15 criterios; las otras dos llevan 8 criterios); porcentajes enteros que suman 100; cada elemento de una lista va sin viñetas ni numeración; los textos del bloque son idénticos a los de la ficha mostrada.`);
   return parts.join('\n\n');
 }
@@ -3507,13 +3579,23 @@ function buildProgramaPrompt(){
   if(hilo) parts.push(`HILO CONDUCTOR\n- Núcleo del curso: ${hilo.nucleo||''}\n- Objeto de estudio: ${hilo.objeto_estudio||''}\n- Producto principal: ${hilo.producto_principal||''}\n- Uso de la inteligencia artificial: ${hilo.uso_ia||''}`);
   const esbP=esbozoPromptBlock(s,'programa'); if(esbP) parts.push(esbP);
   const varM=metodologiasVariationBlock(); if(varM) parts.push(varM);
+  parts.push(rasgosPromptBlock());
   const varT=tiposVariationBlock(); if(varT) parts.push(varT);
   parts.push(`FICHA APROBADA\n\nCOMPETENCIA DEL CURSO\n${s.competencia||'(pendiente)'}\n\nCONTENIDOS TEMÁTICOS\n${currentTemarioText(c,s)||'(pendientes)'}\n\nCUADRO DE COMPETENCIA\n${cuadroText(s)||'(pendiente)'}\n\nTABLA DE EVALUACIÓN\n${evaTablaText(s)||'(pendiente: proponé 40 % para el proyecto y 30 % para cada una de las otras dos)'}`);
   parts.push(`INSTRUCCIONES DE ENTREGA
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame el programa completo, legible, para revisarlo.
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
 ${PROGRAMA_SCHEMA(code)}
-3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; el objeto de estudio va directo al objeto (sin "fundamentos de" ni "principios de"); ninguna tecnología concreta antes de recursos didácticos; actividades en minúscula y con artículo dentro de la oración ("las prácticas", "Las tareas favorecen"); sin "dotar" ni "de modo"; la evaluación formativa usa actividades distintas de las sumativas (resúmenes, mapas mentales, fichas de conceptos, glosario…) y el aprendizaje autónomo se vincula con ella; cada descripción de actividad tiene tres bloques (en qué consiste, qué deben realizar, qué contiene el entregable); la descripción es UN solo párrafo: qué es, cómo se hace (una sola oración, sin narrar etapa por etapa), "Esta actividad se compone de [n] entregables en los que el documento escrito contiene […], el código base incluye […] y la defensa oral […]" (aquí sí se enumeran los apartados de cada evidencia), la modalidad y "Esta estrategia de evaluación utiliza la siguiente rúbrica:"; ninguna palabra de contenido ni el nombre de una actividad se repite en oraciones vecinas (alterná con equivalentes como "el proyecto", "el sistema"); las metodologías tienen una sola acción del docente o de los estudiantes y un registro formal; "En el curso…" es la competencia escrita de manera completamente diferente (mismo sentido, otras palabras, sin repetir sus verbos ni sustantivos salvo el núcleo), no la descripción del proyecto; las temáticas y las estrategias de evaluación llevan siempre su artículo; las estrategias de aprendizaje dicen qué hacen los estudiantes ("permite que los estudiantes seleccionen…"); el estudio de casos resalta lo investigativo; el cronograma tiene una sola actividad por semana desde la sesión 2, entregas seguidas sin intercalar, duración fija en las dos actividades que no son el proyecto, ninguna entrega de más de 3 semanas, 8 entregas como máximo en total; el proyecto lleva siempre 3 avances repartidos a lo largo del curso, uno en cada tercio (el primero cierra a más tardar en la sesión 6, el segundo entre la 7 y la 10 y el tercero entre la 11 y la 14), nunca amontonados al final; y nunca dos entregas seguidas de la misma actividad (entre una etapa del proyecto y la siguiente va al menos otra actividad, para dar tiempo a la retroalimentación). Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
+3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; el objeto de estudio va directo al objeto (sin "fundamentos de" ni "principios de"); ninguna tecnología concreta en la descripción, la competencia, los RA, las metodologías ni las estrategias de aprendizaje, pero la descripción de cada actividad de evaluación sí nombra el software o recurso informático con que se hace (el mismo de recursos didácticos); actividades en minúscula y con artículo dentro de la oración ("las prácticas", "Las tareas favorecen"); sin "dotar" ni "de modo"; la evaluación formativa usa actividades distintas de las sumativas (resúmenes, mapas mentales, fichas de conceptos, glosario…) y el aprendizaje autónomo se vincula con ella; cada descripción de actividad tiene tres bloques (en qué consiste, qué deben realizar, qué contiene el entregable); la descripción es UN solo párrafo: qué es, cómo se hace (una sola oración, sin narrar etapa por etapa), "Esta actividad se compone de [n] entregables en los que el documento escrito contiene […], el código base incluye […] y la defensa oral […]" (aquí sí se enumeran los apartados de cada evidencia), la modalidad y "Esta estrategia de evaluación utiliza la siguiente rúbrica:"; ninguna palabra de contenido ni el nombre de una actividad se repite en oraciones vecinas (alterná con equivalentes como "el proyecto", "el sistema"); las metodologías tienen una sola acción del docente o de los estudiantes y un registro formal; "En el curso…" es la competencia escrita de manera completamente diferente (mismo sentido, otras palabras, sin repetir sus verbos ni sustantivos salvo el núcleo), no la descripción del proyecto; las temáticas y las estrategias de evaluación llevan siempre su artículo; las estrategias de aprendizaje dicen qué hacen los estudiantes ("permite que los estudiantes seleccionen…"); el estudio de casos resalta lo investigativo; el cronograma tiene una sola actividad por semana desde la sesión 2, entregas seguidas sin intercalar, duración fija en las dos actividades que no son el proyecto, ninguna entrega de más de 3 semanas, 8 entregas como máximo en total; el proyecto lleva siempre 3 avances repartidos a lo largo del curso, uno en cada tercio (el primero cierra a más tardar en la sesión 6, el segundo entre la 7 y la 10 y el tercero entre la 11 y la 14), nunca amontonados al final; y nunca dos entregas seguidas de la misma actividad (entre una etapa del proyecto y la siguiente va al menos otra actividad, para dar tiempo a la retroalimentación). Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
+5. Observaciones del revisor (versión RAM1), aplicalas sin excepción:
+- Objeto de estudio que se pueda visualizar: el género próximo es una categoría concreta (una rama de la computación, un tipo de programa o de documento), nunca "las capacidades de…"; quien lo lea debe poder imaginar qué es.
+- Importancia con componente laboral: nombra al profesional y lo que hace en su trabajo (por ejemplo, "permite que el ingeniero de software acuerde con los clientes el alcance de un producto antes de su programación").
+- Todo sustantivo abstracto lleva su complemento: consenso sobre qué, tiempos de respuesta en qué, reducción de qué.
+- Rasgos del perfil por grupo de cursos afines, no exclusivos de este curso (ver el bloque de rasgos).
+- Estrategias de aprendizaje con verbos de nivel alto (argumenten, contrasten, valoren, formulen, fundamenten, integren, determinen); nunca seleccionen, escriban, midan, identifiquen ni describan.
+- La metodología de estudio de casos describe la resolución del caso (diagnóstico y solución); la indagación en fuentes solo respalda esa solución.
+- Cada descripción de actividad de evaluación nombra el software o recurso informático que usan los estudiantes, y ese mismo recurso aparece en recursos didácticos.
+- Rúbricas con el método cualitativo: cada nivel es el criterio completo seguido de "de manera …" (nivel 1 y 4 antónimos como escueta y profunda, insuficiente y suficiente, inadecuada y adecuada; nivel 2 básica, incipiente o limitada; nivel 3 aceptable, regular o parcial). Nunca cantidades como "1 o 2 de los 6".
 4. Reglas del bloque: "actividades" lleva las tres actividades en el orden del cuadro, cada una con sus evidencias (las de la ficha, o las que creaste si no tenía) y la rúbrica de todos sus criterios (en "titulo" va solo el título corto del criterio); "cronograma" lleva las sesiones 1 a 14 (la 15 es fija), "modulo" es el número del módulo y "actividades" contiene solo las líneas propias de la sesión (inicio o cierre de entregas), sin las dos líneas fijas de lectura y participación; cada elemento de una lista va sin viñetas ni numeración. No busques ni propongas bibliografía: esa sección la completa el curriculista por aparte.`);
   return parts.join('\n\n');
 }
@@ -3644,7 +3726,9 @@ function programaToItems(d){
   if(ds.objeto_estudio) items.push({label:'Objeto de estudio', secId:'descripcion_objeto', value:ds.objeto_estudio.trim(), icon:'📖'});
   if(ds.importancia)    items.push({label:'Importancia', secId:'descripcion_import', value:ds.importancia.trim(), icon:'⭐'});
   if(ds.en_el_curso)    items.push({label:'En el curso…', secId:'descripcion_en_curso', value:ds.en_el_curso.trim(), icon:'🎯'});
-  if(ds.rasgos_perfil)  items.push({label:'Rasgos de perfil', secId:'descripcion_rasgos', value:ds.rasgos_perfil.trim(), icon:'👤'});
+  { const g=rasgosGroupFor(currentCourse?.['Código']);
+    if (g && String(g.texto||'').trim()) items.push({label:`Rasgos de perfil (del grupo «${g.nombre}»)`, secId:'descripcion_rasgos', value:String(g.texto).trim(), icon:'👤'});
+    else if(ds.rasgos_perfil) items.push({label:'Rasgos de perfil', secId:'descripcion_rasgos', value:ds.rasgos_perfil.trim(), icon:'👤'}); }
   const met=cleanList(d.metodologias);
   if(met.length) items.push({label:`Metodologías (${met.length})`, secId:'metodologias', value:met.join('\n'), icon:'🧠'});
   const est=cleanList(d.estrategias_aprendizaje);
@@ -4359,6 +4443,85 @@ function distLabel(r){
 }
 
 // Requisitos: "SOFT-200, SOFT-201" → un curso por línea con su código y nombre completo
+// Rasgos del perfil por grupo de cursos (los cursos afines comparten los mismos rasgos)
+/* ══════════════════════════════════════════════════════
+   RASGOS DEL PERFIL POR GRUPO DE CURSOS
+══════════════════════════════════════════════════════ */
+let rgDraft=[];
+function openRasgosGrupos(){
+  if(!currentProject){ toast('Abrí un proyecto primero','error'); return; }
+  rgDraft = JSON.parse(JSON.stringify(currentProject.rasgosGrupos||[]));
+  if(!rgDraft.length) rgDraft.push({id:Date.now().toString(36), nombre:'', texto:'', cursos:[]});
+  renderRasgosGrupos();
+  document.getElementById('modal-rasgos').classList.add('active');
+}
+function closeRasgosGrupos(){ document.getElementById('modal-rasgos').classList.remove('active'); }
+function addRasgosGrupo(){ rgSync(); rgDraft.push({id:Date.now().toString(36), nombre:'', texto:'', cursos:[]}); renderRasgosGrupos(); }
+function delRasgosGrupo(i){ rgSync(); rgDraft.splice(i,1); renderRasgosGrupos(); }
+function rgSync(){
+  document.querySelectorAll('#rg-list .rg-card').forEach((card,i)=>{
+    const g=rgDraft[i]; if(!g) return;
+    g.nombre=card.querySelector('.rg-name').value.trim();
+    g.texto=card.querySelector('textarea').value.trim();
+    g.cursos=[...card.querySelectorAll('.rg-course input:checked')].map(x=>x.value);
+  });
+}
+function rgCopyFrom(i, code){
+  if(!code) return; rgSync();
+  const s=savedForCourse((allCourses||[]).find(c=>c['Código']===code)||{});
+  if(s.descripcion_rasgos){ rgDraft[i].texto=String(s.descripcion_rasgos).trim(); if(!rgDraft[i].cursos.includes(code)) rgDraft[i].cursos.push(code); }
+  else toast('Ese curso todavía no tiene rasgos guardados','error');
+  renderRasgosGrupos();
+}
+function renderRasgosGrupos(){
+  const list=document.getElementById('rg-list');
+  const courses=orderedCourses().map(x=>x.c);
+  const owner={}; rgDraft.forEach((g,i)=>(g.cursos||[]).forEach(c=>owner[c]=i));
+  const withRasgos=courses.filter(c=>String(savedForCourse(c).descripcion_rasgos||'').trim());
+  list.innerHTML = rgDraft.map((g,i)=>`
+    <div class="rg-card">
+      <div class="rg-top">
+        <div class="fg"><label>Nombre del grupo</label><input class="rg-name" value="${escHtml(g.nombre||'')}" placeholder="Ej.: Ingeniería del software, Inteligencia artificial, Fundamentos"></div>
+        <button class="btn btn-quiet btn-sm" onclick="delRasgosGrupo(${i})" title="Eliminar grupo">Eliminar</button>
+      </div>
+      <textarea placeholder="Este curso se relaciona con los siguientes rasgos del perfil profesional: “…”, “…” y “…”.">${escHtml(g.texto||'')}</textarea>
+      <div class="rg-tools">${withRasgos.length?`Copiar los rasgos de <select onchange="rgCopyFrom(${i}, this.value)"><option value="">un curso…</option>${withRasgos.map(c=>`<option value="${escHtml(c['Código'])}">${escHtml(c['Código']+' '+(c['Curso']||c['Nombre']||''))}</option>`).join('')}</select>`:''}</div>
+      <div class="rg-courses">${courses.map(c=>{ const code=c['Código']; const o=owner[code]; const mine=o===i; const taken=o!==undefined&&!mine;
+        return `<label class="rg-course${taken?' taken':''}" title="${taken?'Ya está en otro grupo':escHtml(c['Curso']||c['Nombre']||'')}"><input type="checkbox" value="${escHtml(code)}" ${mine?'checked':''} ${taken?'disabled':''}>${escHtml(code)}</label>`; }).join('') || '<span style="font-size:13px;color:var(--ink-3)">Cargá los cursos del proyecto para asignarlos.</span>'}</div>
+    </div>`).join('');
+}
+function saveRasgosGrupos(){
+  rgSync();
+  const groups=rgDraft.filter(g=>g.nombre||g.texto||g.cursos.length);
+  if(groups.some(g=>!g.nombre)){ toast('Poné un nombre a cada grupo','error'); return; }
+  currentProject.rasgosGrupos=groups;
+  const pi=projects.findIndex(p=>p.id===currentProject.id); if(pi>=0) projects[pi].rasgosGrupos=groups;
+  localStorage.setItem('dcd_projects',JSON.stringify(projects));
+  // Cada curso del grupo queda con los rasgos del grupo
+  const sid=currentProject.sheetId; let n=0;
+  groups.forEach(g=>{ if(!String(g.texto||'').trim()) return; g.cursos.forEach(code=>{ maestroData[sid]=maestroData[sid]||{}; maestroData[sid][code]=maestroData[sid][code]||{}; maestroData[sid][code].descripcion_rasgos=g.texto.trim(); n++; }); });
+  localStorage.setItem('dcd_maestro',JSON.stringify(maestroData));
+  autoBackup(); closeRasgosGrupos();
+  toast(`✓ ${groups.length} grupo(s) guardado(s); ${n} curso(s) con rasgos del grupo`,'success');
+}
+document.getElementById('modal-rasgos').addEventListener('click',e=>{if(e.target===e.currentTarget)closeRasgosGrupos();});
+// Bloque para Claude: rasgos del grupo (textuales) o rasgos ya usados en cursos afines
+function rasgosPromptBlock(){
+  const code=currentCourse?.['Código']; const g=rasgosGroupFor(code);
+  if (g && String(g.texto||'').trim()) return `RASGOS DEL PERFIL DEL GRUPO «${g.nombre}» (este curso pertenece a ese grupo: copiá estos rasgos textuales en "rasgos_perfil", sin cambiar nada)\n${String(g.texto).trim()}`;
+  const seen=new Set(); const others=[];
+  orderedCourses().map(x=>x.c).forEach(c=>{ if(c['Código']===code) return; const t=String(savedForCourse(c).descripcion_rasgos||'').trim(); if(t && !seen.has(t)){ seen.add(t); others.push(`— ${c['Código']} ${c['Curso']||c['Nombre']||''}\n${t}`); } });
+  if (!others.length) return 'RASGOS DEL PERFIL: redactalos para el grupo de cursos afines a este (no exclusivos de este curso), de modo que sirvan igual para los cursos de la misma área.';
+  return `RASGOS DEL PERFIL YA USADOS EN OTROS CURSOS DE ESTA CARRERA\n${others.slice(0,4).join('\n\n')}\n\nSi este curso es afín a alguno de esos (misma área o agrupación), reutilizá sus rasgos textuales. Si no, redactá rasgos para el grupo de cursos afines a este, no exclusivos de este curso.`;
+}
+function rasgosGroupFor(code, p=currentProject){
+  const n=String(code||'').replace(/[\s-]+/g,'').toUpperCase();
+  return (p?.rasgosGrupos||[]).find(g=>(g.cursos||[]).some(c=>String(c).replace(/[\s-]+/g,'').toUpperCase()===n)) || null;
+}
+function courseRasgos(code, saved){
+  const g=rasgosGroupFor(code);
+  return (g && String(g.texto||'').trim()) || String(saved?.descripcion_rasgos||'').trim();
+}
 function courseNameByCode(code){
   const norm=x=>String(x||'').replace(/[\s-]+/g,'').toUpperCase();
   const n=norm(code), same=x=>norm(x)===n;
@@ -4467,7 +4630,7 @@ async function buildDocx(mode, opts){
   if (hDesc && prog){
     const p1=[s.descripcion_objeto, s.descripcion_import, s.descripcion_en_curso, buildTematicasSentence(s)].map(x=>String(x||'').trim()).filter(Boolean).join(' ');
     // Todo en un solo párrafo, rasgos incluidos (como en las versiones revisadas)
-    const paras=[[p1, String(s.descripcion_rasgos||'').trim()].filter(Boolean).join(' ')].filter(Boolean);
+    const paras=[[p1, courseRasgos(c['Código'], s)].filter(Boolean).join(' ')].filter(Boolean);
     let ref=after(hDesc);
     paras.forEach(t=>body.insertBefore(clonePara(protoNormal, t), ref));
   }
@@ -4600,7 +4763,8 @@ async function buildDocx(mode, opts){
       if (prog){
         const rk=rr[k]||{};
         setCell(cs[0], [rk.titulo || rk.criterio || crit[k] || '']);
-        for (let j=1;j<=4 && j<cs.length;j++) setCell(cs[j], [ (rk.niveles||[])[j-1]||'' ]);
+        const lv = rubricLevelsFor(rk, crit[k], k);
+        for (let j=1;j<=4 && j<cs.length;j++) setCell(cs[j], [ lv[j-1]||'' ]);
       } else {
         cs.forEach(tc=>setCell(tc,['']));
       }
