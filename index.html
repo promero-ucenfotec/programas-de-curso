@@ -1767,8 +1767,8 @@ REGLAS ESTRICTAS:
 - Sin conectores "mediante", "a través de"
 - Lenguaje cotidiano, sin tecnicismos excesivos
 - Una sola oración fluida y con peso disciplinar
-- Prueba de visualización: quien lo lea debe poder imaginar qué es. El atributo empieza con una categoría concreta (una rama de la computación, un tipo de programa, un tipo de documento), nunca con "las capacidades de…"
-  ✅ "La inteligencia artificial se define como la rama de la computación dedicada a la creación de programas capaces de aprender de los datos y de tomar decisiones para la automatización de tareas de análisis en una organización."
+- Quien lo lea debe poder imaginar qué es: el atributo empieza con un sustantivo concreto (las técnicas, las estrategias, los procesos, las normas, los métodos, las especificaciones), nunca con una acción ni con "las capacidades de…", y sin nombrar "disciplina" ni "rama"
+  ✅ "La inteligencia artificial se define como las técnicas computacionales de aprendizaje a partir de los datos y de toma de decisiones automatizada para el análisis y la planificación de los procesos de una organización."
 
 EJEMPLO:
 "El monitoreo de redes se define como la supervisión continua del comportamiento operativo de la infraestructura de comunicación para la detección temprana de anomalías que comprometan la disponibilidad del servicio."
@@ -1782,7 +1782,7 @@ ESTRUCTURA:
 "La importancia de esta asignatura en la formación del profesional radica en que [el — de X] + [verbo nominalizado] + [beneficio profesional concreto]"
 
 REGLAS:
-- Enfoque PROFESIONAL con componente laboral visible: nombra al profesional y lo que hace en su trabajo (por ejemplo, "permite que el ingeniero de software acuerde con los clientes el alcance de un producto antes de su programación")
+- Componente laboral visible con una acción concreta y propia del área, nominalizada, sin nombrar la profesión (por ejemplo, "permite el acuerdo de las partes interesadas sobre las funciones de un producto antes de su programación")
 - Todo sustantivo abstracto lleva su complemento (reducción de qué, tiempos de respuesta en qué)
 - Verbos nominalizados
 - Máximo dos beneficios conectados
@@ -1926,7 +1926,7 @@ ESTRUCTURA: [Nombre actividad] + [permite/favorece/facilita/fomenta/propicia/pro
 
 LONGITUD: 40–50 palabras cada una.
 REGLA clave: verbos con artículos → ❌ "permite desarrollar" → ✅ "permite el desarrollo"
-VERBOS DE NIVEL ALTO para lo que hacen los estudiantes (argumenten, contrasten, valoren, formulen, fundamenten, integren, determinen); nunca seleccionen, escriban, midan, identifiquen ni describan.
+VERBOS DE LA CATEGORÍA DE APLICAR para lo que hacen los estudiantes (utilicen, empleen, elaboren, diseñen, implementen, incorporen, desarrollen, integren, modelen, programen); nunca seleccionen, escriban, midan, identifiquen ni describan.
 
 Inicia cada estrategia con el nombre de la actividad.
 
@@ -3525,7 +3525,7 @@ ${FICHA_SCHEMA(code,name)}
 3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; las entregas suman 8 como máximo (el proyecto lleva siempre 3 avances) y cada actividad lleva de 1 a 3 evidencias breves que nombran lo que el estudiante entrega al docente ("Documento escrito que detalla el proceso y los resultados", "Presentación oral que defiende…", "Código base en el que…", "Simulación del…"); ninguna tecnología concreta en la competencia, los resultados de aprendizaje, los criterios ni las evidencias (usá el término genérico); actividades en minúscula y con artículo dentro de la oración; sin "dotar" ni "de modo". Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
 5. Observaciones del revisor (versión RAM1), aplicalas sin excepción:
 - El verbo de la competencia combina con su objeto (nadie "diseña una especificación": se especifican los requerimientos; se desarrollan aplicaciones) y, si el objeto es genérico, va sin artículo ("Desarrollar aplicaciones de…", no "Desarrollar las aplicaciones de…").
-- El RA del proyecto deja ver el asunto disciplinar del curso, no solo el nombre del producto (por ejemplo, "Especifica los requerimientos de un sistema informático en el informe técnico…", no "Elabora el informe técnico…").
+- Cada RA deja ver el asunto del curso: verbo disciplinar + objeto + "en" + el proceso del área donde se realiza (por ejemplo, "Realiza pruebas de funcionamiento en la verificación del rendimiento de la aplicación", "Especifica los requerimientos de un sistema informático en la formalización de las necesidades de un negocio"), no "Elabora el informe técnico…".
 - Criterios sin los verbos Reconoce, Construye ni Configura.
 4. Reglas del bloque: tres actividades en el orden del cuadro (la primera es el proyecto con 15 criterios; las otras dos llevan 8 criterios); porcentajes enteros que suman 100; cada elemento de una lista va sin viñetas ni numeración; los textos del bloque son idénticos a los de la ficha mostrada.`);
   return parts.join('\n\n');
@@ -3588,11 +3588,11 @@ function buildProgramaPrompt(){
 ${PROGRAMA_SCHEMA(code)}
 3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; el objeto de estudio va directo al objeto (sin "fundamentos de" ni "principios de"); ninguna tecnología concreta en la descripción, la competencia, los RA, las metodologías ni las estrategias de aprendizaje, pero la descripción de cada actividad de evaluación sí nombra el software o recurso informático con que se hace (el mismo de recursos didácticos); actividades en minúscula y con artículo dentro de la oración ("las prácticas", "Las tareas favorecen"); sin "dotar" ni "de modo"; la evaluación formativa usa actividades distintas de las sumativas (resúmenes, mapas mentales, fichas de conceptos, glosario…) y el aprendizaje autónomo se vincula con ella; cada descripción de actividad tiene tres bloques (en qué consiste, qué deben realizar, qué contiene el entregable); la descripción es UN solo párrafo: qué es, cómo se hace (una sola oración, sin narrar etapa por etapa), "Esta actividad se compone de [n] entregables en los que el documento escrito contiene […], el código base incluye […] y la defensa oral […]" (aquí sí se enumeran los apartados de cada evidencia), la modalidad y "Esta estrategia de evaluación utiliza la siguiente rúbrica:"; ninguna palabra de contenido ni el nombre de una actividad se repite en oraciones vecinas (alterná con equivalentes como "el proyecto", "el sistema"); las metodologías tienen una sola acción del docente o de los estudiantes y un registro formal; "En el curso…" es la competencia escrita de manera completamente diferente (mismo sentido, otras palabras, sin repetir sus verbos ni sustantivos salvo el núcleo), no la descripción del proyecto; las temáticas y las estrategias de evaluación llevan siempre su artículo; las estrategias de aprendizaje dicen qué hacen los estudiantes ("permite que los estudiantes seleccionen…"); el estudio de casos resalta lo investigativo; el cronograma tiene una sola actividad por semana desde la sesión 2, entregas seguidas sin intercalar, duración fija en las dos actividades que no son el proyecto, ninguna entrega de más de 3 semanas, 8 entregas como máximo en total; el proyecto lleva siempre 3 avances repartidos a lo largo del curso, uno en cada tercio (el primero cierra a más tardar en la sesión 6, el segundo entre la 7 y la 10 y el tercero entre la 11 y la 14), nunca amontonados al final; y nunca dos entregas seguidas de la misma actividad (entre una etapa del proyecto y la siguiente va al menos otra actividad, para dar tiempo a la retroalimentación). Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
 5. Observaciones del revisor (versión RAM1), aplicalas sin excepción:
-- Objeto de estudio que se pueda visualizar: el género próximo es una categoría concreta (una rama de la computación, un tipo de programa o de documento), nunca "las capacidades de…"; quien lo lea debe poder imaginar qué es.
-- Importancia con componente laboral: nombra al profesional y lo que hace en su trabajo (por ejemplo, "permite que el ingeniero de software acuerde con los clientes el alcance de un producto antes de su programación").
+- Objeto de estudio que se pueda imaginar: empieza con un sustantivo concreto (las técnicas, las estrategias, los procesos, las normas, los métodos), nunca con una acción ni con "las capacidades de…", y sin nombrar "disciplina" ni "rama".
+- Importancia con componente laboral: una acción concreta y propia del área, nominalizada, sin nombrar la profesión (por ejemplo, "permite el acuerdo de las partes interesadas sobre las funciones de un producto antes de su programación").
 - Todo sustantivo abstracto lleva su complemento: consenso sobre qué, tiempos de respuesta en qué, reducción de qué.
 - Rasgos del perfil por grupo de cursos afines, no exclusivos de este curso (ver el bloque de rasgos).
-- Estrategias de aprendizaje con verbos de nivel alto (argumenten, contrasten, valoren, formulen, fundamenten, integren, determinen); nunca seleccionen, escriban, midan, identifiquen ni describan.
+- Estrategias de aprendizaje con verbos de la categoría de aplicar (utilicen, empleen, elaboren, diseñen, implementen, incorporen, desarrollen, integren); nunca seleccionen, escriban, midan, identifiquen ni describan.
 - La metodología de estudio de casos describe la resolución del caso (diagnóstico y solución); la indagación en fuentes solo respalda esa solución.
 - Cada descripción de actividad de evaluación nombra el software o recurso informático que usan los estudiantes, y ese mismo recurso aparece en recursos didácticos.
 - Rúbricas con el método cualitativo: cada nivel es el criterio completo seguido de "de manera …" (nivel 1 y 4 antónimos como escueta y profunda, insuficiente y suficiente, inadecuada y adecuada; nivel 2 básica, incipiente o limitada; nivel 3 aceptable, regular o parcial). Nunca cantidades como "1 o 2 de los 6".
