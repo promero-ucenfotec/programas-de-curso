@@ -1664,6 +1664,15 @@ function maestroRowToSaved(headers, row){
   const bc=g('Bibliografia_Complementaria'); if(bc) o.biblio_co=bc;
   const cg=g('Competencia General'); if(cg) o._comp_general=cg;
   const ct=g('Competencia Transversal'); if(ct) o._comp_transversal=ct;
+  // Competencias de la carrera (columnas nuevas del Maestro): área de conocimiento, eje curricular y ejes transversales
+  const gN = name => { const k=normTxt(name).replace(/[\s_]+/g,''); const i=headers.findIndex(h=>normTxt(h).replace(/[\s_]+/g,'')===k); return i>=0 ? String(row[i]||'').replace(/\r\n/g,'\n').trim() : ''; };
+  const pairs = (nom, comp) => { const ns=nom.split('|').map(x=>x.trim()); const cs=comp.split('|').map(x=>x.trim()); const n=Math.max(ns.length, cs.length); const out=[]; for(let i=0;i<n;i++){ const a=(ns[i]||'').replace(/[.\s]+$/,''), c=cs[i]||''; if(a||c) out.push(a&&c ? `${a}. ${c}` : (a||c)); } return out.join('\n'); };
+  const aN=gN('Area Conocimiento'), aC=gN('Competencia_Area_Conocimiento');
+  const eN=gN('Eje Curricular'), eC=gN('Competencia_Eje_Curricular');
+  const tN=gN('Eje Transversal'), tC=gN('Competencia_Transversal');
+  if (aN||aC) o._comp_general = pairs(aN, aC);
+  if (eN||eC) o._comp_curricular = pairs(eN, eC);
+  if (tN||tC) o._comp_transversal = pairs(tN, tC);
   // Datos generales
   const dm={}; ['Nombre','Créditos','Lectivas','Teoria','Lab','Practica','Independiente','Total','Ubicación','Requisitos'].forEach(c=>{ const v=g(c); if(v) dm[c]=v; });
   if (Object.keys(dm).length) o._datos_m = JSON.stringify(dm);
@@ -1694,7 +1703,11 @@ async function importFromMaestro(sheetId) {
       ['descripcion_objeto','descripcion_import','descripcion_en_curso','descripcion_rasgos'].forEach(k=>{ if(conv[k]!==undefined || local[k]===local.descripcion_objeto) local[k]=''; });
     }
     if (local.modulos && !/m[oó]dulo\s+2/i.test(local.modulos) && /m[oó]dulo\s+2/i.test(conv.modulos||'')) local.modulos = '';
-    Object.entries(conv).forEach(([k,v]) => { if (v && !String(local[k]||'').trim()) { local[k] = v; imported++; } });
+    Object.entries(conv).forEach(([k,v]) => {
+      if (!v) return;
+      if (/^_comp_/.test(k)) { if (local[k]!==v){ local[k]=v; imported++; } return; }   // lo define el Maestro
+      if (!String(local[k]||'').trim()) { local[k] = v; imported++; }
+    });
   });
   localStorage.setItem('dcd_maestro', JSON.stringify(maestroData));
   return imported;
@@ -2107,7 +2120,10 @@ FORMATO: Apellido, N. (Año). Título en cursiva. Editorial. https://url
     cronograma:`Panel de cronograma integrado debajo.`,
   };
 
-  return prompts[pkey] || '(Sin prompt definido para esta sección.)';
+  const base = prompts[pkey] || '(Sin prompt definido para esta sección.)';
+  // Competencias de la carrera: guían la competencia, los RA, los criterios y los rasgos
+  if (['competencia','ra','cd','rasgos'].includes(pkey)) { const cc=carreraCompBlock(s); if (cc) return base+'\n\n'+cc; }
+  return base;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -3618,6 +3634,7 @@ function buildFichaPrompt(){
   const cuadro=cuadroText(s);
   if(cuadro) parts.push(`CUADRO DE COMPETENCIA EXISTENTE (mejoralo con las reglas de la skill)\n${cuadro}`);
   const esb=esbozoPromptBlock(s,'ficha'); if(esb) parts.push(esb);
+  const ccF=carreraCompBlock(s); if(ccF) parts.push(ccF);
   parts.push(`INSTRUCCIONES DE ENTREGA
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame la ficha completa, legible, para revisarla.
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
@@ -3680,6 +3697,7 @@ function buildProgramaPrompt(){
   const esbP=esbozoPromptBlock(s,'programa'); if(esbP) parts.push(esbP);
   const varM=metodologiasVariationBlock(); if(varM) parts.push(varM);
   parts.push(rasgosPromptBlock());
+  { const cc=carreraCompBlock(); if(cc) parts.push(cc); }
   const varT=tiposVariationBlock(); if(varT) parts.push(varT);
   parts.push(`FICHA APROBADA\n\nCOMPETENCIA DEL CURSO\n${s.competencia||'(pendiente)'}\n\nCONTENIDOS TEMÁTICOS\n${currentTemarioText(c,s)||'(pendientes)'}\n\nCUADRO DE COMPETENCIA\n${cuadroText(s)||'(pendiente)'}\n\nTABLA DE EVALUACIÓN\n${evaTablaText(s)||'(pendiente: proponé 40 % para el proyecto y 30 % para cada una de las otras dos)'}`);
   parts.push(`INSTRUCCIONES DE ENTREGA
@@ -4610,6 +4628,22 @@ function saveRasgosGrupos(){
 }
 document.getElementById('modal-rasgos').addEventListener('click',e=>{if(e.target===e.currentTarget)closeRasgosGrupos();});
 // Bloque para Claude: rasgos del grupo (textuales) o rasgos ya usados en cursos afines
+// Competencias de la carrera a las que aporta el curso (columnas del Maestro)
+function carreraCompBlock(s){
+  s=s||currentSaved();
+  const L=t=>String(t||'').split('\n').map(cleanItem).filter(Boolean);
+  const a=L(s._comp_general), e=L(s._comp_curricular), t=L(s._comp_transversal);
+  if(!a.length && !e.length && !t.length) return '';
+  const out=['COMPETENCIAS DE LA CARRERA A LAS QUE APORTA EL CURSO (del Maestro; van textuales en el cuadro de competencia, no las reescribas)'];
+  if(a.length) out.push(`Área de conocimiento:\n${a.map(x=>'- '+x).join('\n')}`);
+  if(e.length) out.push(`Eje curricular:\n${e.map(x=>'- '+x).join('\n')}`);
+  if(t.length) out.push(`Ejes transversales:\n${t.map(x=>'- '+x).join('\n')}`);
+  out.push(`Cómo usarlas:
+- La competencia del curso es un paso concreto hacia la competencia del área de conocimiento: comparte su campo y su tipo de producto, en un nivel más específico, sin copiar su redacción.
+- El eje curricular se ve en el curso: al menos un resultado de aprendizaje o varios criterios de desempeño lo trabajan de forma explícita${e.length?` (${e.map(x=>x.split('.')[0]).join(', ')})`:''}.
+- Los ejes transversales se reflejan en el rasgo actitudinal del perfil y en alguna metodología, sin nombrarlos de forma literal.`);
+  return out.join('\n');
+}
 function rasgosPromptBlock(){
   const code=currentCourse?.['Código']; const g=rasgosGroupFor(code);
   if (g && String(g.texto||'').trim()) return `RASGOS DEL PERFIL DEL GRUPO «${g.nombre}» (este curso pertenece a ese grupo: copiá estos rasgos textuales en "rasgos_perfil", sin cambiar nada)\n${String(g.texto).trim()}`;
@@ -4762,13 +4796,21 @@ async function buildDocx(mode, opts){
     const boldLead = t => { const m=String(t).match(/^([^.]{2,80}\.)\s*(.*)$/); return m?[{text:m[1],bold:true},{text:' '+m[2],bold:false}]:[{text:t,bold:false}]; };
     const rowsG=rowsOf(tCuadro);
     const iGen=rowsG.findIndex(r=>cellsOf(r).length===1 && /^competencia\s+general$/i.test(wText(r).trim()));
-    if (iGen>=0 && rowsG[iGen+1] && String(s._comp_general||'').trim()) setCell(cellsOf(rowsG[iGen+1])[0], [String(s._comp_general).trim()], {segs:boldLead});
+    const genList=String(s._comp_general||'').split('\n').map(cleanItem).filter(Boolean);
+    if (iGen>=0 && rowsG[iGen+1] && genList.length) setCell(cellsOf(rowsG[iGen+1])[0], genList, {segs:boldLead});
+    // Transversales y curricular: cada eje en su viñeta, debajo de su etiqueta
     const tvRow=rowsG.find(r=>cellsOf(r).length===1 && /^transversales?:/i.test(wText(r).trim()));
-    const tvList=String(s._comp_transversal||'').split('\n').map(cleanItem).filter(Boolean);
-    if (tvRow && tvList.length){
-      const ps=cellParas(cellsOf(tvRow)[0]); const item=ps.find(p=>wEls(p,'numPr').length);
-      if (item){ const iT=ps.indexOf(item); const rp=protoRPr(item); tvList.forEach(t=>item.parentNode.insertBefore(tableFmt(clonePara(item, boldLead(t), rp)), item)); item.parentNode.removeChild(item); }
-    }
+    const fillEjes=(labelRe, list)=>{
+      if (!tvRow || !list.length) return;
+      const ps=cellParas(cellsOf(tvRow)[0]);
+      const iL=ps.findIndex(p=>labelRe.test(pText(p).trim())); if (iL<0) return;
+      const item=ps.slice(iL+1).find(p=>wEls(p,'numPr').length); if (!item) return;
+      const rp=protoRPr(item);
+      list.forEach(t=>item.parentNode.insertBefore(tableFmt(clonePara(item, boldLead(t), rp)), item));
+      item.parentNode.removeChild(item);
+    };
+    fillEjes(/^transversales?:/i, String(s._comp_transversal||'').split('\n').map(cleanItem).filter(Boolean));
+    fillEjes(/^curricular(es)?:/i, String(s._comp_curricular||'').split('\n').map(cleanItem).filter(Boolean));
     // Ejes sin definir: "Eje. Por definir" en lugar del texto de plantilla
     wEls(tCuadro,'p').forEach(p=>{ if(/^eje\.\s*competencia$/i.test(pText(p).trim())) fillPara(p, boldLead('Eje. Por definir'), protoRPr(p)); });
     const rows2=rowsOf(tCuadro);
