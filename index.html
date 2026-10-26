@@ -2557,7 +2557,7 @@ function buildMaestroColMap(saved) {
   const descObj    = saved.descripcion_objeto   || '';
   const descImp    = saved.descripcion_import   || '';
   const descCurso  = saved.descripcion_en_curso || '';
-  const descRasgos = courseRasgos(code, saved) || '';
+  const descRasgos = courseRasgos(currentCourse?.['Código']||'', saved) || '';
 
   // Auto-generate: "Las principales temáticas por abordar son [...]. Las estrategias de evaluación son [...]."
   const tematicasSentence = buildTematicasSentence(saved);
