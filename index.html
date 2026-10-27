@@ -817,6 +817,8 @@ button,input,select,textarea{font-family:inherit;}
       <input type="text" id="in-url" placeholder="https://docs.google.com/spreadsheets/d/…">
       <small>Debe tener hojas llamadas <strong>Base</strong> y <strong>Maestro</strong>.</small>
     </div>
+    <div class="fg"><label>Carpeta de fichas en Google Drive <span style="font-weight:400;color:var(--ink-4)">(opcional)</span></label><input type="text" id="in-fold-fichas" placeholder="https://drive.google.com/drive/folders/…"></div>
+    <div class="fg"><label>Carpeta de programas en Google Drive <span style="font-weight:400;color:var(--ink-4)">(opcional)</span></label><input type="text" id="in-fold-prog" placeholder="https://drive.google.com/drive/folders/…"><small>Al tocar <strong>Guardar en Maestro</strong>, la app sube o actualiza el Word del curso en estas carpetas: la ficha en la de fichas y el programa completo en la de programas.</small></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
       <button class="btn btn-primary" id="proj-modal-btn" onclick="saveProjectModal()">Crear proyecto <span class="ic" aria-hidden="true">→</span></button>
@@ -1082,6 +1084,7 @@ button,input,select,textarea{font-family:inherit;}
 ══════════════════════════════════════════════════════ */
 const GOOGLE_CLIENT_ID = '204310820162-phq4d7grasopg952prts474vdl9vepfl.apps.googleusercontent.com';
 const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.compose';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
 const SHEETS_SCOPE = 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
 
 /* ══════════════════════════════════════════════════════
@@ -1162,6 +1165,7 @@ function onTokenReceived(resp) {
   gAccessToken = resp.access_token;
   localStorage.setItem('dcd_gtoken', gAccessToken);
   if (/gmail\.compose/.test(resp.scope||'')) localStorage.setItem('dcd_gmail_ok','1');
+  if (/auth\/drive(\s|$)/.test(resp.scope||'')) localStorage.setItem('dcd_drive_ok','1');
   localStorage.setItem('dcd_gtoken_exp', String(Date.now() + (parseInt(resp.expires_in)||3600)*1000));
   scheduleTokenExpiry();
   // Fetch user profile
@@ -2199,7 +2203,7 @@ function renderProjects(){
   if(window.__renderIcons) window.__renderIcons();
 }
 let editingProjectId=null;
-const PROJ_FIELDS={name:'in-name',career:'in-career',career2:'in-career2',nivel:'in-nivel',escuela:'in-escuela',url:'in-url'};
+const PROJ_FIELDS={name:'in-name',career:'in-career',career2:'in-career2',nivel:'in-nivel',escuela:'in-escuela',url:'in-url',folderFichas:'in-fold-fichas',folderProgramas:'in-fold-prog'};
 function openProjectModal(pid){
   editingProjectId=pid||null;
   const p=pid?projects.find(x=>x.id===pid):null;
@@ -2212,6 +2216,8 @@ function saveProjectModal(){
   const v={}; Object.entries(PROJ_FIELDS).forEach(([k,id])=>v[k]=document.getElementById(id).value.trim());
   if(!v.name||!v.url){toast('Completa nombre y URL','error');return;}
   if(!extractSheetId(v.url)){toast('URL inválida de Google Sheets','error');return;}
+  if(v.folderFichas && !driveFolderId(v.folderFichas)){toast('El enlace de la carpeta de fichas no parece una carpeta de Google Drive','error');return;}
+  if(v.folderProgramas && !driveFolderId(v.folderProgramas)){toast('El enlace de la carpeta de programas no parece una carpeta de Google Drive','error');return;}
   if(editingProjectId){
     const p=projects.find(x=>x.id===editingProjectId);
     Object.assign(p, v, {sheetId:extractSheetId(v.url)});
@@ -2548,6 +2554,10 @@ async function pushToMaestro(){
 
     await writeCourseToMaestro(sheetId, code, colMap);
     toast(`✓ "${code}" guardado en Maestro (${Object.keys(colMap).length} columnas)`,'success');
+    if (currentProject.folderFichas || currentProject.folderProgramas){
+      btn.innerHTML='<span class="ic" aria-hidden="true">⟳</span> Subiendo Word a Drive…';
+      await uploadCourseWords();
+    }
 
     const lbl=document.getElementById('save-lbl');
     lbl.textContent='✓ Sincronizado con Sheets';
@@ -5223,10 +5233,10 @@ function closeWordExport(){ document.getElementById('modal-word')?.classList.rem
 function wordVersion(){
   return (document.getElementById('wx-ver')?.value||'').trim() || 'PRL1';
 }
-function wordFileName(mode){
+function wordFileName(mode, ver){
   const code=(currentCourse['Código']||'curso').trim(); const name=(currentCourse['Curso']||currentCourse['Nombre']||'').trim();
   const base = mode==='programa' ? `${code} ${name}` : `${code} ${name} Ficha`;
-  return `${base} (${wordVersion()}).docx`.replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,' ').trim();
+  return `${base} (${ver||wordVersion()}).docx`.replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,' ').trim();
 }
 async function prepareWordBlob(mode){
   const escuela=document.getElementById('wx-escuela').value.trim();
@@ -5812,6 +5822,113 @@ function highlightPieces(root, pieces){
 }
 document.getElementById('modal-revision').addEventListener('click',e=>{if(e.target===e.currentTarget)closeRevision();});
 document.getElementById('modal-revision').addEventListener('keydown',e=>{if(e.key==='Escape')closeRevision();});
+
+
+/* ══════════════════════════════════════════════════════
+   WORD EN LAS CARPETAS DE DRIVE DEL PROYECTO
+   Al guardar en Maestro: ficha → carpeta de fichas, programa → carpeta
+   de programas. Si el curso ya tiene su Word ahí, se actualiza el mismo
+   archivo (Drive guarda las versiones anteriores) y toma el nombre nuevo.
+══════════════════════════════════════════════════════ */
+let driveTokenClient=null;
+function driveFolderId(url){
+  const u=String(url||'').trim(); if(!u) return '';
+  let m=u.match(/\/folders\/([A-Za-z0-9_-]{10,})/) || u.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+  if(m) return m[1];
+  return /^[A-Za-z0-9_-]{20,}$/.test(u) ? u : '';
+}
+function requestDriveScope(after){
+  if (!window.google?.accounts?.oauth2){ toast('Google Identity Services no cargó aún. Intentá de nuevo.','error'); return; }
+  if (!driveTokenClient){
+    driveTokenClient = google.accounts.oauth2.initTokenClient({ client_id: GOOGLE_CLIENT_ID, scope: SHEETS_SCOPE+' '+DRIVE_SCOPE, include_granted_scopes: true, callback: onTokenReceived });
+  }
+  afterTokenFn = after;
+  driveTokenClient.requestAccessToken(gUserInfo?.email ? { prompt:'', hint: gUserInfo.email } : { prompt:'' });
+}
+// Opciones del Word sin abrir la ventana de descarga (las mismas que recuerda la app)
+function headlessWordOpts(){
+  const s=currentSaved(); const d=courseDatos(currentCourse,s);
+  let pref={}; try{ pref=JSON.parse(localStorage.getItem('dcd_word_'+currentProject.id)||'{}'); }catch(e){}
+  const cars=projectCareers();
+  const carrera = cars.length>1 ? ([pref.carrera, d._carrera].find(x=>x && cars.includes(x)) || cars[0]) : (cars[0] || d._carrera || pref.carrera || '');
+  let com=null; try{ com=JSON.parse(localStorage.getItem('dcd_comun_'+(currentCourse['Código']||''))||'null'); }catch(e){}
+  let carrera2 = com?.on ? String(com.carrera2||'').trim() : ''; if (carrera2===carrera) carrera2='';
+  let ver=''; try{ ver=localStorage.getItem('dcd_ver_'+(currentCourse['Código']||''))||''; }catch(e){}
+  const escuela = currentProject.escuela || d._escuela || pref.escuela || '';
+  const rb=revBase();
+  const highlight = rb ? changedPieces(rb.values, s) : null;
+  return { escuela, carrera, carrera2, saved:s, highlight, ver: ver||'PRL1' };
+}
+function driveFileKey(kind){ return `dcd_drivefile_${kind}_${currentProject?.id||''}_${currentCourse?.['Código']||''}`; }
+async function driveFetch(url, opts={}){
+  const r=await fetch(url, Object.assign({}, opts, { headers: Object.assign({ Authorization:'Bearer '+gAccessToken }, opts.headers||{}) }));
+  if (!r.ok){
+    const e=await r.json().catch(()=>({})); const msg=e.error?.message||r.statusText;
+    const err=new Error(msg); err.status=r.status; err.scope=/scope|insufficient|permission/i.test(msg)&&r.status===403; throw err;
+  }
+  return r.json();
+}
+async function driveFindCourseFile(folderId, kind){
+  const code=normCode(currentCourse['Código']);
+  // 1) El último archivo que subió la app para este curso, si sigue en la carpeta
+  let known=''; try{ known=localStorage.getItem(driveFileKey(kind))||''; }catch(e){}
+  if (known){
+    try{ const f=await driveFetch(`https://www.googleapis.com/drive/v3/files/${known}?fields=id,name,parents,trashed&supportsAllDrives=true`); if(!f.trashed && (f.parents||[]).includes(folderId)) return f; }catch(e){}
+  }
+  // 2) Un Word del curso en la carpeta (cualquier versión)
+  const q=encodeURIComponent(`'${folderId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'`);
+  const out=await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)&pageSize=1000&orderBy=modifiedTime desc&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=allDrives`);
+  const isFicha=n=>/\bficha\b/i.test(n);
+  return (out.files||[]).find(f=>{
+    const n=String(f.name||''); if(!/\.docx$/i.test(n)) return false;
+    if (normCode(n.split(/\s+/)[0])!==code) return false;
+    return kind==='ficha' ? isFicha(n) : !isFicha(n);
+  }) || null;
+}
+async function driveUploadDocx(blob, fname, folderId, kind){
+  const DOCX='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  const existing=await driveFindCourseFile(folderId, kind);
+  const meta = existing ? { name: fname } : { name: fname, parents:[folderId], mimeType: DOCX };
+  const bnd='dcd'+Math.random().toString(36).slice(2);
+  const body=new Blob([`--${bnd}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`, JSON.stringify(meta), `\r\n--${bnd}\r\nContent-Type: ${DOCX}\r\n\r\n`, blob, `\r\n--${bnd}--`]);
+  const url = existing
+    ? `https://www.googleapis.com/upload/drive/v3/files/${existing.id}?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink`
+    : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink`;
+  const f=await driveFetch(url, { method: existing?'PATCH':'POST', headers:{ 'Content-Type':`multipart/related; boundary=${bnd}` }, body });
+  try{ localStorage.setItem(driveFileKey(kind), f.id); }catch(e){}
+  return { file:f, updated:!!existing, oldName: existing?.name||'' };
+}
+async function uploadCourseWords(){
+  if (!currentProject || !currentCourse) return;
+  const p=currentProject; const s=currentSaved(); const st=courseStage(s);
+  const jobs=[];
+  if (p.folderFichas && st.ficha) jobs.push({kind:'ficha', mode:'ficha', folder:driveFolderId(p.folderFichas), lbl:'la ficha'});
+  if (p.folderProgramas && st.programa) jobs.push({kind:'programa', mode:'programa', folder:driveFolderId(p.folderProgramas), lbl:'el programa'});
+  if (!jobs.length){
+    toast(st.ficha ? 'El curso todavía no tiene el programa completo; no se subió el Word a Drive' : 'El curso todavía no tiene la ficha completa; no se subió el Word a Drive','');
+    return;
+  }
+  let driveOk=false; try{ driveOk=localStorage.getItem('dcd_drive_ok')==='1'; }catch(e){}
+  if (!driveOk){ toast('Google pide permiso para escribir en tus carpetas de Drive. Aceptá y el Word se sube solo.',''); requestDriveScope(uploadCourseWords); return; }
+  const o=headlessWordOpts(); const done=[];
+  for (const j of jobs){
+    try{
+      const blob=await buildDocx(j.mode, {escuela:o.escuela, carrera:o.carrera, carrera2:o.carrera2, saved:o.saved, highlight:o.highlight});
+      const fname=wordFileName(j.mode, o.ver);
+      const r=await driveUploadDocx(blob, fname, j.folder, j.kind);
+      done.push(`${r.updated?'actualicé':'subí'} ${j.lbl}`);
+    }catch(e){
+      if (e.status===401 || e.scope){
+        try{ localStorage.removeItem('dcd_drive_ok'); }catch(_){}
+        toast('Drive pide permiso de nuevo. Aceptá en la ventana de Google y el Word se sube solo.','');
+        requestDriveScope(uploadCourseWords); return;
+      }
+      if (e.status===404){ toast(`No encuentro la carpeta de ${j.kind==='ficha'?'fichas':'programas'}. Revisá el enlace del proyecto y que tu cuenta tenga acceso.`,'error'); continue; }
+      toast(`No se pudo subir ${j.lbl} a Drive: ${e.message}`,'error');
+    }
+  }
+  if (done.length) toast(`✓ En Drive: ${done.join(' y ')} (${o.ver})`,'success');
+}
 
 window.__renderIcons = function(){};
 
