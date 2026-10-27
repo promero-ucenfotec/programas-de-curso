@@ -773,7 +773,7 @@ button,input,select,textarea{font-family:inherit;}
       <div id="schedule-panel">
         <div class="wp-head">
           <div class="wp-ico"><span class="ic" aria-hidden="true">▦</span></div>
-          <div><div class="wp-title">Cronograma de actividades</div><div class="wp-sub">Sesiones 1 a 14, con módulos, subtemas y actividades por semana</div></div>
+          <div><div class="wp-title">Cronograma de actividades</div><div class="wp-sub">Sesiones 1 a 14, con el módulo y las actividades de cada semana (en el Word solo va el nombre del módulo)</div></div>
         </div>
         <div class="sch-head-cols"><div>Sesión</div><div>Módulo y subtemas</div><div>Actividad</div><div>Texto del cronograma</div></div>
         <div id="sch-rows"></div>
@@ -1878,8 +1878,9 @@ REGLAS ESTRICTAS:
 - Sin conectores "mediante", "a través de"
 - Lenguaje cotidiano, sin tecnicismos excesivos
 - Una sola oración fluida y con peso disciplinar
-- Quien lo lea debe poder imaginar qué es: el atributo empieza con un sustantivo concreto (las técnicas, las estrategias, los procesos, las normas, los métodos, las especificaciones), nunca con una acción ni con "las capacidades de…", y sin nombrar "disciplina" ni "rama"
-  ✅ "La inteligencia artificial se define como las técnicas computacionales de aprendizaje a partir de los datos y de toma de decisiones automatizada para el análisis y la planificación de los procesos de una organización."
+- Dice de qué trata el curso (no es una definición de diccionario) y se puede imaginar: el atributo va en singular y empieza con un sustantivo que introduce la idea (la organización, el conjunto, el diseño, la aplicación) seguido de algo concreto (la estructura, las técnicas, los procesos, las normas); nunca una acción suelta ni "las capacidades de…", y sin nombrar "disciplina" ni "rama"
+  ✅ "La arquitectura de sistemas de software se define como la organización de la estructura de un sistema informático en componentes y en las relaciones entre ellos para la preservación de la calidad de las aplicaciones de una organización."
+  ✅ "La inteligencia artificial se define como el conjunto de técnicas computacionales de aprendizaje a partir de los datos y de toma de decisiones automatizada para el análisis y la planificación de los procesos de una organización."
 
 EJEMPLO:
 "El monitoreo de redes se define como la supervisión continua del comportamiento operativo de la infraestructura de comunicación para la detección temprana de anomalías que comprometan la disponibilidad del servicio."
@@ -2029,7 +2030,9 @@ ACTIVIDADES DEL CURSO:
 RA1: ${s?.ra1||'[Pendiente]'}
 RA2: ${s?.ra2||'[Pendiente]'}
 RA3: ${s?.ra3||'[Pendiente]'}
-Evidencias: ${s?.e1||'—'} / ${s?.e2||'—'} / ${s?.e3||'—'}${(()=>{const v=metodologiasVariationBlock(); return v?'\n\n'+v:'';})()}`,
+Evidencias: ${s?.e1||'—'} / ${s?.e2||'—'} / ${s?.e3||'—'}
+
+Cada metodología se refiere a los resultados de aprendizaje y a las actividades del curso, no a los temas del temario (la enseñanza directa tampoco toma un tema del primer módulo).${(()=>{const v=metodologiasVariationBlock(); return v?'\n\n'+v:'';})()}`,
 
     estrategias:`Crea las ESTRATEGIAS DE APRENDIZAJE CON PROPÓSITO del curso "${name}":
 
@@ -2096,12 +2099,12 @@ RA ${n}: ${s?.[`ra${n}`]||'[Pendiente]'}`;
 TIPO 1 — EXPERIENCIA PREVIA (1 recurso):
 "Los conocimientos [y la experiencia] previa sobre [requisito del curso] [facilita/permite] que los estudiantes [utilidad específica al curso en una sola oración robusta]."
 
-TIPO 2 — SOFTWARE (1–3 herramientas del área, gratuitas y en web):
-"La aplicación/El software [nombre] de uso gratuito y disponible en la web [facilita/permite] que en este curso los estudiantes [utilidad específica]."
+TIPO 2 — SOFTWARE (1 o 2 recursos):
+"Las aplicaciones [A] y [B] de uso gratuito [permiten] que en este curso los estudiantes [utilidad específica en una actividad con su nombre exacto]."
+- Unir en un mismo recurso las aplicaciones con un propósito similar (por ejemplo, las de modelado), en lugar de una oración por herramienta.
+- Herramientas especializadas del área; nada genérico como diagrams.net.
 
-Incluir SIEMPRE al final:
-- La Biblioteca Universitaria Ignacio Trejos Zelaya (recurso bibliográfico)
-- El servicio licenciado Google Workspace for Education
+NO escribas los recursos institucionales (aulas, laboratorios de informática, eLibro, biblioteca y Google Workspace for Education): la app los agrega.
 
 REGLAS: Una sola oración por recurso. Verbos nominalizados. Sin gerundios.
 
@@ -3625,7 +3628,7 @@ const PROGRAMA_SCHEMA = (code)=>`{
      "rubrica": [{"criterio": "criterio copiado de la ficha", "titulo": "frase nominal de 2 a 4 palabras", "niveles": ["criterio + de manera (antónimo bajo)", "criterio + de manera (grado básico)", "criterio + de manera (grado aceptable)", "criterio + de manera (antónimo alto)"]}]}
   ],
   "recursos_didacticos": [""],
-  "cronograma": [{"sesion": 1, "modulo": 1, "subtemas": ["todos los subtemas del módulo"], "actividades": [""]}]
+  "cronograma": [{"sesion": 1, "modulo": 1, "actividades": [""]}]
 }`;
 
 function buildFichaPrompt(){
@@ -3654,6 +3657,9 @@ ${FICHA_SCHEMA(code,name)}
 - El verbo de la competencia combina con su objeto (nadie "diseña una especificación": se especifican los requerimientos; se desarrollan aplicaciones) y, si el objeto es genérico, va sin artículo ("Desarrollar aplicaciones de…", no "Desarrollar las aplicaciones de…").
 - Cada RA deja ver el asunto del curso: verbo disciplinar + objeto + "en" + el proceso del área donde se realiza (por ejemplo, "Realiza pruebas de funcionamiento en la verificación del rendimiento de la aplicación", "Especifica los requerimientos de un sistema informático en la formalización de las necesidades de un negocio"), no "Elabora el informe técnico…".
 - Criterios sin los verbos Reconoce, Construye ni Configura.
+- La competencia no lleva frases que no aportan ("en el tiempo", "de forma determinada" ni ningún cierre de disposición).
+- Las tres actividades se pueden imaginar y no vuelven engorroso el curso: el componente de investigación ya lo cubre el estudio de casos, así que no se usa un artículo académico ni otra actividad de investigación; preferí actividades prácticas (por ejemplo, prácticas de prototipado).
+- El módulo 1 se llama "Introducción a…" o "Fundamentos de…" el núcleo del curso (por ejemplo, "Fundamentos de la arquitectura de sistemas de software"), sin enfoques de nicho.
 4. Reglas del bloque: tres actividades en el orden del cuadro (la primera es el proyecto con 15 criterios; las otras dos llevan 8 criterios); porcentajes enteros que suman 100; cada elemento de una lista va sin viñetas ni numeración; los textos del bloque son idénticos a los de la ficha mostrada.`);
   return parts.join('\n\n');
 }
@@ -3716,13 +3722,18 @@ function buildProgramaPrompt(){
 ${PROGRAMA_SCHEMA(code)}
 3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; el objeto de estudio va directo al objeto (sin "fundamentos de" ni "principios de"); ninguna tecnología concreta en la descripción, la competencia, los RA, las metodologías ni las estrategias de aprendizaje, pero cada actividad de evaluación cierra con una línea aparte que nombra el software o recurso informático con que se hace ("Esta estrategia de evaluación requiere el uso de aplicaciones como …", el mismo de recursos didácticos); actividades en minúscula y con artículo dentro de la oración ("las prácticas", "Las tareas favorecen"); sin "dotar" ni "de modo"; la evaluación formativa usa actividades distintas de las sumativas (resúmenes, mapas mentales, fichas de conceptos, glosario…) y el aprendizaje autónomo se vincula con ella; cada descripción de actividad tiene tres bloques (en qué consiste, qué deben realizar, qué contiene el entregable); la descripción es UN solo párrafo: qué es, cómo se hace (una sola oración, sin narrar etapa por etapa y sin nombrar el software), "Esta actividad se compone de [n] entregables en los que el documento escrito contiene […], el código base incluye […] y la defensa oral […]" (aquí sí se enumeran los apartados de cada evidencia) y la modalidad; después, en otra línea, solo "Esta estrategia de evaluación requiere el uso de aplicaciones como [software]." (la app agrega la oración de la rúbrica); ninguna palabra de contenido ni el nombre de una actividad se repite en oraciones vecinas (alterná con equivalentes como "el proyecto", "el sistema"); las metodologías tienen una sola acción del docente o de los estudiantes y un registro formal; "En el curso…" es la competencia escrita de manera completamente diferente (mismo sentido, otras palabras, sin repetir sus verbos ni sustantivos salvo el núcleo), no la descripción del proyecto; las temáticas y las estrategias de evaluación llevan siempre su artículo; las estrategias de aprendizaje dicen qué hacen los estudiantes ("permite que los estudiantes seleccionen…"); el estudio de casos resalta lo investigativo; el cronograma tiene una sola actividad por semana desde la sesión 2, entregas seguidas sin intercalar, duración fija en las dos actividades que no son el proyecto, ninguna entrega de más de 3 semanas, 8 entregas como máximo en total; el proyecto lleva siempre 3 avances repartidos a lo largo del curso, uno en cada tercio (el primero cierra a más tardar en la sesión 6, el segundo entre la 7 y la 10 y el tercero entre la 11 y la 14), nunca amontonados al final; y nunca dos entregas seguidas de la misma actividad (entre una etapa del proyecto y la siguiente va al menos otra actividad, para dar tiempo a la retroalimentación). Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
 5. Observaciones del revisor (versión RAM1), aplicalas sin excepción:
-- Objeto de estudio que se pueda imaginar: empieza con un sustantivo concreto (las técnicas, las estrategias, los procesos, las normas, los métodos), nunca con una acción ni con "las capacidades de…", y sin nombrar "disciplina" ni "rama".
+- Objeto de estudio que se pueda imaginar: en singular, con un sustantivo que introduce la idea seguido de algo concreto (la organización de la estructura…, el conjunto de técnicas…), nunca con una acción ni con "las capacidades de…", y sin nombrar "disciplina" ni "rama".
 - Importancia con componente laboral: una acción concreta y propia del área, nominalizada, sin nombrar la profesión (por ejemplo, "permite el acuerdo de las partes interesadas sobre las funciones de un producto antes de su programación").
 - Todo sustantivo abstracto lleva su complemento: consenso sobre qué, tiempos de respuesta en qué, reducción de qué.
 - Rasgos del perfil por grupo de cursos afines, no exclusivos de este curso (ver el bloque de rasgos).
 - Estrategias de aprendizaje con verbos de la categoría de aplicar (utilicen, empleen, elaboren, diseñen, implementen, incorporen, desarrollen, integren); nunca seleccionen, escriban, midan, identifiquen ni describan.
 - La metodología de estudio de casos describe la resolución del caso (diagnóstico y solución); la indagación en fuentes solo respalda esa solución.
 - El software de cada actividad de evaluación va en una línea aparte, después del párrafo de la actividad, y es una sola oración: "Esta estrategia de evaluación requiere el uso de aplicaciones como [software]." Ese mismo software aparece en recursos didácticos; el párrafo de la actividad no lo nombra.
+- Objeto de estudio en singular y con un sustantivo que introduzca la idea (por ejemplo, "la organización de la estructura de un sistema informático…"): no es una definición de diccionario, es de lo que trata el curso.
+- La importancia y "En el curso…" hablan del núcleo de este curso (en arquitectura, de arquitectura; no de requerimientos). "En el curso…" es un parafraseo fuerte de la competencia: mismo sentido, con un verbo equivalente (diseñar → concebir, no prototipar).
+- Las metodologías se refieren a los resultados de aprendizaje y a las actividades, no a los temas del temario.
+- Recursos didácticos: unir en un mismo recurso las aplicaciones con un propósito similar y preferir herramientas especializadas del área (nada genérico como diagrams.net). No escribas los recursos institucionales (aulas, laboratorios de informática, eLibro, biblioteca y Google Workspace): la app los agrega.
+- Cronograma: en "modulo" va solo el número del módulo; los subtemas ya no van en el cronograma.
 - Rúbricas con el método cualitativo: cada nivel es el criterio completo seguido de "de manera …" (nivel 1 y 4 antónimos como escueta y profunda, insuficiente y suficiente, inadecuada y adecuada; nivel 2 básica, incipiente o limitada; nivel 3 aceptable, regular o parcial). Nunca cantidades como "1 o 2 de los 6".
 4. Reglas del bloque: "actividades" lleva las tres actividades en el orden del cuadro, cada una con sus evidencias (las de la ficha, o las que creaste si no tenía) y la rúbrica de todos sus criterios (en "titulo" va solo el título corto del criterio); "cronograma" lleva las sesiones 1 a 14 (la 15 es fija), "modulo" es el número del módulo y "actividades" contiene solo las líneas propias de la sesión (inicio o cierre de entregas), sin las dos líneas fijas de lectura y participación; cada elemento de una lista va sin viñetas ni numeración. No busques ni propongas bibliografía: esa sección la completa el curriculista por aparte.`);
   return parts.join('\n\n');
@@ -4098,7 +4109,7 @@ function parseProgramaExtras(blocks, out){
   pr.tipos = blocks.filter(b=>b.localName==='p' && /^evaluaci[oó]n (diagn[oó]stica|formativa|sumativa)\s*:/i.test(P(b))).map(P);
   // Recursos: sin los dos recursos institucionales fijos de la plantilla
   pr.recursos = listAfter(/^para promover el aprendizaje de los estudiantes/i)
-    .filter(t=>!/^la biblioteca de la universidad/i.test(t) && !/google workspace for education/i.test(t));
+    .filter(t=>!RECURSOS_FIJOS_RE.test(t));
   // Bibliografía
   const bib = (labRe) => { const i=blocks.findIndex(b=>b.localName==='p'&&labRe.test(P(b))); if(i<0) return []; const o=[]; for(let k=i+1;k<blocks.length;k++){ const b=blocks[k]; if(b.localName!=='p') break; const t=P(b); if(!t) continue; if(/^bibliograf[ií]a (obligatoria|complementaria)$/i.test(t)||SECT.test(t)) break; if(!/^\[?tbd\]?$/i.test(t)) o.push(cleanItem(t)); } return o; };
   pr.biblio_ob = bib(/^bibliograf[ií]a obligatoria$/i);
@@ -4654,6 +4665,13 @@ function carreraCompBlock(s){
 - Los ejes transversales se reflejan en el rasgo actitudinal del perfil y en alguna metodología, sin nombrarlos de forma literal.`);
   return out.join('\n');
 }
+// Recursos institucionales fijos del programa (además de la biblioteca y Google Workspace de la plantilla)
+const RECURSOS_FIJOS = [
+  {re:/^las aulas de la universidad/i, texto:'Las aulas de la Universidad cuentan con el equipo audiovisual y la conectividad que requieren las sesiones presenciales y el trabajo colaborativo de los estudiantes.'},
+  {re:/^los laboratorios de inform[aá]tica/i, texto:'Los laboratorios de informática de la Universidad ofrecen a los estudiantes y docentes equipos de cómputo con el software especializado que requieren las prácticas del curso.'},
+  {re:/^la plataforma elibro|^elibro/i, texto:'La plataforma eLibro brinda a la comunidad universitaria el acceso en línea a libros y documentos académicos para la consulta de la bibliografía del curso.'},
+];
+const RECURSOS_FIJOS_RE = /^(aulas$|laboratorios de inform[aá]tica$|e-?libro$|las aulas de la universidad|los laboratorios de inform[aá]tica|la plataforma elibro|elibro\b|la biblioteca de la universidad)|google workspace for education/i;
 function rasgosPromptBlock(){
   const code=currentCourse?.['Código']; const g=rasgosGroupFor(code);
   if (g && String(g.texto||'').trim()) return `RASGOS DEL PERFIL DEL GRUPO «${g.nombre}» (este curso pertenece a ese grupo: copiá estos rasgos textuales en "rasgos_perfil", sin cambiar nada)\n${String(g.texto).trim()}`;
@@ -4949,7 +4967,13 @@ async function buildDocx(mode, opts){
   if (prog){
     const intro=find(/^para promover el aprendizaje de los estudiantes/i);
     const ph=intro && after(intro);
-    if (ph && ph.localName==='p' && !pText(ph)) replaceParas(ph,[ph], lines(s.recursos));
+    if (ph && ph.localName==='p' && !pText(ph)) replaceParas(ph,[ph], lines(s.recursos).filter(t=>!RECURSOS_FIJOS_RE.test(t)));
+    // Recursos institucionales nuevos (aulas, laboratorios y eLibro), antes de la biblioteca, si la plantilla no los trae
+    const bib=find(/^la biblioteca de la universidad/i);
+    if (bib){
+      const rp=protoRPr(bib);
+      RECURSOS_FIJOS.forEach(r=>{ if(!find(r.re)) bib.parentNode.insertBefore(clonePara(bib, r.texto, rp), bib); });
+    }
     const fillAfterLabel=(re, texts)=>{ const lab=find(re); const ph=lab&&after(lab); if(ph&&ph.localName==='p'&&!pText(ph)) replaceParas(ph,[ph],texts); };
     const orTBD=t=>{ const l=lines(t); return l.length?l:['[TBD]']; };
     fillAfterLabel(/^bibliograf[ií]a obligatoria$/i, orTBD(s.biblio_ob));
@@ -4991,11 +5015,10 @@ async function buildDocx(mode, opts){
         const numIn = t => { const x=String(t||'').match(/m[oó]dulo\s+(\d+)/i); return x?parseInt(x[1]):0; };
         const m = mi ? mods[mi-1] : (mods.find(x=>keyName(x.name)===keyName(d.modName||d.mod)) || mods[numIn(d.modName||d.mod)-1]);
         const modName = (m?m.name:'') || d.modName || (mi?'':String(d.mod||''));
-        // El módulo siempre lleva todos sus subtemas del temario, no solo los de la sesión
-        const subs = (m && m.subtemas.length) ? m.subtemas : (d.sub ? d.sub.split('\n').map(cleanItem).filter(Boolean) : []);
+        // Solo el nombre del módulo: los subtemas ya no van en el cronograma (observación del revisor)
         if (modName){
           const titleP=stripNum(modProto.cloneNode(true));
-          setCell(cs[1], [modName, ...subs], { protoFor:j=>j===0?titleP:modProto, rprFor:j=>setBold(protoRPr(modProto), j===0) });
+          setCell(cs[1], [modName], { protoFor:()=>titleP, rprFor:()=>setBold(protoRPr(modProto), true) });
         } else setCell(cs[1], [''], {protoPara:emptyP});
       }
       // Actividades: líneas fijas de la plantilla + líneas propias de la sesión
