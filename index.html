@@ -1891,12 +1891,12 @@ Créditos: ${cr} | Horas docencia: ${hd}`,
 
     importancia:`Redacta la IMPORTANCIA del curso "${name}":
 
-ESTRUCTURA (una oración corta):
-"La importancia de esta asignatura en la formación del profesional radica en que le permite [una acción concreta de su trabajo]." (opcional: "y le facilita [un segundo beneficio breve]")
+ESTRUCTURA (una oración corta, de 3 a 4 líneas como máximo):
+"La importancia de esta asignatura en la formación del profesional radica en que le permite [una acción concreta de su trabajo]."
 
 REGLAS:
 - Dice lo que la asignatura le aporta AL PROFESIONAL en su trabajo, no a una empresa u organización
-- Mejor un solo beneficio claro que dos largos
+- Un solo verbo y una sola idea: sin "y le facilita…" ni un segundo beneficio
 - Genérica: sin ejemplos de una industria (ventas, fraudes, inventarios…)
 - No nombra el curso ni su núcleo ("aprendizaje automático", "arquitectura de software"…) ni la profesión
 - Acción concreta y propia del área, en lenguaje cotidiano; todo sustantivo abstracto con su complemento
@@ -1904,7 +1904,7 @@ REGLAS:
 
 EJEMPLO:
 ✅ "La importancia de esta asignatura en la formación del profesional radica en que le permite acordar con las partes interesadas las funciones de un producto antes de su programación."
-❌ "…radica en que la incorporación de modelos predictivos permite a una empresa la detección de fraudes en sus ventas y facilita…" (beneficio para la empresa, ejemplo de una industria y demasiado largo)
+❌ "…radica en que la incorporación de modelos predictivos permite a una empresa la detección de fraudes en sus ventas y facilita…" (beneficio para la empresa, ejemplo de una industria, dos ideas y demasiado largo)
 
 OBJETO DE ESTUDIO YA CREADO:
 ${s?.descripcion_objeto||'[Completa primero el objeto de estudio]'}`,
@@ -1923,6 +1923,7 @@ REGLAS CRÍTICAS:
 - Corto: sin amontonar modificadores y sin repetir el núcleo del curso fuera de su nombre
 - Sin repetir sustantivos/verbos de las secciones anteriores
 - Sin coma antes del "con" del modo; el modo sin tecnologías ni "real"
+- PRUEBA DE IMAGINAR: cada sustantivo del propósito y del modo se puede ver o señalar. Nada de abstracciones como "la operación autónoma de los procesos" o "diagramas cercanos a su versión ejecutable"; decí qué se ve (por ejemplo, "modelos que se pueden ejecutar y probar")
 - Sin "mediante" ni conectores similares
 - Sin "comprenden", "aprenden", "desarrollan habilidades"
 
@@ -2037,6 +2038,7 @@ POOL ADICIONAL (elige 1): Aprendizaje por descubrimiento · Aprendizaje interact
 LONGITUD: 200–260 caracteres por metodología (unas tres líneas, nunca cinco). Lenguaje sencillo y claro.
 Estudio de casos: el estudiante aplica técnicas para resolver el problema de una organización (no "empresas con necesidades de…").
 Guía del docente: retroalimentación o acompañamiento (no "interpretación").
+Orden natural: el verbo va justo después del sujeto, sin frases preposicionales en medio (❌ "los estudiantes durante las tareas indaguen…" → ✅ "los estudiantes indaguen… en los modelos de las tareas"); la actividad va en el complemento.
 
 ACTIVIDADES DEL CURSO:
 RA1: ${s?.ra1||'[Pendiente]'}
@@ -2116,9 +2118,13 @@ TIPO 2 — SOFTWARE (1 o 2 recursos):
 - Unir en un mismo recurso las aplicaciones con un propósito similar (por ejemplo, las de modelado), en lugar de una oración por herramienta.
 - Herramientas especializadas del área; nada genérico como diagrams.net.
 
-NO escribas los recursos institucionales (aulas, laboratorios de informática, eLibro, biblioteca y Google Workspace for Education): la app los agrega.
+TIPO 3 — INSTITUCIONALES (3 recursos, adaptados a este curso):
+"Las aulas de la Universidad [cuentan con/ofrecen] … que [uso concreto en este curso, por ejemplo, la proyección de los diagramas durante la revisión de los modelos]."
+"Los laboratorios de informática de la Universidad [ofrecen] … con [las herramientas especializadas del curso, sin marcas] para [lo que hacen los estudiantes]."
+"La plataforma eLibro [brinda] el acceso en línea a libros sobre [los temas del curso] para [su uso en las actividades]."
+No escribas la biblioteca ni Google Workspace for Education: ya están en la plantilla.
 
-REGLAS: Una sola oración por recurso. Verbos nominalizados. Sin gerundios.
+REGLAS: Una sola oración por recurso. Experiencia previa: si hay varios requisitos, un solo recurso que los una. Sin tecnicismos sin explicar: decilos en palabras comunes manteniendo el registro académico. Verbos nominalizados. Sin gerundios.
 
 Requisitos del curso: ${c['Requisitos']?expandRequisitos(c['Requisitos']).replace(/\n/g,'; '):'No especificados'}`,
 
@@ -3660,6 +3666,7 @@ function buildFichaPrompt(){
   if(cuadro) parts.push(`CUADRO DE COMPETENCIA EXISTENTE (mejoralo con las reglas de la skill)\n${cuadro}`);
   const esb=esbozoPromptBlock(s,'ficha'); if(esb) parts.push(esb);
   const ccF=carreraCompBlock(s); if(ccF) parts.push(ccF);
+  { const nc=nameChecks(s); if(nc.length) parts.push('AVISOS SOBRE LO QUE YA EXISTE (corregilos en la ficha)\n'+nc.map(x=>'- '+x).join('\n')); }
   parts.push(`INSTRUCCIONES DE ENTREGA
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame la ficha completa, legible, para revisarla.
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
@@ -3680,6 +3687,10 @@ REDACCIÓN CLARA Y VARIADA (lo que más se corrige):
 - La competencia no lleva frases que no aportan ("en el tiempo", "de forma determinada" ni ningún cierre de disposición).
 - Las tres actividades se pueden imaginar y no vuelven engorroso el curso: el componente de investigación ya lo cubre el estudio de casos, así que no se usa un artículo académico ni otra actividad de investigación; preferí actividades prácticas (por ejemplo, prácticas de prototipado).
 - El módulo 1 se llama "Introducción a…" o "Fundamentos de…" el núcleo del curso (por ejemplo, "Fundamentos de la arquitectura de sistemas de software"), sin enfoques de nicho.
+- Todos los módulos tienen la misma forma gramatical: sustantivos ("Modelado para…"), nunca infinitivos mezclados ("Modelar para…").
+- El nombre del proyecto no repite el nombre del curso ni empieza con "Desarrollo de": nombra un producto o modelo específico (por ejemplo, "Modelo ejecutable de una aplicación informática"). Si el temario trabaja varios tipos de modelado, el RA del proyecto toma uno.
+- La competencia no lleva cláusulas adjetivas que la alarguen ("que reducen la brecha…") y su cláusula adverbial no queda al final como cola ("de manera detallada").
+- Tecnicismos en palabras comunes y expresiones que se puedan imaginar: nada de "operación autónoma", "versión ejecutable", "fiel a" ni "brecha".
 4. Reglas del bloque: tres actividades en el orden del cuadro (la primera es el proyecto con 15 criterios; las otras dos llevan 8 criterios); porcentajes enteros que suman 100; cada elemento de una lista va sin viñetas ni numeración; los textos del bloque son idénticos a los de la ficha mostrada.`);
   return parts.join('\n\n');
 }
@@ -3735,6 +3746,7 @@ function buildProgramaPrompt(){
   parts.push(rasgosPromptBlock());
   { const cc=carreraCompBlock(); if(cc) parts.push(cc); }
   { const rb=repeatedBlock(); if(rb) parts.push(rb); }
+  { const nc=nameChecks(s); if(nc.length) parts.push('AVISOS DE LA APP (corregilos y mencionalos en "observaciones")\n'+nc.map(x=>'- '+x).join('\n')); }
   const varT=tiposVariationBlock(); if(varT) parts.push(varT);
   parts.push(`FICHA APROBADA\n\nCOMPETENCIA DEL CURSO (versión vigente: es la que se parafrasea en "En el curso…", aunque una ficha anterior diga otra)\n${s.competencia||'(pendiente)'}\n\nCONTENIDOS TEMÁTICOS\n${currentTemarioText(c,s)||'(pendientes)'}\n\nCUADRO DE COMPETENCIA\n${cuadroText(s)||'(pendiente)'}\n\nTABLA DE EVALUACIÓN\n${evaTablaText(s)||'(pendiente: proponé 40 % para el proyecto y 30 % para cada una de las otras dos)'}`);
   parts.push(`INSTRUCCIONES DE ENTREGA
@@ -3761,14 +3773,18 @@ REDACCIÓN CLARA Y VARIADA (lo que más se corrige):
 - Objeto de estudio en singular y con un sustantivo que introduzca la idea (por ejemplo, "la organización de la estructura de un sistema informático…"): no es una definición de diccionario, es de lo que trata el curso.
 - La importancia y "En el curso…" hablan del núcleo de este curso (en arquitectura, de arquitectura; no de requerimientos). "En el curso…" es un parafraseo fuerte de la competencia: mismo sentido, con un verbo equivalente (diseñar → concebir, no prototipar).
 - Las metodologías se refieren a los resultados de aprendizaje y a las actividades, no a los temas del temario.
-- Recursos didácticos: si el curso no tiene requisitos, no lleva recurso de experiencia previa; cada software dice en pocas palabras qué hacen los estudiantes con él, sin enumerar las actividades; unir en un mismo recurso las aplicaciones con un propósito similar y preferir herramientas especializadas del área (nada genérico como diagrams.net). No escribas los recursos institucionales (aulas, laboratorios de informática, eLibro, biblioteca y Google Workspace): la app los agrega.
+- Recursos didácticos: si el curso no tiene requisitos, no lleva recurso de experiencia previa; cada software dice en pocas palabras qué hacen los estudiantes con él, sin enumerar las actividades; unir en un mismo recurso las aplicaciones con un propósito similar y preferir herramientas especializadas del área (nada genérico como diagrams.net); con varios requisitos, un solo recurso de experiencia previa que los una. Incluí también los tres recursos institucionales adaptados al curso, una oración cada uno: las aulas (por ejemplo, para proyectar los diagramas en la revisión de los modelos), los laboratorios de informática (con las herramientas especializadas del curso, sin marcas) y eLibro (con libros sobre los temas del curso). No escribas la biblioteca ni Google Workspace: ya están en la plantilla.
 - Cronograma: en "modulo" va solo el número del módulo; los subtemas ya no van en el cronograma. Las entregas se nombran con ordinales en palabras ("Empieza el primer avance…", "Realiza la primera entrega del glosario…"), nunca "el avance 1" ni "el glosario de los módulos 1 y 2", y se varía un poco la redacción entre avances ("Continúa con el desarrollo del segundo avance…").
 - Porcentaje en la descripción de la actividad: si las entregas no valen lo mismo (15 %, 15 % y 20 %), solo el total.
-- Importancia: una oración corta con lo que la asignatura le aporta al profesional en su trabajo ("radica en que le permite…", opcional "y le facilita…"), no a una empresa; genérica, sin ejemplos de una industria y sin nombrar el curso ni su núcleo.
+- Importancia: una oración corta con lo que la asignatura le aporta al profesional en su trabajo ("radica en que le permite…"), con un solo verbo y una sola idea, de 3 a 4 líneas como máximo, no a una empresa; genérica, sin ejemplos de una industria y sin nombrar el curso ni su núcleo.
 - "En el curso…": verbo sinónimo del de la competencia y de nivel de maestría ("Implementar" → "integran" o "despliegan", no "incorporan"), complemento directo concreto ("componentes predictivos") y corto. El núcleo del curso no se repite en todo el párrafo de la descripción, salvo donde la estructura lo exige.
 - Metodologías de 200 a 260 caracteres (unas tres líneas). Estudio de casos: el estudiante aplica técnicas para resolver el problema de una organización. Guía del docente: retroalimentación o acompañamiento, no "interpretación".
 - La estrategia de aprendizaje del estudio de casos se orienta a resolver un problema ("…permite que los estudiantes resuelvan la necesidad de una organización con…"), no a emplear una herramienta.
 - Criterios sin el verbo "Confirma" (por ejemplo, "Justifica").
+- "En el curso…": cada sustantivo del propósito y del modo se puede imaginar; nada de "la operación autónoma de los procesos" ni "diagramas cercanos a su versión ejecutable".
+- Metodologías: el verbo va justo después del sujeto ("los estudiantes indaguen… en los modelos de las tareas", no "los estudiantes durante las tareas indaguen…").
+- Tecnicismos en palabras comunes, sin perder el registro académico: no "producto fiel a su diseño", "búsqueda automática de contraejemplos" ni "según la fase de su construcción"; decí qué hace el estudiante o qué se ve.
+- LECTURA FINAL COMO NO ESPECIALISTA: antes de entregar, leé todo como alguien que no es del área, buscá expresiones abstractas ("operación autónoma", "versión ejecutable", "fiel a", "brecha"…) y reescribilas en palabras que se puedan imaginar. En "observaciones", avisá si el nombre del proyecto repite el nombre del curso y si los módulos mezclan infinitivos ("Modelar…") con sustantivos ("Modelado…").
 - Rúbricas con el método cualitativo: cada nivel es el criterio completo seguido de "de manera …" (nivel 1 y 4 antónimos como escueta y profunda, insuficiente y suficiente, inadecuada y adecuada; nivel 2 básica, incipiente o limitada; nivel 3 aceptable, regular o parcial). Nunca cantidades como "1 o 2 de los 6".
 4. Reglas del bloque: "actividades" lleva las tres actividades en el orden del cuadro, cada una con sus evidencias (las de la ficha, o las que creaste si no tenía) y la rúbrica de todos sus criterios (en "titulo" va solo el título corto del criterio); "cronograma" lleva las sesiones 1 a 14 (la 15 es fija), "modulo" es el número del módulo y "actividades" contiene solo las líneas propias de la sesión (inicio o cierre de entregas), sin las dos líneas fijas de lectura y participación; cada elemento de una lista va sin viñetas ni numeración. No busques ni propongas bibliografía: esa sección la completa el curriculista por aparte.`);
   return parts.join('\n\n');
@@ -4712,7 +4728,7 @@ const RECURSOS_FIJOS = [
   {re:/^los laboratorios de inform[aá]tica/i, texto:'Los laboratorios de informática de la Universidad ofrecen a los estudiantes y docentes equipos de cómputo con el software especializado que requieren las actividades del curso.'},
   {re:/^la plataforma elibro|^elibro/i, texto:'La plataforma eLibro brinda a la comunidad universitaria el acceso en línea a libros y documentos académicos para la consulta de la bibliografía del curso.'},
 ];
-const RECURSOS_FIJOS_RE = /^(aulas$|laboratorios de inform[aá]tica$|e-?libro$|las aulas de la universidad|los laboratorios de inform[aá]tica|la plataforma elibro|elibro\b|la biblioteca de la universidad)|google workspace for education/i;
+const RECURSOS_FIJOS_RE = /^(aulas$|laboratorios de inform[aá]tica$|e-?libro$|la biblioteca de la universidad)|google workspace for education/i;
 // Frases de 5 o más palabras que se repiten en varias secciones del programa
 const REP_SECS = ['descripcion_objeto','descripcion_import','descripcion_en_curso','descripcion_rasgos','competencia','ra1','ra2','ra3','metodologias','estrategias','eva_tipo','eva_desc1','eva_desc2','eva_desc3','recursos'];
 const REP_FIJAS = /^(esta estrategia de evaluacion|la metodologia de|la importancia de esta asignatura|este curso se relaciona|en el curso|permite que en este curso|consulta posibles dudas|segun indicaciones del docente|de manera que los estudiantes|de forma que los estudiantes|para que los estudiantes|la evaluacion (diagnostica|formativa|sumativa)|esta actividad se compone|requiere el uso de aplicaciones|se realiza de (manera|forma))/;
@@ -4759,6 +4775,21 @@ function repeatedPhrases(saved, minSecs=3){
     for(let i=0;i+target.length<=ws.length;i++){ if(target.every((t,j)=>clean(ws[i+j])===t)) return ws.slice(i,i+target.length).join(' ').replace(/[.,;:]+$/,''); }
     return o.text; };
   return out.filter(o=>!o.dead).sort((a,b)=>b.secs.length-a.secs.length || b.text.length-a.text.length).slice(0,8).map(o=>({frase:orig(o), secciones:o.secs.map(lbl)}));
+}
+// Nombre del proyecto que repite el curso y módulos que mezclan infinitivos con sustantivos
+function nameChecks(s){
+  s=s||(currentCourse?savedForCourse(currentCourse):{});
+  const out=[]; const N=x=>normTxt(String(x||'')).replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+  const course=N(currentCourse?.['Curso']||currentCourse?.['Nombre']||'').replace(/\b(i|ii|iii|iv|\d+)$/,'').trim();
+  const proj=String(s.e1||'').split('\n')[0].trim(); const pn=N(proj);
+  if(pn){
+    if(/^desarrollo de\b/.test(pn)) out.push(`El nombre del proyecto («${proj}») empieza con "Desarrollo de": nombrá el producto o modelo que se entrega.`);
+    else if(course && course.length>3 && pn.includes(course)) out.push(`El nombre del proyecto («${proj}») repite el nombre del curso: nombrá el producto o modelo que se entrega.`);
+  }
+  const mods=splitModulos(s.modulos||'').map(m=>m.name.replace(/^M[oó]dulo\s+\d+\.\s*/,'').trim()).filter(Boolean);
+  const inf=mods.filter(m=>/^[A-ZÁÉÍÓÚa-záéíóúñ]+(ar|er|ir)\b/i.test(m.split(/\s+/)[0]) && !/^(introducci|fundament)/i.test(m));
+  if(inf.length && inf.length<mods.length) out.push(`Los módulos mezclan infinitivos con sustantivos (${inf.map(m=>'«'+m.split(/\s+/).slice(0,3).join(' ')+'…»').join(', ')}): usá la misma forma en todos ("Modelado para…").`);
+  return out;
 }
 function repeatedBlock(saved){
   const r=repeatedPhrases(saved); if(!r.length) return '';
@@ -5055,7 +5086,7 @@ async function buildDocx(mode, opts){
     const intro=find(/^para promover el aprendizaje de los estudiantes/i);
     const ph=intro && after(intro);
     if (ph && ph.localName==='p' && !pText(ph)) replaceParas(ph,[ph], lines(s.recursos).filter(t=>!RECURSOS_FIJOS_RE.test(t)));
-    // Recursos institucionales nuevos (aulas, laboratorios y eLibro), antes de la biblioteca, si la plantilla no los trae
+    // Recursos institucionales (aulas, laboratorios y eLibro): si Claude no escribió la versión adaptada al curso, se usa el texto fijo antes de la biblioteca
     const bib=find(/^la biblioteca de la universidad/i);
     if (bib){
       const rp=protoRPr(bib);
@@ -5306,6 +5337,7 @@ function openWordExport(){
   const reps=repeatedPhrases(s);
   const msgs=[];
   if(miss.length) msgs.push(`A este curso le falta: ${miss.join(', ')}. Esos espacios quedarán vacíos en el documento.`);
+  nameChecks(s).forEach(x=>msgs.push(x));
   if(reps.length) msgs.push(`Frases que se repiten en varias partes del programa: ${reps.slice(0,4).map(x=>`«${x.frase}» (${x.secciones.length} secciones)`).join('; ')}. Conviene decirlas de otra manera.`);
   w.style.display = msgs.length?'block':'none';
   w.textContent = msgs.join(' ');
