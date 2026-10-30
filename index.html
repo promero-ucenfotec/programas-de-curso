@@ -373,6 +373,7 @@ button,input,select,textarea{font-family:inherit;}
 .rub-lv input:focus,.rub-tit:focus{outline:2px solid var(--blue);outline-offset:-1px;}
 .rub-prev{font-size:12px;color:var(--ink-3);margin-top:8px;line-height:1.4;}
 .rub-prev b{color:var(--ink-2);background:#FFF3B0;padding:0 2px;border-radius:3px;}
+.rub-warn{font-size:12px;color:#8a5a00;background:#FFF6DB;border:1px solid #F2D88A;border-radius:6px;padding:4px 8px;margin-bottom:6px;}
 .rub-empty{padding:16px;color:var(--ink-3);font-size:13.5px;}
 @media(max-width:860px){.rub-lvs{grid-template-columns:repeat(2,minmax(0,1fr));}}
 /* Comentarios del revisor */
@@ -1878,9 +1879,9 @@ REGLAS ESTRICTAS:
 - Sin conectores "mediante", "a través de"
 - Lenguaje cotidiano, sin tecnicismos excesivos
 - Una sola oración fluida y con peso disciplinar
-- Dice de qué trata el curso (no es una definición de diccionario) y se puede imaginar: el atributo va en singular y empieza con un sustantivo que introduce la idea (la organización, el conjunto, el diseño, la aplicación) seguido de algo concreto (la estructura, las técnicas, los procesos, las normas); nunca una acción suelta ni "las capacidades de…", y sin nombrar "disciplina" ni "rama"
+- Dice de qué trata el curso (no es una definición de diccionario), en lenguaje cotidiano y se puede imaginar: empieza directo con algo concreto ("los métodos de…", "las técnicas de…", "los procesos de…"); si el núcleo es una estructura, en singular ("la organización de la estructura de…"); sin rellenos como "el conjunto de"; nunca una acción suelta ni "las capacidades de…", y sin nombrar "disciplina" ni "rama"
   ✅ "La arquitectura de sistemas de software se define como la organización de la estructura de un sistema informático en componentes y en las relaciones entre ellos para la preservación de la calidad de las aplicaciones de una organización."
-  ✅ "La inteligencia artificial se define como el conjunto de técnicas computacionales de aprendizaje a partir de los datos y de toma de decisiones automatizada para el análisis y la planificación de los procesos de una organización."
+  ✅ "La programación se define como las técnicas de codificación de algoritmos en un lenguaje formal y de verificación de su funcionamiento para la resolución de problemas cotidianos de procesamiento de datos."
 
 EJEMPLO:
 "El monitoreo de redes se define como la supervisión continua del comportamiento operativo de la infraestructura de comunicación para la detección temprana de anomalías que comprometan la disponibilidad del servicio."
@@ -1890,15 +1891,20 @@ Créditos: ${cr} | Horas docencia: ${hd}`,
 
     importancia:`Redacta la IMPORTANCIA del curso "${name}":
 
-ESTRUCTURA:
-"La importancia de esta asignatura en la formación del profesional radica en que [el — de X] + [verbo nominalizado] + [beneficio profesional concreto]"
+ESTRUCTURA (una oración corta):
+"La importancia de esta asignatura en la formación del profesional radica en que le permite [una acción concreta de su trabajo]." (opcional: "y le facilita [un segundo beneficio breve]")
 
 REGLAS:
-- Componente laboral visible con una acción concreta y propia del área, nominalizada, sin nombrar la profesión (por ejemplo, "permite el acuerdo de las partes interesadas sobre las funciones de un producto antes de su programación")
-- Todo sustantivo abstracto lleva su complemento (reducción de qué, tiempos de respuesta en qué)
-- Verbos nominalizados
-- Máximo dos beneficios conectados
+- Dice lo que la asignatura le aporta AL PROFESIONAL en su trabajo, no a una empresa u organización
+- Mejor un solo beneficio claro que dos largos
+- Genérica: sin ejemplos de una industria (ventas, fraudes, inventarios…)
+- No nombra el curso ni su núcleo ("aprendizaje automático", "arquitectura de software"…) ni la profesión
+- Acción concreta y propia del área, en lenguaje cotidiano; todo sustantivo abstracto con su complemento
 - Sin frases: "el aprendizaje", "el conocimiento", "los fundamentos", "el dominio"
+
+EJEMPLO:
+✅ "La importancia de esta asignatura en la formación del profesional radica en que le permite acordar con las partes interesadas las funciones de un producto antes de su programación."
+❌ "…radica en que la incorporación de modelos predictivos permite a una empresa la detección de fraudes en sus ventas y facilita…" (beneficio para la empresa, ejemplo de una industria y demasiado largo)
 
 OBJETO DE ESTUDIO YA CREADO:
 ${s?.descripcion_objeto||'[Completa primero el objeto de estudio]'}`,
@@ -1911,12 +1917,16 @@ ESTRUCTURA:
 QUÉ DICE: es la COMPETENCIA del curso escrita de manera completamente diferente. Mantiene su sentido (qué hacen los estudiantes y para qué), pero con otras palabras: ningún verbo ni sustantivo de la competencia se repite, salvo el núcleo del curso. No describe el proyecto ni nombra ninguna actividad.
 
 REGLAS CRÍTICAS:
+- Usá la competencia VIGENTE que aparece abajo (no la de una versión anterior de la ficha)
+- El verbo es un sinónimo del verbo de la competencia y de nivel de maestría: para "Implementar", "integran" o "despliegan" (no "incorporan", que se queda corto); para "Diseñar", "conciben"; para "Desarrollar", "elaboran"
+- Complemento directo concreto ("componentes predictivos"), no abstracciones ("mecanismos de mejora") ni rodeos ("sistemas que mejoran con la experiencia")
+- Corto: sin amontonar modificadores y sin repetir el núcleo del curso fuera de su nombre
 - Sin repetir sustantivos/verbos de las secciones anteriores
 - Sin coma antes del "con" del modo; el modo sin tecnologías ni "real"
 - Sin "mediante" ni conectores similares
 - Sin "comprenden", "aprenden", "desarrollan habilidades"
 
-COMPETENCIA: ${s?.competencia||'[Completa primero la competencia]'}
+COMPETENCIA VIGENTE: ${s?.competencia||'[Completa primero la competencia]'}
 OBJETO DE ESTUDIO: ${s?.descripcion_objeto||'[Pendiente]'}`,
 
     rasgos:`Elabora 3 rasgos del perfil profesional para el curso "${name}":
@@ -2024,7 +2034,9 @@ ORDEN OBLIGATORIO:
 
 POOL ADICIONAL (elige 1): Aprendizaje por descubrimiento · Aprendizaje interactivo · Aprendizaje experiencial · Enseñanza-aprendizaje indirecto · Estudio de casos
 
-LONGITUD: 280–350 caracteres por metodología. Lenguaje sencillo y claro.
+LONGITUD: 200–260 caracteres por metodología (unas tres líneas, nunca cinco). Lenguaje sencillo y claro.
+Estudio de casos: el estudiante aplica técnicas para resolver el problema de una organización (no "empresas con necesidades de…").
+Guía del docente: retroalimentación o acompañamiento (no "interpretación").
 
 ACTIVIDADES DEL CURSO:
 RA1: ${s?.ra1||'[Pendiente]'}
@@ -3664,7 +3676,7 @@ REDACCIÓN CLARA Y VARIADA (lo que más se corrige):
 5. Observaciones del revisor (versión RAM1), aplicalas sin excepción:
 - El verbo de la competencia combina con su objeto (nadie "diseña una especificación": se especifican los requerimientos; se desarrollan aplicaciones) y, si el objeto es genérico, va sin artículo ("Desarrollar aplicaciones de…", no "Desarrollar las aplicaciones de…").
 - Cada RA deja ver el asunto del curso: verbo disciplinar + objeto + "en" + el proceso del área donde se realiza (por ejemplo, "Realiza pruebas de funcionamiento en la verificación del rendimiento de la aplicación", "Especifica los requerimientos de un sistema informático en la formalización de las necesidades de un negocio"), no "Elabora el informe técnico…".
-- Criterios sin los verbos Reconoce, Construye ni Configura.
+- Criterios sin los verbos Reconoce, Construye, Configura ni Confirma (en su lugar, por ejemplo, Justifica).
 - La competencia no lleva frases que no aportan ("en el tiempo", "de forma determinada" ni ningún cierre de disposición).
 - Las tres actividades se pueden imaginar y no vuelven engorroso el curso: el componente de investigación ya lo cubre el estudio de casos, así que no se usa un artículo académico ni otra actividad de investigación; preferí actividades prácticas (por ejemplo, prácticas de prototipado).
 - El módulo 1 se llama "Introducción a…" o "Fundamentos de…" el núcleo del curso (por ejemplo, "Fundamentos de la arquitectura de sistemas de software"), sin enfoques de nicho.
@@ -3724,7 +3736,7 @@ function buildProgramaPrompt(){
   { const cc=carreraCompBlock(); if(cc) parts.push(cc); }
   { const rb=repeatedBlock(); if(rb) parts.push(rb); }
   const varT=tiposVariationBlock(); if(varT) parts.push(varT);
-  parts.push(`FICHA APROBADA\n\nCOMPETENCIA DEL CURSO\n${s.competencia||'(pendiente)'}\n\nCONTENIDOS TEMÁTICOS\n${currentTemarioText(c,s)||'(pendientes)'}\n\nCUADRO DE COMPETENCIA\n${cuadroText(s)||'(pendiente)'}\n\nTABLA DE EVALUACIÓN\n${evaTablaText(s)||'(pendiente: proponé 40 % para el proyecto y 30 % para cada una de las otras dos)'}`);
+  parts.push(`FICHA APROBADA\n\nCOMPETENCIA DEL CURSO (versión vigente: es la que se parafrasea en "En el curso…", aunque una ficha anterior diga otra)\n${s.competencia||'(pendiente)'}\n\nCONTENIDOS TEMÁTICOS\n${currentTemarioText(c,s)||'(pendientes)'}\n\nCUADRO DE COMPETENCIA\n${cuadroText(s)||'(pendiente)'}\n\nTABLA DE EVALUACIÓN\n${evaTablaText(s)||'(pendiente: proponé 40 % para el proyecto y 30 % para cada una de las otras dos)'}`);
   parts.push(`INSTRUCCIONES DE ENTREGA
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame el programa completo, legible, para revisarlo.
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
@@ -3752,6 +3764,11 @@ REDACCIÓN CLARA Y VARIADA (lo que más se corrige):
 - Recursos didácticos: si el curso no tiene requisitos, no lleva recurso de experiencia previa; cada software dice en pocas palabras qué hacen los estudiantes con él, sin enumerar las actividades; unir en un mismo recurso las aplicaciones con un propósito similar y preferir herramientas especializadas del área (nada genérico como diagrams.net). No escribas los recursos institucionales (aulas, laboratorios de informática, eLibro, biblioteca y Google Workspace): la app los agrega.
 - Cronograma: en "modulo" va solo el número del módulo; los subtemas ya no van en el cronograma. Las entregas se nombran con ordinales en palabras ("Empieza el primer avance…", "Realiza la primera entrega del glosario…"), nunca "el avance 1" ni "el glosario de los módulos 1 y 2", y se varía un poco la redacción entre avances ("Continúa con el desarrollo del segundo avance…").
 - Porcentaje en la descripción de la actividad: si las entregas no valen lo mismo (15 %, 15 % y 20 %), solo el total.
+- Importancia: una oración corta con lo que la asignatura le aporta al profesional en su trabajo ("radica en que le permite…", opcional "y le facilita…"), no a una empresa; genérica, sin ejemplos de una industria y sin nombrar el curso ni su núcleo.
+- "En el curso…": verbo sinónimo del de la competencia y de nivel de maestría ("Implementar" → "integran" o "despliegan", no "incorporan"), complemento directo concreto ("componentes predictivos") y corto. El núcleo del curso no se repite en todo el párrafo de la descripción, salvo donde la estructura lo exige.
+- Metodologías de 200 a 260 caracteres (unas tres líneas). Estudio de casos: el estudiante aplica técnicas para resolver el problema de una organización. Guía del docente: retroalimentación o acompañamiento, no "interpretación".
+- La estrategia de aprendizaje del estudio de casos se orienta a resolver un problema ("…permite que los estudiantes resuelvan la necesidad de una organización con…"), no a emplear una herramienta.
+- Criterios sin el verbo "Confirma" (por ejemplo, "Justifica").
 - Rúbricas con el método cualitativo: cada nivel es el criterio completo seguido de "de manera …" (nivel 1 y 4 antónimos como escueta y profunda, insuficiente y suficiente, inadecuada y adecuada; nivel 2 básica, incipiente o limitada; nivel 3 aceptable, regular o parcial). Nunca cantidades como "1 o 2 de los 6".
 4. Reglas del bloque: "actividades" lleva las tres actividades en el orden del cuadro, cada una con sus evidencias (las de la ficha, o las que creaste si no tenía) y la rúbrica de todos sus criterios (en "titulo" va solo el título corto del criterio); "cronograma" lleva las sesiones 1 a 14 (la 15 es fija), "modulo" es el número del módulo y "actividades" contiene solo las líneas propias de la sesión (inicio o cierre de entregas), sin las dos líneas fijas de lectura y participación; cada elemento de una lista va sin viñetas ni numeración. No busques ni propongas bibliografía: esa sección la completa el curriculista por aparte.`);
   return parts.join('\n\n');
@@ -5512,7 +5529,8 @@ function rubLoad(){
     const rows=[];
     for(let k=0;k<nRows;k++){
       const rk=rr[k]||{}; const c=crit[k]||rk.criterio||'';
-      rows.push({criterio:c, titulo:rk.titulo||'', adj:rubAdjOf(rk,c,k)});
+      const changed = !!(rk.criterio && rk.titulo && normTxt(rubCritClean(rk.criterio))!==normTxt(rubCritClean(c)));
+      rows.push({criterio:c, titulo:rk.titulo||'', adj:rubAdjOf(rk,c,k), changed});
     }
     return {nombre, rows};
   });
@@ -5532,6 +5550,7 @@ function renderRubricEditor(){
   box.innerHTML=a.rows.map((r,k)=>`
     <div class="rub-row" data-k="${k}">
       <div class="rub-crit"><span class="rub-n">${k+1}</span><span>${escHtml(rubCritClean(r.criterio))}</span></div>
+      ${r.changed?'<div class="rub-warn">El criterio cambió: revisá que el título siga correspondiendo.</div>':''}
       <input class="rub-tit" placeholder="Título del criterio (frase nominal de 2 a 4 palabras)" value="${escHtml(r.titulo)}" oninput="rubSet(${k},'t',this.value)">
       <div class="rub-lvs">${r.adj.map((x,j)=>`<div class="rub-lv"><label>${RUB_LV_LBL[j]}</label><input list="rub-adj-list" value="${escHtml(x)}" aria-label="${RUB_LV_LBL[j]}: adjetivo" oninput="rubSet(${k},${j},this.value)"></div>`).join('')}</div>
       <div class="rub-prev" id="rub-prev-${k}">${rubPrevHtml(r)}</div>
