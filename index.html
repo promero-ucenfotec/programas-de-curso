@@ -233,6 +233,11 @@ button,input,select,textarea{font-family:inherit;}
 .b-empty{background:#EDF0F5;color:var(--ink-3);} .b-partial{background:var(--warn-bg);color:var(--warn);} .b-done{background:var(--ok-bg);color:var(--ok);}
 .chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:2px 9px;border-radius:var(--r-pill);background:#EDF0F5;color:var(--ink-3);white-space:nowrap;}
 .chip.on{background:var(--ok-bg);color:var(--ok);}
+.chip.final{background:var(--blue-50);color:var(--blue);}
+tr.is-final td{opacity:.55;} tr.is-final:hover td{opacity:1;}
+.final-toggle{display:flex;align-items:center;gap:8px;margin:14px 0 6px;border:0;background:none;color:var(--ink-3);font:600 13px/1.2 inherit;cursor:pointer;padding:4px 0;}
+.final-toggle:hover{color:var(--ink);}
+.cnav-item.is-final{opacity:.55;}
 .row-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:nowrap;}
 .mini-btn{padding:6px 10px;background:transparent;color:var(--ink-2);border:1px solid var(--line-2);border-radius:var(--rs);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;}
 .mini-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-50);}
@@ -1477,17 +1482,25 @@ async function sheetsReq(path, method = 'GET', body = null) {
 }
 
 // ── READ Base — authenticated (works on private sheets) ─
+// La hoja Base trae el período en "Cuatrimestre" (a veces como 1.0); se pasa a "Periodo"
+function normalizeBaseRows(rows){
+  (rows||[]).forEach(r=>{
+    const v=String(r['Periodo']||r['Cuatrimestre']||r['Ubicación']||'').trim().replace(/^(\d+)[.,]0+$/,'$1');
+    r['Periodo']=v;
+  });
+  return rows;
+}
 async function fetchBase(url) {
   const id = extractSheetId(url);
   if (!id) throw new Error('URL inválida de Google Sheets.');
   if (gAccessToken) {
     const data = await sheetsReq(`/${id}/values/Base`);
-    return sheetsValuesToObjects(data.values || []);
+    return normalizeBaseRows(sheetsValuesToObjects(data.values || []));
   }
   // Not signed in → try public CSV fallback
   const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=Base`);
   if (!r.ok) throw new Error(`No se pudo acceder. Inicia sesión con Google para usar Sheets privados.`);
-  return parseCSV(await r.text());
+  return normalizeBaseRows(parseCSV(await r.text()));
 }
 
 function sheetsValuesToObjects(values) {
@@ -1558,7 +1571,7 @@ async function ensureCourseRow(sheetId, course, maestro) {
     'Practica':     course['Horas práctica'] || course['Practica'] || '',
     'Independiente':course['Horas Independiente'] || course['Independiente'] || '',
     'Total':        course['Total de horas'] || course['Total'] || '',
-    'Ubicación':    course['Periodo'] || course['Ubicación'] || '',
+    'Ubicación':    course['Periodo'] || course['Cuatrimestre'] || course['Ubicación'] || '',
     'Requisitos':   course['Requisitos'] ? expandRequisitos(course['Requisitos']).replace(/\n/g,'; ') : '',
   };
   Object.entries(baseMap).forEach(([col, val]) => {
@@ -2181,7 +2194,7 @@ function showCourseWork(course){
   document.getElementById('ci-name').textContent = name;
   const meta = document.getElementById('ci-meta');
   meta.innerHTML=[
-    (course['Periodo']||course['Ubicación'])?`<span class="mpill"><span class="mp-k">Ubicación</span> ${escHtml(periodLabel(coursePeriod(course,{})))}</span>`:'',
+    coursePeriod(course,currentSaved())!=null?`<span class="mpill"><span class="mp-k">Ubicación</span> ${escHtml(periodLabel(coursePeriod(course,currentSaved())))}</span>`:'',
     course['Créditos']?`<span class="mpill"><span class="mp-k">Créditos</span> ${escHtml(String(course['Créditos']))}</span>`:'',
     (course['Horas Docencia']||course['Lectivas'])?`<span class="mpill"><span class="mp-k">Horas</span> ${escHtml(String(course['Horas Docencia']||course['Lectivas']))}</span>`:'',
     `<span class="mpill" title="Versión del programa: PRL2 y PRL3 resaltan en el Word lo diferente a la versión anterior; Final queda sin resaltar"><span class="mp-k">Versión</span> <select id="ci-ver" onchange="setCourseVersion(this.value)">${verOptions(courseVersion())}</select></span>`,
@@ -2295,7 +2308,7 @@ async function loadCourses(){
       }catch(e){ /* Maestro may not exist yet, that's fine */ }
     }
 
-    const periods=[...new Set(allCourses.map(c=>c['Periodo']||c['Ubicación']||'?'))].sort();
+    const periods=[...new Set(allCourses.map(c=>coursePeriod(c, savedForCourse(c))))].sort((a,b)=>(a??999)-(b??999));
     renderPeriodTabs(periods);
     renderTable(allCourses);
   }catch(err){
@@ -2309,7 +2322,7 @@ function renderPeriodTabs(periods){
   tabs.innerHTML=`<button class="ptab active" onclick="filterP('all',this)">Todos</button>`;
   periods.forEach(p=>{
     const b=document.createElement('button');
-    b.className='ptab';b.textContent=periodLabel(/^\d+$/.test(String(p))?parseInt(p):p);
+    b.className='ptab';b.textContent=periodLabel(p);
     b.onclick=function(){filterP(p,this);};
     tabs.appendChild(b);
   });
@@ -2317,8 +2330,12 @@ function renderPeriodTabs(periods){
 function filterP(period,btn){
   document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  renderTable(period==='all'?allCourses:allCourses.filter(c=>(c['Periodo']||c['Ubicación'])===period));
+  curPeriod=period;
+  renderTable(period==='all'?allCourses:allCourses.filter(c=>coursePeriod(c, savedForCourse(c))===period));
 }
+let curPeriod='all', showFinals=false;
+function isFinalCourse(c){ try{ return (localStorage.getItem('dcd_ver_'+(c?.['Código']||''))||'').trim()==='Final'; }catch(e){ return false; } }
+function toggleFinals(){ showFinals=!showFinals; renderTable(curPeriod==='all'?allCourses:allCourses.filter(c=>coursePeriod(c, savedForCourse(c))===curPeriod)); }
 function renderTable(courses){
   const cont=document.getElementById('courses-container');
   const sid=currentProject.sheetId;
@@ -2326,14 +2343,18 @@ function renderTable(courses){
   const table=document.createElement('table');table.className='ctable';
   table.innerHTML=`<thead><tr><th>Código</th><th>Nombre del curso</th><th>Créditos</th><th>Período</th><th>Estado</th><th></th></tr></thead>`;
   const tbody=document.createElement('tbody');
-  courses.forEach(c=>{
+  // Los programas en versión Final van al final, atenuados y plegados
+  const finals=courses.filter(isFinalCourse); const open=courses.filter(c=>!isFinalCourse(c));
+  const rows=open.concat(showFinals?finals:[]);
+  rows.forEach(c=>{
     const code=c['Código']||'';
+    const fin=isFinalCourse(c);
     const saved=maestroData[sid]?.[code]||{};
     const filled=ALL_SECS.filter(s=>saved[s.id]?.trim()).length;
     const pct=Math.round(filled/ALL_SECS.length*100);
     const st=courseStage(saved);
-    let badge=`<div class="st-cell"><span class="chip${st.ficha?' on':''}">${st.ficha?'✓':'○'} Ficha</span><span class="chip${st.programa?' on':''}">${st.programa?'✓':'○'} Programa</span><span class="mini-prog" title="${filled} de ${ALL_SECS.length} secciones"><span style="width:${pct}%"></span></span></div>`;
-    const tr=document.createElement('tr');
+    let badge=`<div class="st-cell"><span class="chip${st.ficha?' on':''}">${st.ficha?'✓':'○'} Ficha</span><span class="chip${st.programa?' on':''}">${st.programa?'✓':'○'} Programa</span><span class="mini-prog" title="${filled} de ${ALL_SECS.length} secciones"><span style="width:${pct}%"></span></span>${fin?'<span class="chip final">✓ Final</span>':''}</div>`;
+    const tr=document.createElement('tr'); if(fin) tr.className='is-final';
     tr.innerHTML=`<td class="td-code">${code}</td><td class="td-name">${c['Curso']||c['Nombre']||''}</td><td class="td-m">${c['Créditos']||''}</td><td class="td-m">${escHtml(periodLabel(coursePeriod(c,saved)))}</td><td>${badge}</td><td><div class="row-actions"><button class="mini-btn" data-act="ficha" title="Generar la ficha con Claude">1 · Ficha</button><button class="mini-btn" data-act="programa" title="Generar el programa completo con Claude">2 · Programa</button><button class="work-btn">Trabajar <span class="ic" aria-hidden="true">→</span></button></div></td>`;
     tr.querySelector('.work-btn').onclick=e=>{e.stopPropagation();showCourseWork(c);};
     tr.querySelectorAll('.mini-btn').forEach(b=>b.onclick=e=>{e.stopPropagation();showCourseWork(c);openClaudeFlow(b.dataset.act);});
@@ -2342,6 +2363,12 @@ function renderTable(courses){
   });
   if(window.__renderIcons) window.__renderIcons();
   table.appendChild(tbody);wrap.appendChild(table);
+  if(finals.length){
+    const tg=document.createElement('button'); tg.className='final-toggle';
+    tg.innerHTML=`<span class="ic" aria-hidden="true">${showFinals?'▾':'▸'}</span> ${showFinals?'Ocultar':'Mostrar'} los programas en versión Final (${finals.length})`;
+    tg.onclick=toggleFinals;
+    if(showFinals) wrap.insertBefore(tg, table); else wrap.appendChild(tg);
+  }
   cont.innerHTML='';
   const all=allCourses||[]; const nf=all.filter(c=>courseStage(savedForCourse(c)).ficha).length, np=all.filter(c=>courseStage(savedForCourse(c)).programa).length;
   const sum=document.createElement('div'); sum.className='proj-summary';
@@ -2484,7 +2511,8 @@ function renderCourseNav(){
   items.forEach(({c,per})=>{
     if(per!==last){ html+=`<div class="cnav-group">${escHtml(periodLabel(per))}</div>`; last=per; }
     const st=courseStage(savedForCourse(c)); const code=c['Código']||'';
-    html+=`<button class="cnav-item${code===curCode?' active':''}${q&&idx===cnavSel?' kb':''}" data-code="${escHtml(code)}" title="${escHtml(c['Curso']||c['Nombre']||'')}"><span class="c">${escHtml(code)}</span><span class="n">${escHtml(c['Curso']||c['Nombre']||'')}</span><span class="cnav-dots"><span class="sdot${st.ficha?' on':''}" title="Ficha"></span><span class="sdot${st.programa?' on':''}" title="Programa"></span></span></button>`;
+    const fin=isFinalCourse(c);
+    html+=`<button class="cnav-item${fin?' is-final':''}${code===curCode?' active':''}${q&&idx===cnavSel?' kb':''}" data-code="${escHtml(code)}" title="${escHtml(c['Curso']||c['Nombre']||'')}"><span class="c">${escHtml(code)}</span><span class="n">${escHtml(c['Curso']||c['Nombre']||'')}</span><span class="cnav-dots">${fin?'<span class="chip final" style="font-size:10px;padding:0 6px">Final</span>':''}<span class="sdot${st.ficha?' on':''}" title="Ficha"></span><span class="sdot${st.programa?' on':''}" title="Programa"></span></span></button>`;
     idx++;
   });
   list.innerHTML = html || '<div style="padding:16px;font-size:13px;color:var(--ink-3)">Ningún curso coincide.</div>';
@@ -5163,7 +5191,7 @@ async function buildDocx(mode, opts){
 const ORDINALES=['Primer','Segundo','Tercer','Cuarto','Quinto','Sexto','Séptimo','Octavo','Noveno','Décimo','Undécimo','Duodécimo'];
 function coursePeriod(c, saved){
   const fd=safeJSON(saved?._datos||'{}',{});
-  const raw=String(c?.['Periodo']??c?.['Ubicación']??fd['Ubicación']??'').trim();
+  const raw=String(c?.['Periodo']||c?.['Cuatrimestre']||c?.['Ubicación']||fd['Ubicación']||'').trim();
   if(/nivel/i.test(raw)) return 0;
   const m=raw.match(/\d+/); return m?parseInt(m[0]):null;
 }
