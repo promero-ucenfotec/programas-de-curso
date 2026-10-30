@@ -250,6 +250,7 @@ button,input,select,textarea{font-family:inherit;}
 .course-code-tag{font-size:13px;font-weight:700;color:var(--blue-dark);display:inline-block;margin-bottom:6px;letter-spacing:.01em;font-variant-numeric:tabular-nums;}
 .course-hero h1{font-family:var(--serif);font-size:44px;font-weight:500;line-height:1.08;letter-spacing:-.018em;color:var(--navy);margin-bottom:16px;max-width:22ch;font-optical-sizing:auto;}
 .meta-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+.mpill select{font:inherit;color:inherit;background:transparent;border:0;padding:0 2px;cursor:pointer;}
 .mpill{display:inline-flex;align-items:baseline;gap:6px;font-size:13px;color:var(--ink);background:var(--desk);border-radius:6px;padding:4px 10px;font-weight:600;}
 .mp-k{font-weight:500;color:var(--ink-3);}
 .ch-progress{display:flex;align-items:center;gap:14px;max-width:560px;}
@@ -891,7 +892,7 @@ button,input,select,textarea{font-family:inherit;}
     </div>
     <label class="bk-opt" style="margin:-4px 0 10px"><input type="checkbox" id="wx-comun" onchange="toggleComun()"> Curso común: poner dos carreras en el encabezado</label>
     <div class="fg" id="wx-car2-wrap" style="display:none"><label>Segunda carrera</label><input type="text" id="wx-carrera2" list="wx-car-list" placeholder="Escribí o elegí la otra carrera"><datalist id="wx-car-list"></datalist></div>
-    <div class="fg"><label>Versión (va al final del nombre del archivo)</label><input type="text" id="wx-ver" placeholder="PRL1" style="max-width:160px"></div>
+    <div class="fg"><label>Versión (va al final del nombre del archivo; también se cambia junto al nombre del curso)</label><select id="wx-ver" style="max-width:160px" onchange="setCourseVersion(this.value)"></select></div>
     <label class="bk-opt" id="wx-hl-wrap" style="margin:-4px 0 10px;display:none"><input type="checkbox" id="wx-hl" checked> <span id="wx-hl-lbl">Resaltar en amarillo lo corregido</span></label>
     <label class="bk-opt" style="margin:-4px 0 16px"><input type="checkbox" id="wx-maestro" checked> <span id="wx-maestro-lbl">Completar con los datos más recientes de la hoja Maestro</span></label>
     <div class="cl-steps">
@@ -2183,6 +2184,7 @@ function showCourseWork(course){
     (course['Periodo']||course['Ubicación'])?`<span class="mpill"><span class="mp-k">Ubicación</span> ${escHtml(periodLabel(coursePeriod(course,{})))}</span>`:'',
     course['Créditos']?`<span class="mpill"><span class="mp-k">Créditos</span> ${escHtml(String(course['Créditos']))}</span>`:'',
     (course['Horas Docencia']||course['Lectivas'])?`<span class="mpill"><span class="mp-k">Horas</span> ${escHtml(String(course['Horas Docencia']||course['Lectivas']))}</span>`:'',
+    `<span class="mpill" title="Versión del programa: PRL2 y PRL3 resaltan en el Word lo diferente a la versión anterior; Final queda sin resaltar"><span class="mp-k">Versión</span> <select id="ci-ver" onchange="setCourseVersion(this.value)">${verOptions(courseVersion())}</select></span>`,
     course['Requisitos']?`<span class="mpill" title="${escHtml(course['Requisitos'])}"><span class="mp-k">Requisitos</span> ${escHtml((course['Requisitos']||'').length>34?(course['Requisitos']||'').slice(0,34)+'…':(course['Requisitos']||''))}</span>`:'',
   ].join('');
   document.getElementById('back-proj-btn').onclick=()=>showProject(currentProject.id);
@@ -5315,10 +5317,7 @@ async function downloadTomo(){
 
 function openWordExport(){
   if(!currentCourse||!currentProject){ toast('Abrí un curso primero','error'); return; }
-  { const rb=revBase(); const w=document.getElementById('wx-hl-wrap');
-    if(rb){ const n=revChangedKeys(rb.values,currentSaved()).length; w.style.display='';
-      document.getElementById('wx-hl-lbl').textContent=`Resaltar en amarillo lo corregido desde ${rb.version||'la versión revisada'} (${n} sección${n===1?'':'es'} con cambios)`; }
-    else w.style.display='none'; }
+  refreshVersionUI();
   const s=currentSaved(); const d=courseDatos(currentCourse,s);
   let pref={}; try{ pref=JSON.parse(localStorage.getItem('dcd_word_'+currentProject.id)||'{}'); }catch(e){}
   document.getElementById('wx-escuela').value = currentProject.escuela || d._escuela || pref.escuela || '';
@@ -5348,8 +5347,6 @@ function openWordExport(){
   document.getElementById('wx-comun').checked = !!com?.on;
   document.getElementById('wx-carrera2').value = com?.carrera2 || '';
   toggleComun();
-  let ver=''; try{ ver=localStorage.getItem('dcd_ver_'+(currentCourse['Código']||''))||''; }catch(e){}
-  document.getElementById('wx-ver').value = ver || 'PRL1';
   const mc=document.getElementById('wx-maestro'); mc.disabled=!gAccessToken; mc.checked=!!gAccessToken;
   document.getElementById('wx-maestro-lbl').textContent = gAccessToken ? 'Completar con los datos más recientes de la hoja Maestro' : 'Completar con la hoja Maestro (iniciá sesión con Google)';
   document.getElementById('modal-word').classList.add('active');
@@ -5376,8 +5373,46 @@ function toggleComun(){
   }
 }
 function closeWordExport(){ document.getElementById('modal-word')?.classList.remove('active'); }
-function wordVersion(){
-  return (document.getElementById('wx-ver')?.value||'').trim() || 'PRL1';
+function wordVersion(){ return courseVersion(); }
+// ── Versiones del programa (PRL1, PRL2, PRL3, Final) ──
+const VERSIONES=['PRL1','PRL2','PRL3','Final'];
+function courseVersion(){ let v=''; try{ v=localStorage.getItem('dcd_ver_'+(currentCourse?.['Código']||''))||''; }catch(e){} return v.trim()||'PRL1'; }
+function verOptions(cur){ const l=VERSIONES.includes(cur)?VERSIONES:VERSIONES.concat([cur]); return l.map(v=>`<option value="${escHtml(v)}"${v===cur?' selected':''}>${escHtml(v)}</option>`).join(''); }
+function verSnapKey(v){ return `dcd_vsnap_${currentProject?.id||''}_${currentCourse?.['Código']||''}_${v}`; }
+function saveVersionSnap(v, values){ try{ localStorage.setItem(verSnapKey(v), JSON.stringify({version:v, at:new Date().toISOString(), values})); }catch(e){} }
+function versionSnap(v){ return safeJSON(localStorage.getItem(verSnapKey(v))||'null', null); }
+// Base contra la que se resalta: la versión anterior (PRL2 → PRL1, PRL3 → PRL2). PRL1 y Final no se resaltan.
+function versionBase(ver){
+  ver=ver||courseVersion(); const i=VERSIONES.indexOf(ver);
+  if (i<1 || ver==='Final'){
+    // Versiones fuera de la lista (por ejemplo RAM1): se compara con el programa revisado si existe
+    if (i<0){ const rb=revBase(); return rb?{version:rb.version||'la versión revisada', values:rb.values}:null; }
+    return null;
+  }
+  const prev=VERSIONES[i-1]; const rb=revBase();
+  if (rb && String(rb.version||'').toUpperCase()===prev.toUpperCase()) return {version:prev, values:rb.values};
+  const sn=versionSnap(prev); if (sn) return {version:prev, values:sn.values};
+  for (let k=i-2;k>=0;k--){ const s2=versionSnap(VERSIONES[k]); if(s2) return {version:VERSIONES[k], values:s2.values}; }
+  return rb?{version:rb.version||'la versión revisada', values:rb.values}:null;
+}
+function setCourseVersion(v){
+  if (!currentCourse) return;
+  const old=courseVersion(); v=String(v||'').trim()||'PRL1';
+  // Al pasar a una versión nueva sin copia de la anterior, lo que hay ahora queda como la anterior
+  const io=VERSIONES.indexOf(old), iv=VERSIONES.indexOf(v);
+  if (iv>io && io>=0 && !versionSnap(old)) saveVersionSnap(old, currentSaved());
+  try{ localStorage.setItem('dcd_ver_'+(currentCourse['Código']||''), v); }catch(e){}
+  refreshVersionUI();
+  toast(v==='Final' ? 'Versión Final: el Word se descarga sin resaltar' : `Versión ${v}`, 'success');
+}
+function refreshVersionUI(){
+  const v=courseVersion();
+  ['ci-ver','wx-ver'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=verOptions(v); });
+  const w=document.getElementById('wx-hl-wrap'); if(!w) return;
+  const b=versionBase(v);
+  if (b){ const n=revChangedKeys(b.values,currentSaved()).length; w.style.display='';
+    document.getElementById('wx-hl-lbl').textContent=`Resaltar en amarillo lo diferente a ${b.version} (${n} sección${n===1?'':'es'} con cambios)`; }
+  else w.style.display='none';
 }
 function wordFileName(mode, ver){
   const code=(currentCourse['Código']||'curso').trim(); const name=(currentCourse['Curso']||currentCourse['Nombre']||'').trim();
@@ -5405,13 +5440,14 @@ async function prepareWordBlob(mode){
       }catch(e){ toast('No se pudo leer el Maestro; se usan los datos de la app','error'); }
     }
   let highlight=null;
-  const rb=revBase();
+  const rb=versionBase();
   if (rb && document.getElementById('wx-hl').checked){
     // Lo corregido en la app manda sobre el Maestro
     const loc=currentSaved();
     revChangedKeys(rb.values, loc).forEach(k=>{ if(saved!==loc){ if(saved===currentSaved()) saved=Object.assign({},saved); saved[k]=loc[k]; } });
     highlight=changedPieces(rb.values, saved);
   }
+  if (mode==='programa') saveVersionSnap(wordVersion(), saved);
   const blob = await buildDocx(mode, {escuela, carrera, carrera2, saved, highlight});
   return { blob, fname: wordFileName(mode) };
 }
@@ -6001,11 +6037,12 @@ function headlessWordOpts(){
   const carrera = cars.length>1 ? ([pref.carrera, d._carrera].find(x=>x && cars.includes(x)) || cars[0]) : (cars[0] || d._carrera || pref.carrera || '');
   let com=null; try{ com=JSON.parse(localStorage.getItem('dcd_comun_'+(currentCourse['Código']||''))||'null'); }catch(e){}
   let carrera2 = com?.on ? String(com.carrera2||'').trim() : ''; if (carrera2===carrera) carrera2='';
-  let ver=''; try{ ver=localStorage.getItem('dcd_ver_'+(currentCourse['Código']||''))||''; }catch(e){}
+  const ver=courseVersion();
   const escuela = currentProject.escuela || d._escuela || pref.escuela || '';
-  const rb=revBase();
+  const rb=versionBase(ver);
   const highlight = rb ? changedPieces(rb.values, s) : null;
-  return { escuela, carrera, carrera2, saved:s, highlight, ver: ver||'PRL1' };
+  if (courseStage(s).programa) saveVersionSnap(ver, s);
+  return { escuela, carrera, carrera2, saved:s, highlight, ver };
 }
 function driveFileKey(kind){ return `dcd_drivefile_${kind}_${currentProject?.id||''}_${currentCourse?.['Código']||''}`; }
 async function driveFetch(url, opts={}){
