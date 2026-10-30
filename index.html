@@ -332,6 +332,64 @@ tr.is-final td{opacity:.55;} tr.is-final:hover td{opacity:1;}
 .spill .pck{width:16px;height:16px;border-radius:50%;background:var(--ok-bg);color:var(--ok);font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;}
 
 .course-main{min-width:0;}
+/* Índice: estado por sección y avance por grupo */
+.si-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px;}
+.si-count{font-size:12px;font-weight:700;color:var(--ink-3);}
+.si-bar{height:5px;border-radius:99px;background:var(--line);overflow:hidden;margin:6px 0 10px;}
+.si-bar>span{display:block;height:100%;background:var(--ok);border-radius:99px;transition:width .3s;}
+.si-filter{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-3);margin-bottom:12px;cursor:pointer;user-select:none;}
+.sec-cat{margin-bottom:6px;border-radius:9px;}
+.sec-cat-lbl{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;border:0;background:none;cursor:pointer;font:inherit;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--ink-3);padding:8px 8px 4px;text-align:left;}
+.sec-cat-lbl:hover{color:var(--navy);}
+.sec-cat-lbl .cat-n{font-size:11px;font-weight:700;letter-spacing:0;text-transform:none;padding:1px 7px;border-radius:99px;background:var(--desk);color:var(--ink-3);}
+.sec-cat-lbl .cat-n.done{background:var(--ok-bg);color:var(--ok);}
+.sec-cat.collapsed .sec-pills{display:none;}
+.sec-cat-lbl .cat-chev{transition:transform .15s;display:inline-block;margin-right:4px;}
+.sec-cat.collapsed .cat-chev{transform:rotate(-90deg);}
+.spill{padding:7px 10px 7px 8px !important;gap:10px !important;justify-content:flex-start !important;}
+.spill::before{display:none !important;}
+.spill .st-dot{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid var(--line-2);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;background:var(--paper);}
+.spill.has-data .st-dot{border-color:var(--ok);background:var(--ok);}
+.spill.active .st-dot{box-shadow:0 0 0 3px var(--blue-50);}
+.spill .sp-lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.spill .sp-tag{font-size:11px;color:var(--ink-4);font-weight:500;}
+.spill.has-data .sp-tag{display:none;}
+.only-pend .spill.has-data{display:none;}
+.only-pend .sec-cat.all-done{display:none;}
+/* Barra de navegación entre secciones */
+.sec-nav{display:none;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.course-main.has-open .sec-nav{display:flex;}
+.sec-nav .sn-crumb{flex:1;min-width:0;font-size:13px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sec-nav .sn-crumb strong{color:var(--ink);}
+.course-main.has-open .work-empty{display:none;}
+/* Mapa del programa (cuando no hay sección abierta) */
+.prog-map{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:22px 24px;box-shadow:var(--shadow-1, 0 1px 2px rgba(15,42,87,.06));}
+.pm-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px;}
+.pm-top h3{font-family:var(--serif);font-size:24px;font-weight:500;color:var(--navy);margin:0 0 4px;}
+.pm-top p{font-size:13.5px;color:var(--ink-3);margin:0;max-width:60ch;line-height:1.5;}
+.course-main .prog-map.work-empty{text-align:left;padding:22px 24px;border:1px solid var(--line);color:var(--ink-2);}
+.pm-grid{columns:3 240px;column-gap:12px;}
+.pm-grid .pm-card{break-inside:avoid;margin-bottom:12px;display:block;}
+.sec-nav{scroll-margin-top:150px;}
+.pm-card{border:1px solid var(--line);border-radius:12px;padding:14px 14px 10px;background:var(--paper);}
+.pm-card.done{border-color:color-mix(in srgb,var(--ok) 35%,var(--line));background:color-mix(in srgb,var(--ok-bg) 35%,var(--paper));}
+.pm-card h4{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13.5px;font-weight:700;color:var(--ink);margin:0 0 8px;}
+.pm-card h4 span{font-size:12px;font-weight:600;color:var(--ink-3);}
+.pm-items{display:flex;flex-direction:column;gap:2px;}
+.pm-item{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;text-align:left;cursor:pointer;font:inherit;font-size:13px;color:var(--ink-2);padding:5px 6px;border-radius:7px;}
+.pm-item:hover{background:var(--desk);color:var(--ink);}
+.pm-item .st-dot{flex:none;width:14px;height:14px;border-radius:50%;border:2px solid var(--line-2);display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;}
+.pm-item.ok .st-dot{border-color:var(--ok);background:var(--ok);}
+.pm-item .pm-prev{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pm-item .pm-prev small{color:var(--ink-4);margin-left:6px;}
+/* Estado del proyecto */
+.est-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;white-space:nowrap;}
+.est-pill::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor;}
+.est-dev{background:var(--warn-bg);color:var(--warn);}
+.est-ent{background:var(--blue-50);color:var(--blue);}
+.est-apr{background:var(--ok-bg);color:var(--ok);}
+select.est-pill{border:0;font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding-right:8px;}
+select.est-pill::before{display:none;}
 .work-empty{background:var(--paper);border:1px dashed var(--line-2);border-radius:var(--r);padding:56px 32px;text-align:center;color:var(--ink-3);}
 .work-empty svg{margin:0 auto 18px;display:block;}
 .work-empty h3{font-family:var(--serif);font-size:24px;font-weight:500;color:var(--navy);margin-bottom:8px;}
@@ -622,7 +680,7 @@ tr.is-final td{opacity:.55;} tr.is-final:hover td{opacity:1;}
   <div class="topbar">
     <button class="back-btn" onclick="showHome()"><span class="ic" aria-hidden="true">←</span> Proyectos</button>
     <div class="tb-titles">
-      <div class="topbar-title" id="proj-name-disp"></div>
+      <div class="topbar-title" style="display:flex;align-items:center;gap:10px"><span id="proj-name-disp"></span><select id="proj-estado" class="est-pill est-dev" onchange="setProjectEstado(this.value)" title="Estado del proyecto" aria-label="Estado del proyecto"></select></div>
       <div class="topbar-url" id="proj-url-disp"></div>
     </div>
     <div class="tb-right">
@@ -736,13 +794,21 @@ tr.is-final td{opacity:.55;} tr.is-final:hover td{opacity:1;}
 
   <div class="course-work">
     <nav class="sec-sel" aria-label="Secciones del programa">
-      <h3>Índice del programa</h3>
-      <p>Elegí una sección: el prompt se arma con los datos del curso.</p>
+      <div class="si-head"><h3>Índice del programa</h3><span class="si-count" id="si-count"></span></div>
+      <div class="si-bar"><span id="si-bar" style="width:0%"></span></div>
+      <label class="si-filter"><input type="checkbox" id="si-pend" onchange="togglePendientes(this.checked)"> Ver solo lo pendiente</label>
       <div id="sec-grid"></div>
     </nav>
 
     <div class="course-main">
-      <div class="work-empty">
+      <div class="sec-nav" id="sec-nav">
+        <button class="btn btn-ghost btn-sm" onclick="closeSection()" title="Volver al mapa del programa"><span class="ic" aria-hidden="true">▦</span> Mapa</button>
+        <div class="sn-crumb" id="sn-crumb"></div>
+        <button class="btn btn-ghost btn-sm" id="sn-prev" onclick="stepSection(-1)"><span class="ic" aria-hidden="true">←</span> Anterior</button>
+        <button class="btn btn-ghost btn-sm" id="sn-next" onclick="stepSection(1)">Siguiente <span class="ic" aria-hidden="true">→</span></button>
+      </div>
+      <div class="prog-map work-empty" id="prog-map"></div>
+      <div class="work-empty" style="display:none">
         <svg viewBox="0 0 120 96" width="120" height="96" aria-hidden="true"><rect x="22" y="8" width="62" height="80" rx="6" fill="#fff" stroke="#CBD2DE" stroke-width="2"/><rect x="36" y="4" width="62" height="80" rx="6" fill="#fff" stroke="#1B5FD1" stroke-width="2"/><path d="M48 24h38M48 34h38M48 44h26" stroke="#D9E5F8" stroke-width="4" stroke-linecap="round"/><path d="M48 58h18" stroke="#1B5FD1" stroke-width="4" stroke-linecap="round"/></svg>
         <h3>Elegí una sección del índice</h3>
         <p>A la izquierda está el programa en el mismo orden que el documento. Cada sección tiene su prompt listo y un espacio para guardar el resultado. Para hacerlo todo de una vez, usá <strong>Con Claude</strong>.</p>
@@ -815,6 +881,7 @@ tr.is-final td{opacity:.55;} tr.is-final:hover td{opacity:1;}
     <h2 id="proj-modal-title">Nuevo proyecto</h2>
     <p>Datos del programa y enlace de su Google Sheets.</p>
     <div class="fg"><label>Nombre del programa</label><input type="text" id="in-name" placeholder="Ej: BAE I, BIROB, Maestría Cloud…"></div>
+    <div class="fg"><label>Estado del proyecto</label><select id="in-estado" style="max-width:220px"><option>En desarrollo</option><option>Entregado</option><option>Aprobado</option></select></div>
     <div class="fg"><label>Nombre completo de la carrera</label><input type="text" id="in-career" placeholder="Ej: Bachillerato en Administración de Empresas"></div>
     <div class="fg"><label>Segundo nombre de la carrera <span style="font-weight:400;color:var(--ink-4)">(opcional, para una maestría con dos énfasis)</span></label><input type="text" id="in-career2" placeholder="Ej: Maestría Profesional en Ingeniería del Software con énfasis en…"><small>Si lo llenás, al descargar el Word elegís cuál de los dos nombres va en el encabezado.</small></div>
     <div class="fg"><label>Nivel <span style="font-weight:400;color:var(--ink-4)">(tal como va en la tabla de datos generales)</span></label><input type="text" id="in-nivel" placeholder="Ej: Maestría profesional"></div>
@@ -2180,6 +2247,7 @@ function showProject(pid){
   if(!currentProject) return;
   document.getElementById('proj-name-disp').textContent = currentProject.name;
   document.getElementById('proj-url-disp').textContent = (currentProject.url||'').slice(0,55)+'…';
+  paintProjectEstado();
   showScreen('project');
   updateSheetsStatusAll();
   loadCourses();
@@ -2221,7 +2289,8 @@ function renderProjects(){
     const md=Object.values(maestroData[p.sheetId]||{});
     const nf=md.filter(s=>courseStage(s).ficha).length, np=md.filter(s=>courseStage(s).programa).length;
     card.tabIndex=0; card.setAttribute('role','button'); card.setAttribute('aria-label','Abrir '+p.name);
-    card.innerHTML=`<div class="pc-top"><span class="pc-icon" aria-hidden="true">${escHtml((p.name||'?').trim().slice(0,2).toUpperCase())}</span><span class="pc-actions"><button class="del-btn" onclick="event.stopPropagation();openProjectModal('${p.id}')" title="Editar proyecto" aria-label="Editar proyecto"><span class="ic" aria-hidden="true">✎</span></button><button class="del-btn danger" onclick="event.stopPropagation();delProject('${p.id}')" title="Eliminar proyecto" aria-label="Eliminar proyecto"><span class="ic" aria-hidden="true">×</span></button></span></div>
+    const est=estadoOf(p);
+    card.innerHTML=`<div class="pc-top"><span style="display:flex;align-items:center;gap:10px"><span class="pc-icon" aria-hidden="true">${escHtml((p.name||'?').trim().slice(0,2).toUpperCase())}</span><span class="est-pill ${est.c}">${est.v}</span></span><span class="pc-actions"><button class="del-btn" onclick="event.stopPropagation();openProjectModal('${p.id}')" title="Editar proyecto" aria-label="Editar proyecto"><span class="ic" aria-hidden="true">✎</span></button><button class="del-btn danger" onclick="event.stopPropagation();delProject('${p.id}')" title="Eliminar proyecto" aria-label="Eliminar proyecto"><span class="ic" aria-hidden="true">×</span></button></span></div>
       <h3>${escHtml(p.name)}</h3>
       ${p.career?`<div class="pc-career">${escHtml(p.career)}${p.career2?`<br>${escHtml(p.career2)}`:''}</div>`:'<div class="pc-career pc-muted">Sin nombre de carrera (editá el proyecto)</div>'}
       <div class="pc-stats"><span><strong>${nf}</strong> fichas</span><span><strong>${np}</strong> programas</span>${p.nivel?`<span>${escHtml(p.nivel)}</span>`:''}</div>
@@ -2239,11 +2308,25 @@ function renderProjects(){
   if(window.__renderIcons) window.__renderIcons();
 }
 let editingProjectId=null;
-const PROJ_FIELDS={name:'in-name',career:'in-career',career2:'in-career2',nivel:'in-nivel',escuela:'in-escuela',url:'in-url',folderFichas:'in-fold-fichas',folderProgramas:'in-fold-prog'};
+const PROJ_FIELDS={name:'in-name',estado:'in-estado',career:'in-career',career2:'in-career2',nivel:'in-nivel',escuela:'in-escuela',url:'in-url',folderFichas:'in-fold-fichas',folderProgramas:'in-fold-prog'};
+const ESTADOS=[{v:'En desarrollo',c:'est-dev'},{v:'Entregado',c:'est-ent'},{v:'Aprobado',c:'est-apr'}];
+const estadoOf=p=>ESTADOS.find(e=>e.v===p?.estado)||ESTADOS[0];
+function setProjectEstado(v){
+  if(!currentProject) return; currentProject.estado=v;
+  localStorage.setItem('dcd_projects',JSON.stringify(projects)); autoBackup();
+  paintProjectEstado(); toast(`Proyecto ${v.toLowerCase()}`,'success');
+}
+function paintProjectEstado(){
+  const s=document.getElementById('proj-estado'); if(!s||!currentProject) return;
+  const e=estadoOf(currentProject);
+  s.innerHTML=ESTADOS.map(x=>`<option${x.v===e.v?' selected':''}>${x.v}</option>`).join('');
+  s.className='est-pill '+e.c;
+}
 function openProjectModal(pid){
   editingProjectId=pid||null;
   const p=pid?projects.find(x=>x.id===pid):null;
   Object.entries(PROJ_FIELDS).forEach(([k,id])=>{ document.getElementById(id).value = p ? (p[k]||'') : ''; });
+  document.getElementById('in-estado').value = estadoOf(p).v;
   document.getElementById('proj-modal-title').textContent = p ? 'Editar proyecto' : 'Nuevo proyecto';
   document.getElementById('proj-modal-btn').innerHTML = p ? 'Guardar cambios' : 'Crear proyecto <span class="ic" aria-hidden="true">→</span>';
   document.getElementById('modal-add').classList.add('active');
@@ -2262,6 +2345,7 @@ function saveProjectModal(){
     if(currentProject && currentProject.id===p.id){
       document.getElementById('proj-name-disp').textContent = p.name;
       document.getElementById('proj-url-disp').textContent = (p.url||'').slice(0,55)+'…';
+      paintProjectEstado();
     }
     toast(`✓ Proyecto "${p.name}" actualizado`,'success');
     return;
@@ -2387,33 +2471,94 @@ async function syncSheets(){
 /* ══════════════════════════════════════════════════════
    SECTION GRID
 ══════════════════════════════════════════════════════ */
+// Nombres más claros en el índice (el resto de la app usa sec.label)
+const SEC_NICE={cd1:'Criterios del RA 1',cd2:'Criterios del RA 2',cd3:'Criterios del RA 3',e1:'Evidencias del RA 1',e2:'Evidencias del RA 2',e3:'Evidencias del RA 3',
+  modulos:'Temario (módulos y subtemas)',estrategias:'Estrategias de aprendizaje',eva_tabla:'Tabla de evaluaciones',eva_tipo:'Tipos de evaluación',
+  eva_desc1:'Descripción de la evaluación 1',eva_desc2:'Descripción de la evaluación 2',eva_desc3:'Descripción de la evaluación 3',
+  recursos:'Recursos didácticos',biblio_ob:'Bibliografía obligatoria',biblio_co:'Bibliografía complementaria',cronograma:'Cronograma (14 sesiones)'};
+const secNice=sec=>SEC_NICE[sec.id]||sec.label;
+const catNice=cat=>cat.label.replace(/^\d+\.\s*/,'');
+function secHas(saved, sec){ return sec.isRubric ? !!(saved._rubricas?.trim() || saved.cd1?.trim()) : !!(String(saved[sec.id]||'').trim()); }
+let collapsedCats=new Set();
+function togglePendientes(on){ document.getElementById('sec-grid')?.classList.toggle('only-pend', !!on); }
+function toggleCat(i){ collapsedCats.has(i)?collapsedCats.delete(i):collapsedCats.add(i); renderSecGrid(); }
 function renderSecGrid(){
   const grid=document.getElementById('sec-grid');
   const sid=currentProject.sheetId;
   const code=currentCourse?.['Código']||'';
   const saved=maestroData[sid]?.[code]||{};
   grid.innerHTML='';
-  CATS.forEach(cat=>{
-    const div=document.createElement('div');div.className='sec-cat';
-    div.innerHTML=`<div class="sec-cat-lbl">${cat.label}</div><div class="sec-pills"></div>`;
+  let tot=0, ok=0;
+  CATS.forEach((cat,ci)=>{
+    const n=cat.secs.filter(s=>secHas(saved,s)).length; tot+=cat.secs.length; ok+=n;
+    const done=n===cat.secs.length;
+    const div=document.createElement('div');div.className='sec-cat'+(collapsedCats.has(ci)?' collapsed':'')+(done?' all-done':'');
+    div.innerHTML=`<button class="sec-cat-lbl" onclick="toggleCat(${ci})" aria-expanded="${!collapsedCats.has(ci)}"><span><span class="cat-chev" aria-hidden="true">▾</span>${escHtml(catNice(cat))}</span><span class="cat-n${done?' done':''}">${n}/${cat.secs.length}</span></button><div class="sec-pills"></div>`;
     const pills=div.querySelector('.sec-pills');
     cat.secs.forEach(sec=>{
-      const hasData=sec.isRubric ? !!(saved._rubricas?.trim() || saved.cd1?.trim()) : !!(saved[sec.id]?.trim());
+      const hasData=secHas(saved,sec);
       const pill=document.createElement('button');
       pill.className=`spill${hasData?' has-data':''}${currentSection?.id===sec.id?' active':''}`;
-      pill.innerHTML=`<span class="pico">${sec.icon}</span><span>${sec.label}</span>${hasData?'<span class="pck">✓</span>':''}`;
+      pill.dataset.sec=sec.id;
+      pill.title = hasData ? String(sec.isRubric?'Rúbricas listas':saved[sec.id]).slice(0,180) : 'Pendiente';
+      pill.innerHTML=`<span class="st-dot" aria-hidden="true">${hasData?'✓':''}</span><span class="sp-lbl">${escHtml(secNice(sec))}</span><span class="sp-tag">pendiente</span>`;
       pill.addEventListener('click',()=>openSection(sec,pill));
       pills.appendChild(pill);
     });
     grid.appendChild(div);
   });
+  togglePendientes(document.getElementById('si-pend')?.checked);
+  const pct=tot?Math.round(ok/tot*100):0;
+  const c=document.getElementById('si-count'); if(c) c.textContent=`${ok} de ${tot}`;
+  const b=document.getElementById('si-bar'); if(b) b.style.width=pct+'%';
+  renderProgramMap(saved);
+  updateSecNav();
   if(window.__renderIcons) window.__renderIcons();
+}
+function renderProgramMap(saved){
+  const el=document.getElementById('prog-map'); if(!el) return;
+  const next=ALL_SECS.find(s=>!secHas(saved,s));
+  const total=ALL_SECS.length, ok=ALL_SECS.filter(s=>secHas(saved,s)).length;
+  const snip=(sec)=>{ if(sec.isRubric) return ''; const v=String(saved[sec.id]||'').replace(/\s+/g,' ').trim(); return v?escHtml(v.slice(0,70))+(v.length>70?'…':''):''; };
+  el.innerHTML=`<div class="pm-top"><div><h3>Mapa del programa</h3><p>${ok===total?'Todas las secciones tienen contenido. Abrí cualquiera para revisarla o descargá el Word.':`Llevás ${ok} de ${total} secciones. Tocá cualquier sección para abrirla; las grises están pendientes.`}</p></div>
+    ${next?`<button class="btn btn-primary btn-sm" onclick="openSectionById('${next.id}')">Seguir con ${escHtml(secNice(next))} →</button>`:`<button class="btn btn-primary btn-sm" onclick="openWordExport()">Descargar en Word →</button>`}</div>
+    <div class="pm-grid">${CATS.map(cat=>{ const n=cat.secs.filter(s=>secHas(saved,s)).length; return `<div class="pm-card${n===cat.secs.length?' done':''}"><h4>${escHtml(catNice(cat))}<span>${n}/${cat.secs.length}</span></h4><div class="pm-items">${
+      cat.secs.map(s=>{ const h=secHas(saved,s); const sn=h?snip(s):''; return `<button class="pm-item${h?' ok':''}" onclick="openSectionById('${s.id}')" title="${h?escHtml(String(saved[s.id]||'').slice(0,200)):'Pendiente'}"><span class="st-dot" aria-hidden="true">${h?'✓':''}</span><span class="pm-prev">${escHtml(secNice(s))}${h?'':'<small>pendiente</small>'}</span></button>`; }).join('')
+    }</div></div>`; }).join('')}</div>`;
+}
+function openSectionById(id){
+  const sec=ALL_SECS.find(s=>s.id===id); if(!sec) return;
+  const ci=CATS.findIndex(c=>c.secs.includes(sec)); if(collapsedCats.delete(ci)) renderSecGrid();
+  openSection(sec, document.querySelector(`.spill[data-sec="${id}"]`));
+}
+function stepSection(d){
+  const i=ALL_SECS.findIndex(s=>s.id===currentSection?.id); const t=ALL_SECS[i+d]; if(t) openSectionById(t.id);
+}
+function closeSection(){
+  currentSection=null;
+  document.getElementById('work-panel').classList.remove('visible');
+  document.getElementById('schedule-panel').style.display='none';
+  document.getElementById('rubric-panel').style.display='none';
+  document.querySelectorAll('.spill').forEach(p=>p.classList.remove('active'));
+  updateSecNav();
+  document.querySelector('.course-work')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function updateSecNav(){
+  const main=document.querySelector('.course-main'); if(!main) return;
+  main.classList.toggle('has-open', !!currentSection);
+  if(!currentSection) return;
+  const i=ALL_SECS.findIndex(s=>s.id===currentSection.id);
+  const cat=CATS.find(c=>c.secs.some(s=>s.id===currentSection.id));
+  document.getElementById('sn-crumb').innerHTML=`${escHtml(cat?catNice(cat):'')} › <strong>${escHtml(secNice(currentSection))}</strong> · ${i+1} de ${ALL_SECS.length}`;
+  document.getElementById('sn-prev').disabled=i<=0;
+  document.getElementById('sn-next').disabled=i>=ALL_SECS.length-1;
 }
 
 function openSection(sec,pillEl){
   currentSection=sec;
   document.querySelectorAll('.spill').forEach(p=>p.classList.remove('active'));
   if(pillEl) pillEl.classList.add('active');
+  updateSecNav();
 
   document.getElementById('rubric-panel').style.display='none';
   if(sec.isRubric){
@@ -2426,7 +2571,7 @@ function openSection(sec,pillEl){
     document.getElementById('work-panel').classList.remove('visible');
     document.getElementById('schedule-panel').style.display='block';
     buildSchedule();
-    setTimeout(()=>document.getElementById('schedule-panel').scrollIntoView({behavior:'smooth',block:'start'}),50);
+    setTimeout(()=>document.getElementById('sec-nav').scrollIntoView({behavior:'smooth',block:'start'}),50);
     return;
   }
   document.getElementById('schedule-panel').style.display='none';
@@ -2464,7 +2609,7 @@ function openSection(sec,pillEl){
 
   const panel=document.getElementById('work-panel');
   panel.classList.add('visible');
-  setTimeout(()=>panel.scrollIntoView({behavior:'smooth',block:'start'}),50);
+  setTimeout(()=>document.getElementById('sec-nav').scrollIntoView({behavior:'smooth',block:'start'}),50);
 }
 
 /* ══════════════════════════════════════════════════════
@@ -5636,7 +5781,7 @@ function openRubricEditor(){
   document.getElementById('rub-adj-list').innerHTML=RUB_ADJ_ALL.map(a=>`<option value="${a}">`).join('');
   renderRubricEditor();
   const panel=document.getElementById('rubric-panel'); panel.style.display='block';
-  setTimeout(()=>panel.scrollIntoView({behavior:'smooth',block:'start'}),50);
+  setTimeout(()=>document.getElementById('sec-nav').scrollIntoView({behavior:'smooth',block:'start'}),50);
 }
 function renderRubricEditor(){
   const tabs=document.getElementById('rub-tabs');
