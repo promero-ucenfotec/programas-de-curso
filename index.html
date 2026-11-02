@@ -6250,7 +6250,7 @@ function headlessWordOpts(){
   const escuela = currentProject.escuela || d._escuela || pref.escuela || '';
   const rb=versionBase(ver);
   const highlight = rb ? changedPieces(rb.values, s) : null;
-  if (courseStage(s).programa) saveVersionSnap(ver, s);
+  if (hasProgramSection(s)) saveVersionSnap(ver, s);
   return { escuela, carrera, carrera2, saved:s, highlight, ver };
 }
 function driveFileKey(kind){ return `dcd_drivefile_${kind}_${currentProject?.id||''}_${currentCourse?.['Código']||''}`; }
@@ -6262,12 +6262,24 @@ async function driveFetch(url, opts={}){
   }
   return r.json();
 }
+// ¿El nombre de este archivo es el Word de ESTE curso y de este tipo (ficha o programa)?
+function driveNameFits(name, kind, code){
+  const n=String(name||'');
+  const parts=(String(code||'').toUpperCase().match(/[A-Z]+|\d+/g)||[]).map(x=>/^\d+$/.test(x)?'0*'+String(parseInt(x,10)):x);
+  const codeRe = parts.length ? new RegExp('(^|[^A-Z0-9])'+parts.join('[\\s_-]*')+'(?![0-9])','i') : null;
+  const hit = codeRe ? codeRe.test(n.toUpperCase()) : normCode(n).includes(code);
+  if (!hit) return false;
+  const isFicha=/\bficha\b/i.test(n);
+  return kind==='ficha' ? isFicha : !isFicha;
+}
 async function driveFindCourseFile(folderId, kind){
   const code=normCode(currentCourse['Código']);
-  // 1) El último archivo que subió la app para este curso, si sigue en la carpeta
+  // 1) El último archivo que subió la app para este curso, si sigue en la carpeta y su nombre corresponde
+  //    (nunca se reutiliza el id si el archivo es de otro curso o del otro tipo: así una ficha no pisa un programa)
   let known=''; try{ known=localStorage.getItem(driveFileKey(kind))||''; }catch(e){}
   if (known){
-    try{ const f=await driveFetch(`https://www.googleapis.com/drive/v3/files/${known}?fields=id,name,parents,trashed&supportsAllDrives=true`); if(!f.trashed && (f.parents||[]).includes(folderId)) return f; }catch(e){}
+    try{ const f=await driveFetch(`https://www.googleapis.com/drive/v3/files/${known}?fields=id,name,parents,trashed&supportsAllDrives=true`); if(!f.trashed && (f.parents||[]).includes(folderId) && driveNameFits(f.name, kind, code)) return f; }catch(e){}
+    try{ localStorage.removeItem(driveFileKey(kind)); }catch(e){}
   }
   // 2) Un Word del curso en la carpeta (cualquier versión y cualquier nombre que lleve el código)
   const q=encodeURIComponent(`'${folderId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'`);
@@ -6277,16 +6289,11 @@ async function driveFindCourseFile(folderId, kind){
     files=files.concat(out.files||[]); tok=out.nextPageToken||'';
   } while(tok);
   // "SOFT-201" coincide con "SOFT-201", "SOFT 201", "SOFT_201" o "Programa SOFT-201…", pero no con "SOFT-2010"
-  const parts=(code.match(/[A-Z]+|\d+/g)||[]).map(x=>/^\d+$/.test(x)?'0*'+String(parseInt(x,10)):x);
-  const codeRe = parts.length ? new RegExp('(^|[^A-Z0-9])'+parts.join('[\\s_-]*')+'(?![0-9])','i') : null;
-  const isFicha=n=>/\bficha\b/i.test(n);
   const DOCXM='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   const cands=files.filter(f=>{
     const n=String(f.name||'');
     if(!(/\.docx$/i.test(n) || f.mimeType===DOCXM)) return false;
-    const hit = codeRe ? codeRe.test(n.toUpperCase()) : normCode(n).includes(code);
-    if (!hit) return false;
-    return kind==='ficha' ? isFicha(n) : !isFicha(n);
+    return driveNameFits(n, kind, code);
   });
   driveLastScan={folderId, total:files.length, cands:cands.map(f=>f.name)};
   return cands[0] || null;
@@ -6305,19 +6312,24 @@ async function driveUploadDocx(blob, fname, folderId, kind){
   try{ localStorage.setItem(driveFileKey(kind), f.id); }catch(e){}
   return { file:f, updated:!!existing, oldName: existing?.name||'' };
 }
+// Secciones propias del programa (además de la ficha)
+const PROG_SECS=['descripcion_objeto','descripcion_import','descripcion_en_curso','metodologias','estrategias','eva_tipo','eva_desc1','eva_desc2','eva_desc3','recursos','cronograma','biblio_ob','biblio_co'];
+function hasProgramSection(s){ return PROG_SECS.some(k=>String(s?.[k]||'').trim()); }
 async function uploadCourseWords(){
   if (!currentProject || !currentCourse) return;
   const p=currentProject; const s=currentSaved(); const st=courseStage(s);
   const jobs=[];
   if (p.folderFichas && st.ficha) jobs.push({kind:'ficha', mode:'ficha', folder:driveFolderId(p.folderFichas), lbl:'la ficha'});
-  if (p.folderProgramas && st.programa) jobs.push({kind:'programa', mode:'programa', folder:driveFolderId(p.folderProgramas), lbl:'el programa'});
+  if (p.folderProgramas && hasProgramSection(s)) jobs.push({kind:'programa', mode:'programa', folder:driveFolderId(p.folderProgramas), lbl:'el programa'});
   if (!jobs.length){
-    toast(st.ficha ? 'El curso todavía no tiene el programa completo; no se subió el Word a Drive' : 'El curso todavía no tiene la ficha completa; no se subió el Word a Drive','');
+    toast('El curso todavía no tiene ninguna sección del programa ni la ficha completa; no se subió el Word a Drive','');
     return;
   }
   let driveOk=false; try{ driveOk=localStorage.getItem('dcd_drive_ok')==='1'; }catch(e){}
   if (!driveOk){ toast('Google pide permiso para escribir en tus carpetas de Drive. Aceptá y el Word se sube solo.',''); requestDriveScope(uploadCourseWords); return; }
   const o=headlessWordOpts(); const done=[];
+  // Lo que falte en la app se completa con el Maestro, para que el Word de Drive nunca quede con secciones vacías
+  try{ const fromM=await savedFromMaestroRow(); if(fromM){ const m=Object.assign({},o.saved); Object.entries(fromM).forEach(([k,v])=>{ if(String(v||'').trim() && !String(m[k]||'').trim()) m[k]=v; }); o.saved=m; } }catch(e){}
   for (const j of jobs){
     try{
       const blob=await buildDocx(j.mode, {escuela:o.escuela, carrera:o.carrera, carrera2:o.carrera2, saved:o.saved, highlight:o.highlight});
