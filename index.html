@@ -1201,6 +1201,7 @@ function initGoogleAuth() {
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CLIENT_ID,
     scope: SHEETS_SCOPE,
+    include_granted_scopes: true,   // conserva Drive y Gmail si ya se habían aceptado
     callback: onTokenReceived,
   });
   renderNavAuth();
@@ -1239,7 +1240,8 @@ function onTokenReceived(resp) {
   gAccessToken = resp.access_token;
   localStorage.setItem('dcd_gtoken', gAccessToken);
   if (/gmail\.compose/.test(resp.scope||'')) localStorage.setItem('dcd_gmail_ok','1');
-  if (/auth\/drive(\s|$)/.test(resp.scope||'')) localStorage.setItem('dcd_drive_ok','1');
+  // El permiso de Drive se revisa en cada token: si el token nuevo no lo trae, se vuelve a pedir antes de subir
+  if (resp.scope!==undefined){ if (/auth\/drive(\s|$)/.test(resp.scope||'')) localStorage.setItem('dcd_drive_ok','1'); else localStorage.removeItem('dcd_drive_ok'); }
   localStorage.setItem('dcd_gtoken_exp', String(Date.now() + (parseInt(resp.expires_in)||3600)*1000));
   scheduleTokenExpiry();
   // Fetch user profile
@@ -1552,6 +1554,8 @@ async function sheetsReq(path, method = 'GET', body = null) {
 // La hoja Base trae el período en "Cuatrimestre" (a veces como 1.0); se pasa a "Periodo"
 function normalizeBaseRows(rows){
   (rows||[]).forEach(r=>{
+    Object.keys(r).forEach(k=>{ const v=String(r[k]??'').trim(); if(/^-?\d+[.,]0+$/.test(v)) r[k]=v.replace(/[.,]0+$/,''); });
+    if (!String(r['Horas Docencia']||'').trim() && String(r['Horas Clase']||'').trim()) r['Horas Docencia']=r['Horas Clase'];
     const v=String(r['Periodo']||r['Cuatrimestre']||r['Ubicación']||'').trim().replace(/^(\d+)[.,]0+$/,'$1');
     r['Periodo']=v;
   });
@@ -1632,7 +1636,7 @@ async function ensureCourseRow(sheetId, course, maestro) {
     'Código':       course['Código'] || '',
     'Nombre':       course['Curso'] || course['Nombre'] || '',
     'Créditos':     course['Créditos'] || '',
-    'Lectivas':     course['Horas Docencia'] || course['Lectivas'] || '',
+    'Lectivas':     course['Horas Docencia'] || course['Horas Clase'] || course['Lectivas'] || '',
     'Teoria':       course['Horas teoría'] || course['Teoria'] || '',
     'Lab':          course['Horas laboratorio'] || course['Lab'] || '',
     'Practica':     course['Horas práctica'] || course['Practica'] || '',
@@ -1759,6 +1763,9 @@ function maestroRowToSaved(headers, row){
   if (aN||aC) o._comp_general = pairs(aN, aC);
   if (eN||eC) o._comp_curricular = pairs(eN, eC);
   if (tN||tC) o._comp_transversal = pairs(tN, tC);
+  // Rasgos del perfil (columnas del Maestro; se crean aparte, en la hoja "Rasgos de Perfil")
+  const rD=gN('Rasgo Declarativo'), rP=gN('Rasgo Procedimental'), rA=gN('Rasgo Actitudinal');
+  if (rD||rP||rA){ o._rasgos_m = JSON.stringify([rD,rP,rA]); o.descripcion_rasgos = rasgosSentence([rD,rP,rA]); }
   // Datos generales
   const dm={}; ['Nombre','Créditos','Lectivas','Teoria','Lab','Practica','Independiente','Total','Ubicación','Requisitos'].forEach(c=>{ const v=g(c); if(v) dm[c]=v; });
   if (Object.keys(dm).length) o._datos_m = JSON.stringify(dm);
@@ -1791,7 +1798,7 @@ async function importFromMaestro(sheetId) {
     if (local.modulos && !/m[oó]dulo\s+2/i.test(local.modulos) && /m[oó]dulo\s+2/i.test(conv.modulos||'')) local.modulos = '';
     Object.entries(conv).forEach(([k,v]) => {
       if (!v) return;
-      if (/^_comp_/.test(k)) { if (local[k]!==v){ local[k]=v; imported++; } return; }   // lo define el Maestro
+      if (/^_comp_/.test(k) || k==='_rasgos_m' || (k==='descripcion_rasgos' && conv._rasgos_m)) { if (local[k]!==v){ local[k]=v; imported++; } return; }   // lo define el Maestro
       if (!String(local[k]||'').trim()) { local[k] = v; imported++; }
     });
   });
@@ -2011,18 +2018,25 @@ REGLAS CRÍTICAS:
 COMPETENCIA VIGENTE: ${s?.competencia||'[Completa primero la competencia]'}
 OBJETO DE ESTUDIO: ${s?.descripcion_objeto||'[Pendiente]'}`,
 
-    rasgos:`Elabora 3 rasgos del perfil profesional para el curso "${name}":
+    rasgos:`Usá la skill pc-rasgos-perfil para crear los 3 RASGOS DEL PERFIL PROFESIONAL del grupo de cursos afines al que pertenece "${name}".
+${(()=>{ const m=maestroRasgos(s); return m ? `\nRASGOS ACTUALES EN EL MAESTRO (revisalos y mejoralos solo si incumplen alguna regla):\n1. ${m[0]||'—'}\n2. ${m[1]||'—'}\n3. ${m[2]||'—'}\n` : ''; })()}
+TIPOS (uno de cada uno):
+1. DECLARATIVO: Analizar / Examinar / Evaluar (o Interpretar) + objeto del área + para + sustantivo con su complemento
+2. PROCEDIMENTAL: Desarrollar / Emplear / Implementar / Administrar / Aplicar / Elaborar + producto del área + para + sustantivo
+3. ACTITUDINAL: Mostrar / Demostrar / Asumir / Ser / Evidenciar + UN valor + en + situación laboral + para + sustantivo
 
-ESTRUCTURA: "Este curso se relaciona con los siguientes rasgos del perfil profesional: [RASGO 1], [RASGO 2] y [RASGO 3]."
+REGLAS:
+- Amplios para todo el grupo de cursos afines, no exclusivos de este curso, y ligados al objeto de estudio de la carrera
+- Sin contenidos que el grupo no trabaja; verbos variados, sin patrón repetido
+- Comprensibles para cualquier lector, con un "para" claro
 
-TIPOS:
-1. DECLARATIVO: identificar/reconocer/determinar + objeto + para + propósito
-2. PROCEDIMENTAL: ejecutar/implementar/desarrollar + acción + para + objetivo
-3. ACTITUDINAL: mostrar/demostrar + actitud + para + valor ético
+ENTREGA:
+A) Para la hoja "Rasgos de Perfil" del Maestro: los tres rasgos, uno por línea, con mayúscula inicial y sin punto final.
+B) Para el programa: la oración con los rasgos en minúscula: "Este curso se relaciona con los siguientes rasgos del perfil profesional: “[rasgo 1]”, “[rasgo 2]” y “[rasgo 3]”."
 
-REGLAS: Entre comillas cada rasgo. Un solo párrafo. Rasgos amplios y detallados.
-
-OBJETO DE ESTUDIO: ${s?.descripcion_objeto||'[Pendiente]'}`,
+CURSO: ${name}
+OBJETO DE ESTUDIO: ${s?.descripcion_objeto||'[Pendiente]'}
+COMPETENCIA: ${s?.competencia||'[Pendiente]'}`,
 
     competencia:`Crea la COMPETENCIA para el curso "${name}":
 
@@ -3812,7 +3826,7 @@ const FICHA_SCHEMA = (code,name)=>`{
 const PROGRAMA_SCHEMA = (code)=>`{
   "tipo": "programa",
   "codigo": "${code}",
-  "descripcion": {"objeto_estudio": "", "importancia": "", "en_el_curso": "", "rasgos_perfil": ""},
+  "descripcion": {"objeto_estudio": "", "importancia": "", "en_el_curso": "", "rasgos_perfil": "vacío: los rasgos se crean aparte"},
   "metodologias": ["seis textos, en el orden fijo de la skill"],
   "estrategias_aprendizaje": ["un texto por actividad, en el orden del cuadro"],
   "tipos_evaluacion": {"diagnostica": "", "formativa": "", "sumativa": ""},
@@ -3854,7 +3868,6 @@ REDACCIÓN CLARA Y VARIADA (lo que más se corrige):
 - La competencia no usa el nombre del proyecto como objeto ("programas de computadora" → "aplicaciones informáticas").
 - RA 2 y RA 3 pueden nombrar su actividad de forma directa y sencilla ("Resuelve tareas de verificación del funcionamiento de un programa…", "Realiza un glosario de conceptos de programación…") en lugar de forzar una abstracción.
 - Verbos sencillos en los conectores ("permite", "favorece", "promueve"), sin rebuscados como "impulsa".
-- Los rasgos del perfil son amplios y no nombran contenidos que el curso no trabaja (por ejemplo, "el paradigma orientado a objetos" en Programación 1).
 5. Observaciones del revisor (versión RAM1), aplicalas sin excepción:
 - El verbo de la competencia combina con su objeto (nadie "diseña una especificación": se especifican los requerimientos; se desarrollan aplicaciones) y, si el objeto es genérico, va sin artículo ("Desarrollar aplicaciones de…", no "Desarrollar las aplicaciones de…").
 - Cada RA deja ver el asunto del curso: verbo disciplinar + objeto + "en" + el proceso del área donde se realiza (por ejemplo, "Realiza pruebas de funcionamiento en la verificación del rendimiento de la aplicación", "Especifica los requerimientos de un sistema informático en la formalización de las necesidades de un negocio"), no "Elabora el informe técnico…".
@@ -3936,12 +3949,11 @@ REDACCIÓN CLARA Y VARIADA (lo que más se corrige):
 - La competencia no usa el nombre del proyecto como objeto ("programas de computadora" → "aplicaciones informáticas").
 - RA 2 y RA 3 pueden nombrar su actividad de forma directa y sencilla ("Resuelve tareas de verificación del funcionamiento de un programa…", "Realiza un glosario de conceptos de programación…") en lugar de forzar una abstracción.
 - Verbos sencillos en los conectores ("permite", "favorece", "promueve"), sin rebuscados como "impulsa".
-- Los rasgos del perfil son amplios y no nombran contenidos que el curso no trabaja (por ejemplo, "el paradigma orientado a objetos" en Programación 1).
 5. Observaciones del revisor (versión RAM1), aplicalas sin excepción:
 - Objeto de estudio que se pueda imaginar: en singular, con un sustantivo que introduce la idea seguido de algo concreto (la organización de la estructura…, el conjunto de técnicas…), nunca con una acción ni con "las capacidades de…", y sin nombrar "disciplina" ni "rama".
 - Importancia con componente laboral: una acción concreta y propia del área, nominalizada, sin nombrar la profesión (por ejemplo, "permite el acuerdo de las partes interesadas sobre las funciones de un producto antes de su programación").
 - Todo sustantivo abstracto lleva su complemento: consenso sobre qué, tiempos de respuesta en qué, reducción de qué.
-- Rasgos del perfil por grupo de cursos afines, no exclusivos de este curso (ver el bloque de rasgos).
+- Los rasgos del perfil no se redactan en el programa: vienen del Maestro (ver el bloque de rasgos).
 - Estrategias de aprendizaje con verbos de la categoría de aplicar (utilicen, empleen, elaboren, diseñen, implementen, incorporen, desarrollen, integren); nunca seleccionen, escriban, midan, identifiquen ni describan.
 - La metodología de estudio de casos describe la resolución del caso (diagnóstico y solución); la indagación en fuentes solo respalda esa solución.
 - El software de cada actividad de evaluación va en una sola oración al final de su párrafo: "Esta estrategia de evaluación requiere el uso de aplicaciones como [software]." Ese mismo software aparece en recursos didácticos; el resto del párrafo no lo nombra.
@@ -4092,8 +4104,9 @@ function programaToItems(d){
   if(ds.importancia)    items.push({label:'Importancia', secId:'descripcion_import', value:ds.importancia.trim(), icon:'⭐'});
   if(ds.en_el_curso)    items.push({label:'En el curso…', secId:'descripcion_en_curso', value:ds.en_el_curso.trim(), icon:'🎯'});
   { const g=rasgosGroupFor(currentCourse?.['Código']);
-    if (g && String(g.texto||'').trim()) items.push({label:`Rasgos de perfil (del grupo «${g.nombre}»)`, secId:'descripcion_rasgos', value:String(g.texto).trim(), icon:'👤'});
-    else if(ds.rasgos_perfil) items.push({label:'Rasgos de perfil', secId:'descripcion_rasgos', value:ds.rasgos_perfil.trim(), icon:'👤'}); }
+    if (maestroRasgos(currentSaved())) {/* los rasgos vienen del Maestro */}
+    else if (g && String(g.texto||'').trim()) items.push({label:`Rasgos de perfil (del grupo «${g.nombre}»)`, secId:'descripcion_rasgos', value:String(g.texto).trim(), icon:'👤'});
+    else if(ds.rasgos_perfil && !maestroRasgos(currentSaved()) && !/^vac[ií]o/i.test(String(ds.rasgos_perfil).trim())) items.push({label:'Rasgos de perfil', secId:'descripcion_rasgos', value:ds.rasgos_perfil.trim(), icon:'👤'}); }
   const met=cleanList(d.metodologias);
   if(met.length) items.push({label:`Metodologías (${met.length})`, secId:'metodologias', value:met.join('\n'), icon:'🧠'});
   const est=cleanList(d.estrategias_aprendizaje);
@@ -4971,6 +4984,12 @@ function repeatedBlock(saved){
   return 'FRASES QUE SE REPITEN EN VARIAS SECCIONES (dilas de otra manera en cada sección, o quitalas si sobran)\n'+r.map(x=>`- «${x.frase}» → ${x.secciones.join(', ')}`).join('\n');
 }
 function rasgosPromptBlock(){
+  const code=currentCourse?.['Código'];
+  const cur=courseRasgos(code, currentSaved());
+  return 'RASGOS DEL PERFIL: no los redactes. Se crean aparte (skill pc-rasgos-perfil) y la app los toma del Maestro; dejá "rasgos_perfil" vacío.'
+    + (cur ? `\nRasgos vigentes de este curso (solo para que el resto del programa no los repita):\n${cur}` : '');
+}
+function rasgosPromptBlockGrupo(){
   const code=currentCourse?.['Código']; const g=rasgosGroupFor(code);
   if (g && String(g.texto||'').trim()) return `RASGOS DEL PERFIL DEL GRUPO «${g.nombre}» (este curso pertenece a ese grupo: copiá estos rasgos textuales en "rasgos_perfil", sin cambiar nada)\n${String(g.texto).trim()}`;
   const seen=new Set(); const others=[];
@@ -4982,7 +5001,16 @@ function rasgosGroupFor(code, p=currentProject){
   const n=String(code||'').replace(/[\s-]+/g,'').toUpperCase();
   return (p?.rasgosGrupos||[]).find(g=>(g.cursos||[]).some(c=>String(c).replace(/[\s-]+/g,'').toUpperCase()===n)) || null;
 }
+// "Este curso se relaciona con…: “a”, “b” y “c”." con cada rasgo en minúscula y sin punto final
+function rasgoLower(r){ r=String(r||'').trim().replace(/^[“"']+|[”"'.;\s]+$/g,''); return r ? r.charAt(0).toLocaleLowerCase('es')+r.slice(1) : ''; }
+function rasgosSentence(list){
+  const l=(list||[]).map(rasgoLower).filter(Boolean); if(!l.length) return '';
+  const q=l.map(x=>`“${x}”`);
+  return `Este curso se relaciona con los siguientes rasgos del perfil profesional: ${q.length>1?q.slice(0,-1).join(', ')+' y '+q[q.length-1]:q[0]}.`;
+}
+function maestroRasgos(saved){ const a=safeJSON(saved?._rasgos_m||'null',null); return Array.isArray(a)&&a.some(x=>String(x||'').trim()) ? a : null; }
 function courseRasgos(code, saved){
+  const m=maestroRasgos(saved); if (m) return rasgosSentence(m);
   const g=rasgosGroupFor(code);
   return (g && String(g.texto||'').trim()) || String(saved?.descripcion_rasgos||'').trim();
 }
@@ -5019,12 +5047,13 @@ function courseDatos(course, saved){
   const dm = safeJSON(saved._datos_m||'{}',{});
   const c = Object.assign({}, dm, Object.fromEntries(Object.entries(course||{}).filter(([k,v])=>String(v??'').trim())));
   const pick=(...vals)=>vals.map(v=>String(v??'').trim()).find(Boolean)||'';
-  const lect=pick(c['Horas Docencia'],c['Lectivas']), teo=pick(c['Horas teoría'],c['Teoria']), lab=pick(c['Horas laboratorio'],c['Lab']), pra=pick(c['Horas práctica'],c['Practica']), ind=pick(c['Horas Independiente'],c['Independiente']), tot=pick(c['Total de horas'],c['Total']);
+  const num=v=>String(v??'').trim().replace(/^(-?\d+)[.,]0+$/,'$1');
+  const lect=num(pick(c['Horas Docencia'],c['Horas Clase'],c['Lectivas'])), teo=num(pick(c['Horas teoría'],c['Teoria'])), lab=num(pick(c['Horas laboratorio'],c['Lab'])), pra=num(pick(c['Horas práctica'],c['Practica'])), ind=num(pick(c['Horas Independiente'],c['Independiente'])), tot=num(pick(c['Total de horas'],c['Total']));
   const distBase = lect ? [`Horas lectivas: ${lect}`, `(Teoría: ${teo||0}, laboratorio: ${lab||0} y práctica: ${pra||0})`, `Horas de trabajo independiente: ${ind||''}`, `Total de horas: ${tot||''}`].join('\n') : '';
   return {
     'Código': pick(c['Código'], fd['Código']),
     'Nombre': pick(c['Curso'], c['Nombre'], fd['Nombre']),
-    'Créditos': pick(c['Créditos'], fd['Créditos']),
+    'Créditos': num(pick(c['Créditos'], fd['Créditos'])),
     'Duración': pick(c['Duración'], fd['Duración'], '15 semanas'),
     'Distribución de horas por semana': pick(fd['Distribución de horas por semana'], distBase),
     'Modalidad': pick(c['Modalidad'], fd['Modalidad'], 'Presencial'),
@@ -5338,10 +5367,12 @@ function coursePeriod(c, saved){
   const fd=safeJSON(saved?._datos||'{}',{});
   const raw=String(c?.['Periodo']||c?.['Cuatrimestre']||c?.['Ubicación']||fd['Ubicación']||'').trim();
   if(/nivel/i.test(raw)) return 0;
+  if(/^elec/i.test(raw)) return 99;
   const m=raw.match(/\d+/); return m?parseInt(m[0]):null;
 }
 function periodLabel(n){
   if(n===0) return 'Nivelatorio';
+  if(n===99) return 'Electivas';
   if(n==null) return 'Otros cursos';
   return (ORDINALES[n-1]||(n+'º'))+' cuatrimestre';
 }
@@ -6233,16 +6264,29 @@ async function driveFindCourseFile(folderId, kind){
   if (known){
     try{ const f=await driveFetch(`https://www.googleapis.com/drive/v3/files/${known}?fields=id,name,parents,trashed&supportsAllDrives=true`); if(!f.trashed && (f.parents||[]).includes(folderId)) return f; }catch(e){}
   }
-  // 2) Un Word del curso en la carpeta (cualquier versión)
+  // 2) Un Word del curso en la carpeta (cualquier versión y cualquier nombre que lleve el código)
   const q=encodeURIComponent(`'${folderId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'`);
-  const out=await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)&pageSize=1000&orderBy=modifiedTime desc&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=allDrives`);
+  let files=[], tok='';
+  do{
+    const out=await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=nextPageToken,files(id,name,mimeType,modifiedTime)&pageSize=1000&orderBy=modifiedTime desc&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=allDrives${tok?'&pageToken='+tok:''}`);
+    files=files.concat(out.files||[]); tok=out.nextPageToken||'';
+  } while(tok);
+  // "SOFT-201" coincide con "SOFT-201", "SOFT 201", "SOFT_201" o "Programa SOFT-201…", pero no con "SOFT-2010"
+  const parts=(code.match(/[A-Z]+|\d+/g)||[]).map(x=>/^\d+$/.test(x)?'0*'+String(parseInt(x,10)):x);
+  const codeRe = parts.length ? new RegExp('(^|[^A-Z0-9])'+parts.join('[\\s_-]*')+'(?![0-9])','i') : null;
   const isFicha=n=>/\bficha\b/i.test(n);
-  return (out.files||[]).find(f=>{
-    const n=String(f.name||''); if(!/\.docx$/i.test(n)) return false;
-    if (normCode(n.split(/\s+/)[0])!==code) return false;
+  const DOCXM='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  const cands=files.filter(f=>{
+    const n=String(f.name||'');
+    if(!(/\.docx$/i.test(n) || f.mimeType===DOCXM)) return false;
+    const hit = codeRe ? codeRe.test(n.toUpperCase()) : normCode(n).includes(code);
+    if (!hit) return false;
     return kind==='ficha' ? isFicha(n) : !isFicha(n);
-  }) || null;
+  });
+  driveLastScan={folderId, total:files.length, cands:cands.map(f=>f.name)};
+  return cands[0] || null;
 }
+let driveLastScan=null;
 async function driveUploadDocx(blob, fname, folderId, kind){
   const DOCX='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   const existing=await driveFindCourseFile(folderId, kind);
