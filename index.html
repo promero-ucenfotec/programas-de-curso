@@ -2206,20 +2206,21 @@ RA ${n}: ${s?.[`ra${n}`]||'[Pendiente]'}`;
     recursos:`Crea los RECURSOS DIDÁCTICOS del curso "${name}":
 
 TIPO 1 — EXPERIENCIA PREVIA (1 recurso):
-"Los conocimientos [y la experiencia] previa sobre [requisito del curso] [facilita/permite] que los estudiantes [utilidad específica al curso en una sola oración robusta]."
+"Los conocimientos [y la experiencia] previa sobre [requisito del curso] [facilita/permite] que los estudiantes [lo que eso les permite en el curso, en una sola oración]."
 
 TIPO 2 — SOFTWARE (1 o 2 recursos):
-"Las aplicaciones [A] y [B] de uso gratuito [permiten] que en este curso los estudiantes [utilidad específica en una actividad con su nombre exacto]."
+"Las aplicaciones [A] y [B] de uso gratuito [permiten] que en este curso los estudiantes [lo que hacen con ellas en el curso, de forma general]."
+- Ejemplo: "Las aplicaciones Archi y Modelio de código abierto permiten que en este curso los estudiantes modelen las vistas de la arquitectura de un sistema de software."
 - Unir en un mismo recurso las aplicaciones con un propósito similar (por ejemplo, las de modelado), en lugar de una oración por herramienta.
 - Herramientas especializadas del área; nada genérico como diagrams.net.
 
 TIPO 3 — INSTITUCIONALES (3 recursos, adaptados a este curso):
 "Las aulas de la Universidad [cuentan con/ofrecen] … que [uso concreto en este curso, por ejemplo, la proyección de los diagramas durante la revisión de los modelos]."
 "Los laboratorios de informática de la Universidad [ofrecen] … con [las herramientas especializadas del curso, sin marcas] para [lo que hacen los estudiantes]."
-"La plataforma eLibro [brinda] el acceso en línea a libros sobre [los temas del curso] para [su uso en las actividades]."
+"La plataforma eLibro [brinda] el acceso en línea a libros sobre [los temas del curso] para [la consulta de los estudiantes durante el curso]."
 No escribas la biblioteca ni Google Workspace for Education: ya están en la plantilla.
 
-REGLAS: Una sola oración por recurso. Experiencia previa: si hay varios requisitos, un solo recurso que los una. Sin tecnicismos sin explicar: decilos en palabras comunes manteniendo el registro académico. Verbos nominalizados. Sin gerundios.
+REGLAS: Ningún recurso nombra ni alude a las evaluaciones del curso (ni el proyecto, las tareas, las prácticas o el estudio de casos): cada uno es una descripción transversal de lo que permite hacer en el curso. Una sola oración por recurso. Experiencia previa: si hay varios requisitos, un solo recurso que los una. Sin tecnicismos sin explicar: decilos en palabras comunes manteniendo el registro académico. Verbos nominalizados. Sin gerundios.
 
 Requisitos del curso: ${c['Requisitos']?expandRequisitos(c['Requisitos']).replace(/\n/g,'; '):'No especificados'}`,
 
@@ -3960,7 +3961,7 @@ REDACCIÓN CLARA Y VARIADA (lo que más se corrige):
 - Objeto de estudio en singular y con un sustantivo que introduzca la idea (por ejemplo, "la organización de la estructura de un sistema informático…"): no es una definición de diccionario, es de lo que trata el curso.
 - La importancia y "En el curso…" hablan del núcleo de este curso (en arquitectura, de arquitectura; no de requerimientos). "En el curso…" es un parafraseo fuerte de la competencia: mismo sentido, con un verbo equivalente (diseñar → concebir, no prototipar).
 - Las metodologías se refieren a los resultados de aprendizaje y a las actividades, no a los temas del temario.
-- Recursos didácticos: si el curso no tiene requisitos, no lleva recurso de experiencia previa; cada software dice en pocas palabras qué hacen los estudiantes con él, sin enumerar las actividades; unir en un mismo recurso las aplicaciones con un propósito similar y preferir herramientas especializadas del área (nada genérico como diagrams.net); con varios requisitos, un solo recurso de experiencia previa que los una. Incluí también los tres recursos institucionales adaptados al curso, una oración cada uno: las aulas (por ejemplo, para proyectar los diagramas en la revisión de los modelos), los laboratorios de informática (con las herramientas especializadas del curso, sin marcas) y eLibro (con libros sobre los temas del curso). No escribas la biblioteca ni Google Workspace: ya están en la plantilla.
+- Recursos didácticos: ningún recurso nombra ni alude a las evaluaciones del curso (proyecto, tareas, prácticas, estudio de casos…); cada uno describe de forma transversal lo que permite hacer en el curso (por ejemplo, "permiten que en este curso los estudiantes modelen las vistas de la arquitectura de un sistema de software"). Si el curso no tiene requisitos, no lleva recurso de experiencia previa; cada software dice en pocas palabras qué hacen los estudiantes con él; unir en un mismo recurso las aplicaciones con un propósito similar y preferir herramientas especializadas del área (nada genérico como diagrams.net); con varios requisitos, un solo recurso de experiencia previa que los una. Incluí también los tres recursos institucionales adaptados al curso, una oración cada uno: las aulas (por ejemplo, para proyectar los diagramas durante las sesiones), los laboratorios de informática (con las herramientas especializadas del curso, sin marcas) y eLibro (con libros sobre los temas del curso). No escribas la biblioteca ni Google Workspace: ya están en la plantilla.
 - Cronograma: en "modulo" va solo el número del módulo; los subtemas ya no van en el cronograma. Las entregas se nombran con ordinales en palabras ("Empieza el primer avance…", "Realiza la primera entrega del glosario…"), nunca "el avance 1" ni "el glosario de los módulos 1 y 2", y se varía un poco la redacción entre avances ("Continúa con el desarrollo del segundo avance…").
 - Porcentaje en la descripción de la actividad: si las entregas no valen lo mismo (15 %, 15 % y 20 %), solo el total.
 - Importancia: una oración corta con lo que la asignatura le aporta al profesional en su trabajo ("radica en que le permite…"), con un solo verbo y una sola idea, de 3 a 4 líneas como máximo, no a una empresa; genérica, sin ejemplos de una industria y sin nombrar el curso ni su núcleo.
@@ -4974,6 +4975,10 @@ function nameChecks(s){
     if(/^desarrollo de\b/.test(pn)) out.push(`El nombre del proyecto («${proj}») empieza con "Desarrollo de": nombrá el producto o modelo que se entrega.`);
     else if(course && course.length>3 && pn.includes(course)) out.push(`El nombre del proyecto («${proj}») repite el nombre del curso: nombrá el producto o modelo que se entrega.`);
   }
+  // Recursos didácticos que nombran las evaluaciones del curso
+  const acts=[1,2,3].map(n=>String(s['e'+n]||'').split('\n')[0].trim()).filter(x=>x.length>3);
+  const recHits=acts.filter(a=>N(s.recursos||'').includes(N(a)));
+  if(recHits.length) out.push(`Los recursos didácticos nombran evaluaciones del curso (${recHits.map(a=>'«'+a+'»').join(', ')}): cada recurso describe lo que permite en el curso, sin aludir a las evaluaciones.`);
   const mods=splitModulos(s.modulos||'').map(m=>m.name.replace(/^M[oó]dulo\s+\d+\.\s*/,'').trim()).filter(Boolean);
   const inf=mods.filter(m=>/^[A-ZÁÉÍÓÚa-záéíóúñ]+(ar|er|ir)\b/i.test(m.split(/\s+/)[0]) && !/^(introducci|fundament)/i.test(m));
   if(inf.length && inf.length<mods.length) out.push(`Los módulos mezclan infinitivos con sustantivos (${inf.map(m=>'«'+m.split(/\s+/).slice(0,3).join(' ')+'…»').join(', ')}): usá la misma forma en todos ("Modelado para…").`);
