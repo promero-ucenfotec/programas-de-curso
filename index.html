@@ -2273,7 +2273,7 @@ POOL ADICIONAL (elige 1): Aprendizaje por descubrimiento · Aprendizaje interact
 
 LONGITUD: 200–260 caracteres por metodología (unas tres líneas, nunca cinco). Lenguaje sencillo y claro.
 Estudio de casos: el estudiante aplica técnicas para resolver el problema de una organización (no "empresas con necesidades de…").
-Guía del docente: "retroalimente el desarrollo de las actividades realizadas en el curso" (no "acompañe" ni "interpretación").
+Guía del docente: "retroalimente el desarrollo de las actividades realizadas en el curso", "dé seguimiento a…" o "asesore las estrategias de evaluación realizadas en el curso" (no "acompañe", "oriente" ni "interpretación"). Proyecto con "elaboren", nunca "construyan". Enseñanza directa: "identifiquen los procedimientos de [objeto concreto]". Estudio de casos en presente y con el término preciso ("la medida de protección que evita cada vulnerabilidad"). Colaborativo sin "en conjunto" junto a "equipos".
 Registro académico, no coloquial: "componente de software" (no "pieza"), "de forma independiente" (no "por su cuenta"); artículo y no posesivo ambiguo ("los diseños de software", no "sus diseños").
 Orden natural: el verbo va justo después del sujeto, sin frases preposicionales en medio (❌ "los estudiantes durante las tareas indaguen…" → ✅ "los estudiantes indaguen… en los modelos de las tareas"); la actividad va en el complemento.
 
@@ -2441,6 +2441,7 @@ function showCourseWork(course){
   document.getElementById('schedule-panel').style.display='none';
   updateSheetsStatusAll();
   showScreen('course');
+  { const em=evaTablaMismatch(currentSaved()); if(em) setTimeout(()=>toast('⚠ '+em,'error'),400); }
 }
 
 /* ══════════════════════════════════════════════════════
@@ -3193,7 +3194,9 @@ function buildTematicasSentence(saved) {
 
   // Auto-generate from saved data
   const mods = saved.modulos ? splitModulos(saved.modulos) : [];
-  const evaRows = parseEvaTablaText(saved.eva_tabla || '');
+  // Las estrategias salen del cuadro de competencia (nombres exactos); la tabla solo si el cuadro no las trae
+  const cuadro = [1,2,3].map(n=>activityName(saved,n)).filter(Boolean);
+  const evaRows = cuadro.length ? cuadro.map(name=>({name})) : parseEvaTablaText(saved.eva_tabla || '');
   if (!mods.length && !evaRows.length) return '';
 
   let sentence = '';
@@ -3202,7 +3205,7 @@ function buildTematicasSentence(saved) {
     sentence += 'Las principales temáticas por abordar son ' + listY(modNames) + '.';
   }
   if (evaRows.length) {
-    const evaList = evaRows.map((r,i) => articleFor(lowerFirst(r.name), i===0) + ' ' + lowerFirst(r.name));
+    const evaList = evaRows.map(r => /^(el|la|los|las)\s/i.test(r.name) ? lowerFirst(r.name) : articleFor(lowerFirst(r.name)) + ' ' + lowerFirst(r.name));
     if (sentence) sentence += ' ';
     sentence += 'Las estrategias de evaluación son ' + listY(evaList) + '.';
   }
@@ -3237,7 +3240,7 @@ function withArticles(phrase){
 }
 function tematicasFromLines(modLines, evaLines){
   const mods=modLines.map(x=>withArticles(lowerFirst(String(x).trim()))).filter(Boolean);
-  const evas=evaLines.map(x=>String(x).trim()).filter(Boolean).map((x,i)=>/^(el|la|los|las|un|una)\s/i.test(x)?lowerFirst(x):articleFor(lowerFirst(x), i===0)+' '+lowerFirst(x));
+  const evas=evaLines.map(x=>String(x).trim()).filter(Boolean).map(x=>/^(el|la|los|las|un|una)\s/i.test(x)?lowerFirst(x):articleFor(lowerFirst(x))+' '+lowerFirst(x));
   let s='';
   if(mods.length) s+='Las principales temáticas por abordar son '+listY(mods)+'.';
   if(evas.length){ if(s) s+=' '; s+='Las estrategias de evaluación son '+listY(evas)+'.'; }
@@ -4128,8 +4131,9 @@ const PROGRAMA_SCHEMA = (code)=>`{
     {"nombre": "nombre exacto de la ficha", "evidencias": ["de 1 a 3"], "descripcion": "un solo párrafo: qué es, cómo se hace, qué se entrega, modalidad y al final la oración: Esta estrategia de evaluación requiere el uso de aplicaciones como [software]. Sin la oración de la rúbrica (la agrega la app)",
      "rubrica": [{"criterio": "criterio copiado de la ficha", "titulo": "frase nominal de 2 a 4 palabras", "niveles": ["criterio + de manera (antónimo bajo)", "criterio + de manera (grado básico)", "criterio + de manera (grado aceptable)", "criterio + de manera (antónimo alto)"]}]}
   ],
+  "tabla_evaluacion": [{"nombre": "nombre exacto del cuadro de competencia", "cantidad": 3, "porcentaje": 40}],
   "recursos_didacticos": [""],
-  "cronograma": [{"sesion": 1, "modulo": 1, "actividades": [""]}]
+  "cronograma": [{"sesion": 1, "modulo": 1, "actividades": []}, {"sesion": 2, "modulo": 1, "actividades": [""]}]
 }`;
 
 function buildFichaPrompt(){
@@ -4210,7 +4214,7 @@ function metodologiasVariationBlock(){
 ${prev.map(p=>`— ${p.code} ${p.name}\n${p.text}`).join('\n\n')}
 
 Instrucción de variación: conservá las reglas y el estilo de la skill, pero redactá cada metodología con detalles sutilmente distintos a los de estos cursos, sobre todo en lo que se repite entre programas:
-- La acción del docente cambia: si arriba dice "permite que el docente exponga", aquí usá "demuestre", "ilustre", "ejemplifique", "presente" o "explique"; en la guía del docente alterná "retroalimente el desarrollo de", "dé seguimiento a" u "oriente" (nunca "acompañe").
+- La acción del docente cambia: si arriba dice "permite que el docente exponga", aquí usá "demuestre", "ilustre", "ejemplifique", "presente" o "explique"; en la guía del docente alterná "retroalimente el desarrollo de", "dé seguimiento a" o "asesore" ("asesore las estrategias de evaluación realizadas en el curso"); nunca "acompañe" ni "oriente".
 - El verbo conector de cada metodología no coincide con el que usó la misma metodología arriba (permite, fomenta, posibilita, propicia, favorece, facilita, promueve, impulsa).
 - Alterná el cierre ("para que", "de manera que", "de forma que") y la acción de los estudiantes ("distribuyan con sus pares" → "se organicen en equipos", "elaboren" → "construyan" o "diseñen").
 - Mantené una sola acción por metodología, el mismo registro formal y la misma longitud.`;
@@ -4248,7 +4252,7 @@ function buildProgramaPrompt(){
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame el programa completo, legible, para revisarlo.
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
 ${PROGRAMA_SCHEMA(code)}
-3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; el objeto de estudio va directo al objeto (sin "fundamentos de" ni "principios de"); ninguna tecnología concreta en la descripción, la competencia, los RA, las metodologías ni las estrategias de aprendizaje, pero el párrafo de cada actividad de evaluación cierra con una oración que nombra el software con que se hace ("Esta estrategia de evaluación requiere el uso de aplicaciones como …", el mismo de recursos didácticos); actividades en minúscula y con artículo dentro de la oración ("las prácticas", "Las tareas favorecen"); sin "dotar" ni "de modo"; la evaluación formativa usa actividades distintas de las sumativas (resúmenes, mapas mentales, fichas de conceptos, glosario…) y el aprendizaje autónomo se vincula con ella; cada descripción de actividad tiene tres bloques (en qué consiste, qué deben realizar, qué contiene el entregable); la descripción es UN solo párrafo: qué es, cómo se hace (una sola oración, sin narrar etapa por etapa y sin nombrar el software), "Esta actividad se compone de [n] entregables en los que el documento escrito contiene […], el código base incluye […] y la defensa oral […]" (aquí sí se enumeran los apartados de cada evidencia) y la modalidad, y cierra con "Esta estrategia de evaluación requiere el uso de aplicaciones como [software]." (la app agrega la oración de la rúbrica); ninguna palabra de contenido ni el nombre de una actividad se repite en oraciones vecinas (alterná con equivalentes como "el proyecto", "el sistema"); las metodologías tienen una sola acción del docente o de los estudiantes y un registro formal; "En el curso…" es la competencia escrita de manera completamente diferente (mismo sentido, otras palabras, sin repetir sus verbos ni sustantivos salvo el núcleo), no la descripción del proyecto; las temáticas y las estrategias de evaluación llevan siempre su artículo; las estrategias de aprendizaje dicen qué hacen los estudiantes ("permite que los estudiantes seleccionen…"); el estudio de casos resalta lo investigativo; el cronograma tiene una sola actividad por semana desde la sesión 2, entregas seguidas sin intercalar, duración fija en las dos actividades que no son el proyecto, ninguna entrega de más de 3 semanas, 8 entregas como máximo en total; el proyecto lleva siempre 3 avances repartidos a lo largo del curso, uno en cada tercio (el primero cierra a más tardar en la sesión 6, el segundo entre la 7 y la 10 y el tercero entre la 11 y la 14), nunca amontonados al final; y nunca dos entregas seguidas de la misma actividad (entre una etapa del proyecto y la siguiente va al menos otra actividad, para dar tiempo a la retroalimentación). Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
+3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; el objeto de estudio va directo al objeto (sin "fundamentos de" ni "principios de"); ninguna tecnología concreta en la descripción, la competencia, los RA, las metodologías ni las estrategias de aprendizaje, pero el párrafo de cada actividad de evaluación cierra con una oración que nombra el software con que se hace ("Esta estrategia de evaluación requiere el uso de aplicaciones como …", el mismo de recursos didácticos); actividades en minúscula y con artículo dentro de la oración ("las prácticas", "Las tareas favorecen"); sin "dotar" ni "de modo"; la evaluación formativa usa actividades distintas de las sumativas (resúmenes, mapas mentales, fichas de conceptos, glosario…) y el aprendizaje autónomo se vincula con ella; cada descripción de actividad tiene tres bloques (en qué consiste, qué deben realizar, qué contiene el entregable); la descripción es UN solo párrafo: qué es, cómo se hace (una sola oración, sin narrar etapa por etapa y sin nombrar el software), "Esta actividad se compone de [n] entregables en los que el documento escrito contiene […], el código base incluye […] y la defensa oral […]" (aquí sí se enumeran los apartados de cada evidencia) y la modalidad, y cierra con "Esta estrategia de evaluación requiere el uso de aplicaciones como [software]." (la app agrega la oración de la rúbrica); ninguna palabra de contenido ni el nombre de una actividad se repite en oraciones vecinas (alterná con equivalentes como "el proyecto", "el sistema"); las metodologías tienen una sola acción del docente o de los estudiantes y un registro formal; "En el curso…" es la competencia escrita de manera completamente diferente (mismo sentido, otras palabras, sin repetir sus verbos ni sustantivos salvo el núcleo), no la descripción del proyecto; las temáticas y las estrategias de evaluación llevan siempre su artículo; las estrategias de aprendizaje dicen qué hacen los estudiantes ("permite que los estudiantes seleccionen…"); el estudio de casos solo resalta lo investigativo si la actividad es de investigación; el cronograma tiene una sola actividad por semana desde la sesión 2, entregas seguidas sin intercalar, duración fija en las dos actividades que no son el proyecto, ninguna entrega de más de 3 semanas, 8 entregas como máximo en total; el proyecto lleva siempre 3 avances repartidos a lo largo del curso, uno en cada tercio (el primero cierra a más tardar en la sesión 6, el segundo entre la 7 y la 10 y el tercero entre la 11 y la 14), nunca amontonados al final; y nunca dos entregas seguidas de la misma actividad (entre una etapa del proyecto y la siguiente va al menos otra actividad, para dar tiempo a la retroalimentación). Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
 REDACCIÓN CLARA Y VARIADA (lo que más se corrige):
 - Oraciones cortas y sencillas: una idea por oración, sin colas ni rellenos ("por avances", "el conjunto de", "en la comunicación del trabajo de…").
 - Ninguna frase se repite entre secciones: lo que dice la competencia (por ejemplo, "el procesamiento de datos de problemas cotidianos") no se copia en los RA, las metodologías ni las descripciones; cada sección lo dice de otra manera o lo omite.
@@ -4257,7 +4261,7 @@ REDACCIÓN CLARA Y VARIADA (lo que más se corrige):
 - RA 2 y RA 3 pueden nombrar su actividad de forma directa y sencilla ("Resuelve tareas de verificación del funcionamiento de un programa…", "Realiza un glosario de conceptos de programación…") en lugar de forzar una abstracción.
 - Verbos sencillos en los conectores ("permite", "favorece", "promueve"), sin rebuscados como "impulsa".
 5. Observaciones del revisor (versión RAM1), aplicalas sin excepción:
-- Objeto de estudio que se pueda imaginar: en singular, con un sustantivo que introduce la idea seguido de algo concreto (la organización de la estructura…, el conjunto de técnicas…), nunca con una acción ni con "las capacidades de…", y sin nombrar "disciplina" ni "rama".
+- Objeto de estudio que se pueda imaginar: en singular, con un sustantivo que introduce la idea seguido de algo concreto (la organización de la estructura…, la división de…), nunca con una acción ni con "las capacidades de…", y sin nombrar "disciplina" ni "rama".
 - Importancia con componente laboral: una acción concreta y propia del área, nominalizada, sin nombrar la profesión (por ejemplo, "permite el acuerdo de las partes interesadas sobre las funciones de un producto antes de su programación").
 - Todo sustantivo abstracto lleva su complemento: consenso sobre qué, tiempos de respuesta en qué, reducción de qué.
 - Los rasgos del perfil no se redactan en el programa: vienen del Maestro (ver el bloque de rasgos).
@@ -4280,6 +4284,18 @@ REDACCIÓN CLARA Y VARIADA (lo que más se corrige):
 - Tecnicismos en palabras precisas, sin perder el registro académico (claro no es cotidiano): no "producto fiel a su diseño", "búsqueda automática de contraejemplos" ni "según la fase de su construcción"; decí qué hace el estudiante o qué se ve.
 - LECTURA FINAL COMO NO ESPECIALISTA: antes de entregar, leé todo como alguien que no es del área, buscá expresiones abstractas ("operación autónoma", "versión ejecutable", "fiel a", "brecha"…) y reescribilas en palabras que se puedan imaginar. En "observaciones", avisá si el nombre del proyecto repite el nombre del curso y si los módulos mezclan infinitivos ("Modelar…") con sustantivos ("Modelado…").
 - Rúbricas con el método cualitativo: cada nivel es el criterio completo seguido de "de manera …" (nivel 1 y 4 antónimos como escueta y profunda, insuficiente y suficiente, inadecuada y adecuada; nivel 2 básica, incipiente o limitada; nivel 3 aceptable, regular o parcial). Nunca cantidades como "1 o 2 de los 6".
+9. Lecciones de la revisión de SOFT-209 (correcciones de Pedro; mandan sobre las anteriores si chocan):
+- Entrada: antes de redactar, contrastá la tabla de evaluación con el cuadro de competencia. Si no coinciden, usá los nombres del cuadro, sacá la cantidad de entregas del cronograma y devolvé la tabla corregida en "tabla_evaluacion".
+- Objeto de estudio sin rango temporal: nada de colas como "desde la definición de sus requerimientos hasta su mantenimiento". Toda acción nominalizada dice de qué ("verificación de funcionamiento de…").
+- "En el curso…": el modo dice con qué se trabaja, como la base normativa ("con base en las normativas y estándares de protección de datos informáticos"), no sobre qué problema ("con normas técnicas sobre las vulnerabilidades halladas").
+- Temáticas: artículo en cada sustantivo coordinado, también dentro del nombre del módulo ("los requerimientos y la arquitectura", "la construcción y la verificación").
+- Metodologías: la guía del docente rota entre "retroalimente el desarrollo de", "dé seguimiento a" y "asesore las estrategias de evaluación realizadas en el curso" (no "oriente"); la enseñanza directa cierra con un objeto concreto ("identifiquen los procedimientos de protección de activos digitales"); el estudio de casos va en presente y con el término preciso ("la medida de protección que evita cada vulnerabilidad", no "que habría evitado cada falla"); el proyecto usa "elaboren" (nunca "construyan"); el colaborativo sin "en conjunto" junto a "equipos" y sin posesivos ("los integrantes").
+- Estrategias: la del estudio de casos no nombra la técnica ("con el modelado de amenazas"); se centra en resolver ("la medida de seguridad que asegura el desarrollo del sistema comprometido").
+- Descripciones: el "cómo se hace" usa verbos académicos con objeto claro ("analizar la cronología de cada incidente para la determinación de la fase en la que se omitió el control"); el "qué es" usa términos que el revisor entiende ("verificación del cumplimiento normativo con respecto a un estándar", no "auditoría documental"; "pruebas que respalden su seguridad", no "respaldo documental").
+- Recursos: la experiencia previa dice una acción visible con dos tipos concretos ("señalen en los diagramas los módulos y las bases de datos", no "reconozcan los componentes").
+- Cronograma: la sesión 1 va sin actividades propias ("actividades": []), porque la plantilla ya trae la inducción.
+- Claridad desde la primera versión: antes de entregar, releé cada oración como alguien que no es del área y reescribí la que necesite una segunda lectura.
+
 8. Lecciones de la revisión de SOFT-208 (correcciones de Pedro; mandan sobre las anteriores si chocan):
 - Claro no es cotidiano: usá nominalizaciones académicas precisas, no sustantivos coloquiales ni frases verbales. "distribución" (no "reparto"), "componente de software" (no "pieza"), "para la continuidad de su operación" (no "para que siga activo"), "intercambio de datos" (no "envío"), "segmentación funcional", "entorno de ejecución" (no "puesta en marcha"), "de forma independiente" (no "por su cuenta").
 - Exactitud técnica: una simplificación no puede cambiar el concepto ("equipos de cómputo" hizo pensar en varias computadoras).
@@ -4462,6 +4478,10 @@ function programaToItems(d){
     items.push({label:'Rúbricas (se guardan para la exportación)', secId:'_rubricas', value:JSON.stringify(rub),
       preview:rub.map(a=>`${a.nombre} — ${a.rubrica.length} criterios, ${a.rubrica.length*4} puntos\n`+a.rubrica.map(r=>`• ${r.titulo||r.criterio}\n   4: ${r.niveles[3]||''}`).join('\n')).join('\n\n'), icon:'▦'});
   }
+  const tev=(d.tabla_evaluacion||[]).filter(r=>r&&String(r.nombre||'').trim());
+  if(tev.length){ const txt=tev.map(r=>`${String(r.nombre).trim()} (${parseInt(r.cantidad)||1}) | ${parseInt(r.porcentaje)||0}%`).join('\n');
+    if(txt!==String(sv.eva_tabla||'').trim()) items.push({label:'Tabla de evaluación (nombres del cuadro y entregas del cronograma)', secId:'eva_tabla', value:txt, icon:'📊'}); }
+  { const em=evaTablaMismatch(sv); if(em && !tev.length) items.push({label:'⚠ '+em+' Corregí la tabla de evaluación antes de descargar el Word.', secId:'', value:'', icon:'⚠️'}); }
   const rec=cleanList(d.recursos_didacticos);
   if(rec.length) items.push({label:'Recursos didácticos', secId:'recursos', value:rec.join('\n'), icon:'🛠️'});
   const bo=cleanList(d.bibliografia?.obligatoria), bc=cleanList(d.bibliografia?.complementaria);
@@ -4475,7 +4495,8 @@ function programaToItems(d){
       const mi=parseInt(r.modulo)||'';
       const mod=mods[(mi||1)-1];
       const subs=cleanList(r.subtemas);
-      sch[s]={mod:mi?String(mi):'', modName:mod?mod.name:(mi?`Módulo ${mi}`:''), sub:subs.join('\n'), actName:'', verb:'', note:cleanList(r.actividades).join('\n')};
+      // Sesión 1 sin líneas propias: la plantilla ya trae la inducción
+      sch[s]={mod:mi?String(mi):'', modName:mod?mod.name:(mi?`Módulo ${mi}`:''), sub:subs.join('\n'), actName:'', verb:'', note:s===1?'':cleanList(r.actividades).join('\n')};
     });
     const prev=Object.keys(sch).sort((a,b)=>a-b).map(s=>`S${s} · ${sch[s].modName||'—'}${sch[s].note?'\n   '+sch[s].note.replace(/\n/g,'\n   '):''}`).join('\n');
     const warns=checkCronograma(sch, parseEvaTablaText(currentSaved().eva_tabla||''));
@@ -5299,11 +5320,21 @@ function repeatedPhrases(saved, minSecs=3){
   return out.filter(o=>!o.dead).sort((a,b)=>b.secs.length-a.secs.length || b.text.length-a.text.length).slice(0,8).map(o=>({frase:orig(o), secciones:o.secs.map(lbl)}));
 }
 // Nombre del proyecto que repite el curso y módulos que mezclan infinitivos con sustantivos
+// La tabla de evaluación (Maestro) debe tener las mismas actividades que el cuadro de competencia
+function evaTablaMismatch(s){
+  s=s||{}; const N=x=>normTxt(String(x||'')).replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+  const acts=[1,2,3].map(n=>activityName(s,n)).filter(Boolean); const rows=parseEvaTablaText(s.eva_tabla||'');
+  if(!acts.length||!rows.length) return '';
+  const bad=rows.filter(r=>!acts.some(a=>N(a)===N(r.name)));
+  if(!bad.length && rows.length===acts.length) return '';
+  return `La tabla de evaluación no coincide con el cuadro de competencia: la tabla dice ${rows.map(r=>'«'+r.name+'»').join(', ')} y el cuadro dice ${acts.map(a=>'«'+a+'»').join(', ')}. Puede venir de otro curso en el Maestro.`;
+}
 function nameChecks(s){
   s=s||(currentCourse?savedForCourse(currentCourse):{});
   const out=[]; const N=x=>normTxt(String(x||'')).replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
   const course=N(currentCourse?.['Curso']||currentCourse?.['Nombre']||'').replace(/\b(i|ii|iii|iv|\d+)$/,'').trim();
   const proj=String(s.e1||'').split('\n')[0].trim(); const pn=N(proj);
+  { const em=evaTablaMismatch(s); if(em) out.push(em+' Usá los nombres del cuadro y sacá la cantidad de entregas del cronograma; devolvé la tabla corregida en "tabla_evaluacion".'); }
   if(pn){
     if(/^desarrollo de\b/.test(pn)) out.push(`El nombre del proyecto («${proj}») empieza con "Desarrollo de": nombrá el producto o modelo que se entrega.`);
     else if(course && course.length>3 && pn.includes(course)) out.push(`El nombre del proyecto («${proj}») repite el nombre del curso: nombrá el producto o modelo que se entrega.`);
@@ -5684,7 +5715,8 @@ async function buildDocx(mode, opts){
       // Actividades: líneas fijas de la plantilla + líneas propias de la sesión
       const ps=cellParas(cs[2]); const fixedN = k===1?5:2;
       const fixed=ps.slice(0,fixedN).map(p=>pText(p)).filter(Boolean);
-      const own = String(d.note||'').split('\n').map(cleanItem).filter(Boolean);
+      // La sesión 1 queda solo con las líneas fijas: la plantilla ya trae la inducción estudiantil
+      const own = k===1 ? [] : String(d.note||'').split('\n').map(cleanItem).filter(Boolean);
       const proto=ps[0];
       setCell(cs[2], [...fixed, ...own], { protoPara:proto, segs:(t,j)=> j<fixed.length ? t : labelSegs(t) });
     }
@@ -5968,6 +6000,7 @@ function wordFileName(mode, ver){
   return `${base} (${ver||wordVersion()}).docx`.replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,' ').trim();
 }
 async function prepareWordBlob(mode){
+  { const em=evaTablaMismatch(currentSaved()); if(em) toast('⚠ '+em+' La oración de las estrategias usa los nombres del cuadro; revisá la tabla de evaluación.','error'); }
   const escuela=document.getElementById('wx-escuela').value.trim();
   const carrera=wordCarrera1();
   const comun=document.getElementById('wx-comun').checked;
