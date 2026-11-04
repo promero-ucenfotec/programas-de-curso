@@ -622,6 +622,89 @@ select.est-pill::before{display:none;}
   #modal-prompts .modal>div[style*="grid-template-columns"]{grid-template-columns:1fr!important;}
 }
 </style>
+<style id="home-office-css">
+#screen-home{--o-ink:#1c2131;--o-muted:#5a6377;--o-paper:#fffdf8;--o-glass:rgba(255,253,248,.92);--o-line:rgba(28,33,49,.12);--o-accent:#ff6a3d;--o-teal:#1f9e8f;--o-good:#1e9e66;--o-chip:#f1ede4;--o-fd:'Bricolage Grotesque','Trebuchet MS',system-ui,sans-serif;--o-fu:'Nunito Sans','Segoe UI',system-ui,sans-serif;--o-fn:'Chakra Petch',ui-monospace,monospace;}
+#screen-home.active{display:block;position:relative;min-height:100vh;background:linear-gradient(180deg,#a9d6ee 0%,#bfe0ef 45%,#d7ecf4 100%);color:var(--o-ink);font-family:var(--o-fu);overflow-x:hidden;color-scheme:light;padding-bottom:90px;}
+#screen-home button{font:inherit;cursor:pointer;}
+#screen-home button:focus-visible,#screen-home .hm-bld:focus-visible{outline:2px solid var(--o-accent);outline-offset:3px;}
+.hm-sky{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
+.hm-cloud{position:absolute;width:150px;height:34px;border-radius:40px;background:rgba(255,255,255,.75);filter:blur(.3px);animation:hmDrift 70s linear infinite;}
+.hm-cloud::before,.hm-cloud::after{content:"";position:absolute;background:inherit;border-radius:50%;}
+.hm-cloud::before{width:62px;height:52px;left:24px;top:-26px}.hm-cloud::after{width:48px;height:40px;left:78px;top:-16px}
+.hm-cloud.c1{top:9%;left:-10%;}.hm-cloud.c2{top:22%;left:30%;transform:scale(.7);animation-duration:95s;animation-delay:-40s;opacity:.8}
+.hm-cloud.c3{top:6%;left:62%;transform:scale(1.15);animation-duration:110s;animation-delay:-70s}.hm-cloud.c4{top:34%;left:80%;transform:scale(.55);animation-duration:80s;animation-delay:-20s;opacity:.7}
+@keyframes hmDrift{from{translate:-30vw 0}to{translate:130vw 0}}
+.hm-ground{position:absolute;left:0;right:0;bottom:0;height:120px;background:linear-gradient(180deg,#9fcf8f,#86bd77);box-shadow:0 -6px 0 #b6dca5 inset;pointer-events:none;z-index:0}
+.hm-card{background:var(--o-glass);border:1px solid var(--o-line);border-radius:14px;box-shadow:0 6px 22px -10px rgba(28,33,49,.35),0 1px 0 rgba(255,255,255,.7) inset;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+.hm-hud{position:relative;z-index:3;display:flex;gap:12px;align-items:stretch;justify-content:space-between;flex-wrap:wrap;padding:16px clamp(16px,3vw,32px) 0;}
+.hm-brand{display:flex;align-items:center;gap:12px;padding:10px 16px 10px 12px;}
+.hm-word{font-family:var(--o-fd);font-weight:800;font-size:19px;letter-spacing:-.01em;line-height:1.1}
+.hm-sub{font-size:12px;color:var(--o-muted);margin-top:2px}
+.hm-hello{padding:10px 18px;display:flex;flex-direction:column;justify-content:center;margin-right:auto}
+.hm-hello-t{font-family:var(--o-fd);font-weight:800;font-size:17px}
+.hm-date{font-family:var(--o-fn);font-size:12.5px;color:var(--o-muted);letter-spacing:.02em}
+.hm-right{display:flex;align-items:center;gap:8px;padding:8px 10px;flex-wrap:wrap}
+.hm-btn{border:1px solid var(--o-line);background:var(--o-paper);color:var(--o-ink);border-radius:10px;padding:9px 14px;font-weight:700;font-size:14px;transition:transform .12s,box-shadow .12s;}
+.hm-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px -6px rgba(28,33,49,.4)}
+.hm-btn.pri{background:var(--o-ink);color:#fff;border-color:var(--o-ink)}
+.hm-btn.ghost{background:transparent;border-color:transparent}
+.hm-auth .auth-user{color:var(--o-ink)} .hm-auth .btn-google{border-radius:10px}
+.hm-main{position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:34px clamp(16px,3vw,32px) 0;}
+.hm-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.hm-title{font-family:var(--o-fd);font-weight:800;font-size:clamp(28px,4vw,44px);letter-spacing:-.02em;line-height:1.05;margin:0;color:var(--o-ink)}
+.hm-lead{max-width:640px;margin:10px 0 0;color:#2f3a52;font-size:15.5px;line-height:1.5}
+.hm-street{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:26px 22px;align-items:stretch;}
+.hm-bld{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;cursor:pointer;outline:none;border-radius:16px;}
+.hm-bld svg{display:block;width:100%;max-width:250px;height:auto;filter:drop-shadow(0 10px 12px rgba(28,33,49,.16));transition:transform .2s cubic-bezier(.3,1.4,.5,1);}
+.hm-bld:hover svg,.hm-bld:focus-visible svg{transform:translateY(-6px)}
+.hm-bld .win2{animation:hmGlow 4s ease-in-out infinite}
+.hm-bld .win2:nth-child(3n){animation-delay:-1.3s}.hm-bld .win2:nth-child(4n){animation-delay:-2.6s}
+@keyframes hmGlow{0%,100%{opacity:1}50%{opacity:.82}}
+.hm-flag{transform-origin:left center;animation:hmFlag 1.6s ease-in-out infinite alternate}
+@keyframes hmFlag{from{transform:skewY(-4deg)}to{transform:skewY(5deg)}}
+.hm-plate{width:100%;margin-top:-6px;padding:12px 14px 12px;position:relative}
+.hm-plate h3{font-family:var(--o-fd);font-weight:800;font-size:18px;margin:0 0 2px;letter-spacing:-.01em;padding-right:58px}
+.hm-car{font-size:12.5px;color:var(--o-muted);line-height:1.35;min-height:34px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hm-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.hm-chip{font-family:var(--o-fn);font-size:12px;background:var(--o-chip);border-radius:7px;padding:3px 8px;color:#2f3a52}
+.hm-chip b{font-weight:700;color:var(--o-ink)}
+.hm-est{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:6px;padding:3px 7px;color:#fff}
+.hm-est.est-dev{background:var(--o-accent)}.hm-est.est-ent{background:var(--o-teal)}.hm-est.est-apr{background:var(--o-good)}
+.hm-tools{position:absolute;top:9px;right:8px;display:flex;gap:2px;opacity:.55;transition:opacity .15s}
+.hm-bld:hover .hm-tools,.hm-tools:focus-within{opacity:1}
+.hm-tools button{border:0;background:none;width:28px;height:28px;border-radius:8px;color:var(--o-ink);font-size:15px}
+.hm-tools button:hover{background:var(--o-chip)} .hm-tools button.danger:hover{background:#fde3e1;color:#b3262d}
+.hm-open{font-size:13px;font-weight:800;color:var(--o-accent);margin-top:8px;display:flex;justify-content:space-between;align-items:center}
+.hm-open span:first-child{font-weight:600;color:var(--o-muted);font-size:12px}
+.hm-lot{border:2px dashed rgba(28,33,49,.28);background:rgba(255,253,248,.35);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:230px;color:#2f3a52;font-weight:700;transition:background .15s,transform .15s}
+.hm-lot:hover{background:rgba(255,253,248,.7);transform:translateY(-3px)}
+.hm-lot svg{width:150px;height:auto}
+.hm-legend{display:flex;gap:16px;flex-wrap:wrap;margin:22px 0 0;font-size:12.5px;color:#2f3a52}
+.hm-legend span{display:flex;align-items:center;gap:6px}
+.hm-legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.hm-legend .w0{background:#7d93ad}.hm-legend .w1{background:#a8dcff}.hm-legend .w2{background:#ffd66b}.hm-legend .fl{background:linear-gradient(90deg,#ff6a3d 33%,#1f9e8f 33% 66%,#1e9e66 66%)}
+/* Vestíbulo */
+.lb{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;gap:clamp(10px,3vw,40px);flex-wrap:wrap;padding:24px 16px;background:linear-gradient(180deg,rgba(169,214,238,.97),rgba(215,236,244,.97));overflow:auto}
+.lb-scene svg{width:min(420px,86vw);height:auto;filter:drop-shadow(0 18px 18px rgba(28,33,49,.18))}
+.lb-plant{transform-origin:center bottom;animation:lbSway 3.4s ease-in-out infinite alternate}.lb-plant.d2{animation-delay:-1.7s}
+@keyframes lbSway{from{transform:rotate(-1.5deg)}to{transform:rotate(1.5deg)}}
+.lb-wave{transform-origin:244px 180px;animation:lbWave .9s ease-in-out infinite alternate}
+@keyframes lbWave{from{transform:rotate(-18deg)}to{transform:rotate(16deg)}}
+.lb-guy{animation:lbBob 2.4s ease-in-out infinite}
+@keyframes lbBob{50%{transform:translateY(-2px)}}
+.lb-card{width:min(400px,100%);padding:24px 24px 18px}
+.lb-kicker{font-family:var(--o-fn);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--o-accent)}
+.lb-card h2{font-family:var(--o-fd);font-weight:800;font-size:30px;letter-spacing:-.02em;line-height:1.08;margin:6px 0 8px}
+.lb-card p{color:#2f3a52;font-size:15px;line-height:1.5;margin:0 0 16px}
+.lb-actions{display:flex;flex-direction:column;gap:8px}
+.lb-actions .btn-google{justify-content:center;width:100%;padding:12px 14px;border-radius:11px;font-size:15px}
+.lb-who{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:11px;background:var(--o-chip);font-size:14px}
+.lb-who .auth-avatar{width:34px;height:34px;flex:none}
+.lb-alt{border:0;background:none;color:var(--o-muted);font-size:13px;text-decoration:underline;align-self:flex-start;padding:2px 0}
+.lb-skip{display:block;margin:14px auto 0;border:0;background:none;color:var(--o-muted);font-size:13px;text-decoration:underline;text-underline-offset:3px}
+@media (max-width:640px){ .hm-hello{order:3;width:100%} .hm-brand{flex:1} .hm-sub{display:none} .hm-head .hm-btn.pri{width:100%} }
+@media (prefers-reduced-motion:reduce){ .hm-cloud,.hm-flag,.lb-plant,.lb-wave,.lb-guy,.hm-bld .win2{animation:none} }
+</style>
 </head>
 <body>
 
@@ -629,48 +712,60 @@ select.est-pill::before{display:none;}
      HOME
 ══════════════════════════════════════ -->
 <div id="screen-home" class="screen active">
-  <nav class="home-nav">
-    <div class="brand">
-      <span class="brand-glyph" aria-hidden="true"><svg viewBox="0 0 32 32" width="32" height="32"><rect x="5" y="3" width="17" height="22" rx="3" fill="#D9E5F8"/><rect x="10" y="7" width="17" height="22" rx="3" fill="#1B5FD1"/><path d="M14 14h9M14 18h9M14 22h6" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></span>
-      <div class="brand-text"><div class="brand-wordmark">Asistente curricular</div><div class="brand-sub">Universidad CENFOTEC, Desarrollo Curricular y Docente</div></div>
+  <div class="hm-sky" aria-hidden="true"><span class="hm-cloud c1"></span><span class="hm-cloud c2"></span><span class="hm-cloud c3"></span><span class="hm-cloud c4"></span></div>
+  <header class="hm-hud">
+    <div class="hm-card hm-brand">
+      <span class="hm-logo" aria-hidden="true"><svg viewBox="0 0 32 32" width="34" height="34"><path d="M16 3 28 9.5v13L16 29 4 22.5v-13Z" fill="#ff6a3d"/><path d="M16 3 28 9.5 16 16 4 9.5Z" fill="#ff9a6f"/><path d="M16 16v13L4 22.5v-13Z" fill="#e0532a"/><path d="M10 12.5l6 3.2 6-3.2" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".85"/></svg></span>
+      <div><div class="hm-word">Asistente Curricular</div><div class="hm-sub">CENFOTEC · Desarrollo Curricular y Docente</div></div>
     </div>
-    <div class="nav-right">
-      <button class="btn btn-quiet btn-sm" onclick="openPromptEditor()" title="Editar los prompts de cada sección"><span class="ic" aria-hidden="true">✎</span> Prompts</button>
-      <div class="nav-auth" id="nav-auth"><!-- Populated by JS --></div>
+    <div class="hm-card hm-hello"><div class="hm-hello-t" id="hm-hello">Hola</div><div class="hm-date" id="hm-date"></div></div>
+    <div class="hm-card hm-right">
+      <button class="hm-btn ghost" onclick="openPromptEditor()" title="Editar los prompts de cada sección">✎ Prompts</button>
+      <div class="nav-auth hm-auth" id="nav-auth"><!-- Populated by JS --></div>
     </div>
-  </nav>
+  </header>
 
-  <div class="home-main">
-    <header class="home-intro">
-      <h1>Programas de curso, de la ficha al documento institucional.</h1>
-      <p>Cada proyecto es un plan de estudios con su hoja de Google. Abrí uno para ver sus cursos, construir cada programa con Claude y descargarlo en la plantilla de CENFOTEC.</p>
-      <ol class="home-flow" aria-label="Cómo se construye un programa">
-        <li><span class="hf-n">1</span><div><strong>Ficha</strong><span>Temario, resultados de aprendizaje, criterios y competencia.</span></div></li>
-        <li><span class="hf-n">2</span><div><strong>Programa completo</strong><span>Descripción, metodologías, evaluación con rúbricas y cronograma.</span></div></li>
-        <li><span class="hf-n">3</span><div><strong>Word y revisión</strong><span>Plantilla institucional, Tomo II y borrador de correo para revisión.</span></div></li>
-      </ol>
-    </header>
-
-    <section class="home-right" aria-labelledby="h-proyectos">
-      <!-- Google sign-in prompt (shown when not authed) -->
-      <div class="google-prompt" id="google-prompt" style="display:none">
-        <div class="google-prompt-icon"><span class="ic" aria-hidden="true">↗</span></div>
-        <div>
-          <h3>Conectá tu cuenta de Google</h3>
-          <p>Con tu cuenta la app lee la hoja Base, escribe en la hoja Maestro, respalda tu trabajo en Drive y crea borradores en Gmail.</p>
-          <button class="btn-google" onclick="googleSignIn()">
-            <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-            Iniciar sesión con Google
-          </button>
-        </div>
+  <main class="hm-main">
+    <div class="hm-head">
+      <div>
+        <h1 class="hm-title">¿A qué oficina vamos hoy?</h1>
+        <p class="hm-lead">Cada edificio es un plan de estudios. Las ventanas son sus cursos: se encienden en celeste con la ficha y en amarillo con el programa completo.</p>
       </div>
+      <button class="hm-btn pri" onclick="openProjectModal(null)">+ Nuevo proyecto</button>
+    </div>
+    <div class="hm-street" id="projects-grid"></div>
+    <div class="hm-legend" aria-hidden="true"><span><i class="w0"></i>Sin empezar</span><span><i class="w1"></i>Con ficha</span><span><i class="w2"></i>Con programa</span><span><i class="fl"></i>Bandera según el estado del proyecto</span></div>
+  </main>
+  <div class="hm-ground" aria-hidden="true"></div>
 
-      <div class="home-right-head">
-        <div><h2 id="h-proyectos">Proyectos</h2><p>Un proyecto por carrera o plan de estudios.</p></div>
-        <button class="btn btn-primary" onclick="openProjectModal(null)"><span class="ic" aria-hidden="true">+</span> Nuevo proyecto</button>
-      </div>
-      <div class="projects-grid" id="projects-grid"></div>
-    </section>
+  <!-- Vestíbulo: inicio de sesión -->
+  <div class="lb" id="google-prompt" style="display:none" role="dialog" aria-modal="true" aria-labelledby="lb-title">
+    <div class="lb-scene" aria-hidden="true">
+      <svg viewBox="0 0 420 300" width="420" height="300">
+        <defs><linearGradient id="lbw" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#bfe3ff"/><stop offset="1" stop-color="#e9f6ff"/></linearGradient></defs>
+        <path d="M210 290 410 190 210 90 10 190Z" fill="#d9c7a3"/>
+        <path d="M210 270 370 190 210 110 50 190Z" fill="#e8d9b8"/>
+        <path d="M60 185 210 110V18L60 93Z" fill="#f4ead8"/>
+        <path d="M360 185 210 110V18l150 75Z" fill="#e2d6bf"/>
+        <path d="M60 93 210 18 360 93" fill="none" stroke="#ff6a3d" stroke-width="5"/>
+        <path d="M150 140 186 122V64l-36 18Z" fill="#7a4e2e"/><path d="M154 136 182 122V68l-28 14Z" fill="#94613a"/><circle cx="176" cy="102" r="2.4" fill="#ffd66b"/>
+        <path d="M86 150 130 128V92L86 114Z" fill="url(#lbw)" stroke="#fffdf8" stroke-width="3"/>
+        <path d="M240 122 290 147V111L240 86Z" fill="url(#lbw)" stroke="#fffdf8" stroke-width="3"/>
+        <path d="M300 152 340 172V136l-40-20Z" fill="url(#lbw)" stroke="#fffdf8" stroke-width="3"/>
+        <path d="M214 60 262 84V64L214 40Z" fill="#164a98"/><text x="224" y="66" font-family="Chakra Petch" font-weight="700" font-size="11" fill="#fff" transform="skewY(26.6) translate(0,-118)">DCD</text>
+        <path d="M120 176 168 152 196 166 148 190Z" fill="#c25a3a" opacity=".85"/>
+        <g class="lb-plant"><path d="M96 196l12 6 12-6v-14H96Z" fill="#b4562f"/><circle cx="108" cy="166" r="14" fill="#3a9a5b"/><circle cx="99" cy="176" r="9" fill="#4bb46c"/><circle cx="118" cy="174" r="10" fill="#2f8a4e"/></g>
+        <g class="lb-plant d2"><path d="M300 218l12 6 12-6v-14h-24Z" fill="#b4562f"/><circle cx="312" cy="190" r="13" fill="#3a9a5b"/><circle cx="304" cy="198" r="8" fill="#4bb46c"/></g>
+        <g class="lb-guy"><ellipse cx="236" cy="206" rx="13" ry="5" fill="rgba(28,33,49,.18)"/><rect x="228" y="176" width="16" height="26" rx="6" fill="#1f9e8f"/><rect x="230" y="196" width="5" height="10" rx="2" fill="#2b3550"/><rect x="237" y="196" width="5" height="10" rx="2" fill="#2b3550"/><circle cx="236" cy="168" r="9" fill="#c98b5e"/><path d="M227 166a9 9 0 0 1 18 0c-3-4-14-4-18 0Z" fill="#2b2230"/><path class="lb-wave" d="M244 180l9-10" stroke="#1f9e8f" stroke-width="5" stroke-linecap="round"/></g>
+      </svg>
+    </div>
+    <div class="hm-card lb-card">
+      <div class="lb-kicker" id="lb-kicker">Vestíbulo</div>
+      <h2 id="lb-title">Bienvenido a la oficina</h2>
+      <p id="lb-text">Entrá con tu cuenta de Google para que el equipo lea la hoja Base, escriba en el Maestro y respalde tu trabajo en Drive.</p>
+      <div class="lb-actions" id="lb-actions"></div>
+      <button class="lb-skip" onclick="skipLogin()">Entrar sin conectar por ahora</button>
+    </div>
   </div>
 </div>
 
@@ -886,6 +981,7 @@ select.est-pill::before{display:none;}
     <div class="fg"><label>Estado del proyecto</label><select id="in-estado" style="max-width:220px"><option>En desarrollo</option><option>Entregado</option><option>Aprobado</option></select></div>
     <div class="fg"><label>Nombre completo de la carrera</label><input type="text" id="in-career" placeholder="Ej: Bachillerato en Administración de Empresas"></div>
     <div class="fg"><label>Segundo nombre de la carrera <span style="font-weight:400;color:var(--ink-4)">(opcional, para una maestría con dos énfasis)</span></label><input type="text" id="in-career2" placeholder="Ej: Maestría Profesional en Ingeniería del Software con énfasis en…"><small>Si lo llenás, al descargar el Word elegís cuál de los dos nombres va en el encabezado.</small></div>
+    <div class="fg"><label>Siglas de cada carrera <span style="font-weight:400;color:var(--ink-4)">(como van en la columna «Carrera» de la hoja Base)</span></label><div style="display:flex;gap:8px"><input type="text" id="in-sigla1" placeholder="Carrera 1, ej: MISIA" style="flex:1"><input type="text" id="in-sigla2" placeholder="Carrera 2, ej: MISAD" style="flex:1"></div><small>La app lee y escribe con estas siglas la carrera de cada curso en la hoja Base (por ejemplo, «MISIA, MISAD» si es de las dos).</small></div>
     <div class="fg"><label>Nivel <span style="font-weight:400;color:var(--ink-4)">(tal como va en la tabla de datos generales)</span></label><input type="text" id="in-nivel" placeholder="Ej: Maestría profesional"></div>
     <div class="fg"><label>Escuela</label><input type="text" id="in-escuela" placeholder="Ej: Escuela de Ingeniería del Software"></div>
     <div class="fg">
@@ -1212,6 +1308,9 @@ function initGoogleAuth() {
 
 let afterTokenFn = null;   // acción que se reanuda cuando vuelve el token
 let driveLoadedOnce = false;
+let driveReady = false;        // no se sube el respaldo hasta haber leído el de Drive (evita pisarlo con datos viejos)
+// Con un token guardado de una sesión anterior, el respaldo de Drive se lee al abrir la app
+if (gAccessToken) { driveLoadedOnce = true; setTimeout(()=>{ loadFromDrive().then(l=>{ if (l && activeScreenId()==='screen-home') renderProjects(); }); }, 0); }
 function googleSignIn(after) {
   if (!tokenClient) { toast('Google Identity Services no cargó aún. Intenta de nuevo.','error'); return; }
   if (typeof after === 'function') afterTokenFn = after;
@@ -1300,8 +1399,11 @@ async function findBackupFile() {
 
 async function loadFromDrive() {
   if (!gAccessToken) return false;
+  loadFromDrive._busy = true;
   try {
-    const file = await findBackupFile();
+    const res = await driveReq(`/files?q=name='${DRIVE_BACKUP_NAME}' and trashed=false&fields=files(id,name,modifiedTime)`);
+    if (res) driveBackupChecked = true;
+    const file = res?.files?.[0] || null;
     if (!file) return false;
     driveBackupFileId = file.id;
     const r = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
@@ -1309,10 +1411,19 @@ async function loadFromDrive() {
     });
     if (!r.ok) return false;
     const backup = await r.json();
-    // Merge into local state — Drive wins for projects/prompts; merge maestroData
+    // Proyectos: manda Drive, pero un campo vacío en Drive no borra lo que hay aquí (por ejemplo, las siglas del correo)
     if (backup.projects?.length) {
-      projects = backup.projects;
+      const loc = {}; (projects||[]).forEach(p=>{ if (p&&p.id) loc[p.id]=p; });
+      const merged = backup.projects.map(dp=>{ const lp=loc[dp.id]; if(!lp) return dp; const o=Object.assign({}, lp, dp);
+        Object.keys(lp).forEach(k=>{ const dv=dp[k]; if ((dv===undefined||dv===null||dv==='') && lp[k]!==undefined && lp[k]!=='') o[k]=lp[k]; }); return o; });
+      (projects||[]).forEach(lp=>{ if (lp&&lp.id&&!backup.projects.some(dp=>dp.id===lp.id)) merged.push(lp); });
+      projects = merged;
+      if (currentProject) currentProject = projects.find(x=>x.id===currentProject.id) || currentProject;
       localStorage.setItem('dcd_projects', JSON.stringify(projects));
+    }
+    // Ajustes que vivían solo en esta compu (versiones, carreras, correo, Word): se recuperan si aquí no están
+    if (backup.local && typeof backup.local==='object') {
+      Object.entries(backup.local).forEach(([k,v])=>{ try{ if (LOCAL_BACKUP_RX.test(k) && localStorage.getItem(k)===null && typeof v==='string') localStorage.setItem(k, v); }catch(e){} });
     }
     if (backup.customPrompts && Object.keys(backup.customPrompts).length) {
       customPrompts = backup.customPrompts;
@@ -1336,19 +1447,28 @@ async function loadFromDrive() {
       localStorage.setItem('dcd_maestro', JSON.stringify(maestroData));
     }
     toast(`✓ Datos restaurados desde Drive (${new Date(file.modifiedTime).toLocaleDateString('es-CR')})`, 'success');
+    driveReady = true; if (autoBackup._pending) autoBackup();
     return true;
   } catch(e) { return false; }
+  finally { loadFromDrive._busy = false; if (!driveReady && driveBackupChecked) { driveReady = true; if (autoBackup._pending) autoBackup(); } }
 }
+let driveBackupChecked = false;   // true cuando Drive respondió (haya o no respaldo)
+// Claves locales que también viajan en el respaldo de Drive
+const LOCAL_BACKUP_RX = /^dcd_(ver_|vsnap_|comun_|word_|mail)/;
+function localBackupBlob(){ const o={}; try{ for (let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if (LOCAL_BACKUP_RX.test(k)) o[k]=localStorage.getItem(k); } }catch(e){} return o; }
 
 async function saveToDrive() {
   if (!gAccessToken) return;
+  if (!driveReady) { autoBackup._pending = true; if (!loadFromDrive._busy) { driveLoadedOnce = true; loadFromDrive(); } return; }
+  autoBackup._pending = false;
   const backup = {
     version: 2,
     savedAt: new Date().toISOString(),
     projects,
     customPrompts,
     maestroData,
-    office: (()=>{ try{ return JSON.parse(localStorage.getItem('dcd_office')||'null'); }catch(e){ return null; } })()
+    office: (()=>{ try{ return JSON.parse(localStorage.getItem('dcd_office')||'null'); }catch(e){ return null; } })(),
+    local: localBackupBlob()
   };
   const json = JSON.stringify(backup);
   const blob = new Blob([json], { type: 'application/json' });
@@ -1429,14 +1549,15 @@ function renderNavAuth() {
         <button class="btn-google" onclick="googleSignIn()">Continuar como ${escHtml(userFirstName())}</button>
         <span class="auth-sign-out" onclick="googleSignOut()" title="Olvidar esta cuenta">Otra cuenta</span>
       </div>`;
-    if (prompt) prompt.style.display='flex';
+    if (prompt) prompt.style.display=loginSkipped()?'none':'flex';
   } else {
     nav.innerHTML = `<button class="btn-google" onclick="googleSignIn()">
       <svg viewBox="0 0 24 24" width="17" height="17"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-      Conectar Google Sheets
+      Conectar Google
     </button>`;
-    if (prompt) prompt.style.display='flex';
+    if (prompt) prompt.style.display=loginSkipped()?'none':'flex';
   }
+  try{ renderLobby(); paintHello(); }catch(e){}
 }
 
 function activeScreenId(){ return document.querySelector('.screen.active')?.id || ''; }
@@ -1991,20 +2112,22 @@ Créditos: ${cr} | Horas docencia: ${hd}`,
     importancia:`Redacta la IMPORTANCIA del curso "${name}":
 
 ESTRUCTURA (una oración corta, de 3 a 4 líneas como máximo):
-"La importancia de esta asignatura en la formación del profesional radica en que le permite [una acción concreta de su trabajo]."
+"La importancia de esta asignatura en la formación del profesional radica en que [la acción general del curso, nominalizada] permite [una acción nominalizada de su trabajo]."
 
 REGLAS:
-- Dice lo que la asignatura le aporta AL PROFESIONAL en su trabajo, no a una empresa u organización
-- Un solo verbo y una sola idea: sin "y le facilita…" ni un segundo beneficio
+- No uses "le permite + infinitivo": el sujeto de "permite" es la acción general del curso como sustantivo, y lo que permite también va nominalizado
+- Dice lo que el profesional logra en su trabajo, no una empresa u organización
+- Una sola idea: sin "y facilita…" ni un segundo beneficio
 - Genérica: sin ejemplos de una industria (ventas, fraudes, inventarios…)
-- No nombra el curso ni su núcleo ("aprendizaje automático", "arquitectura de software"…) ni la profesión
+- No nombra el curso ni la profesión: la acción general del curso se dice con otras palabras
 - Acción concreta y propia del área, en lenguaje cotidiano; todo sustantivo abstracto con su complemento
 - Sin frases: "el aprendizaje", "el conocimiento", "los fundamentos", "el dominio"
 - Una acción que se ve en el trabajo, no una operación mental: nada de prever, anticipar, comprender ni "la predicción de…" (❌ "permite la predicción del efecto de una modificación en el resto del código" → ✅ "permite la incorporación de nuevas funciones en una aplicación sin alterar el funcionamiento de sus demás partes")
 - El efecto sobre los usuarios se nombra como "su uso" o "su funcionamiento", nunca como una actividad supuesta de ellos (❌ "sin afectar el trabajo de sus usuarios" → ✅ "sin afectar su uso por parte de los usuarios")
 
 EJEMPLO:
-✅ "La importancia de esta asignatura en la formación del profesional radica en que le permite acordar con las partes interesadas las funciones de un producto antes de su programación."
+✅ "La importancia de esta asignatura en la formación del profesional radica en que la construcción ordenada del código de una aplicación permite la incorporación de nuevas funciones sin afectar su uso por parte de los usuarios."
+❌ "…radica en que le permite incorporar nuevas funciones a una aplicación…" (le permite + infinitivo)
 ❌ "…radica en que la incorporación de modelos predictivos permite a una empresa la detección de fraudes en sus ventas y facilita…" (beneficio para la empresa, ejemplo de una industria, dos ideas y demasiado largo)
 
 OBJETO DE ESTUDIO YA CREADO:
@@ -2156,7 +2279,7 @@ RA3: ${s?.ra3||'[Pendiente]'}
 Evidencias: ${s?.e1||'—'} / ${s?.e2||'—'} / ${s?.e3||'—'}
 
 Cada metodología se refiere a los resultados de aprendizaje y a las actividades del curso, no a los temas del temario (la enseñanza directa tampoco toma un tema del primer módulo).
-ALCANCE: la enseñanza directa dice la acción general del curso, no un producto ni una técnica puntual (❌ "demuestre la publicación automatizada de una aplicación…" → ✅ "demuestre los procedimientos de construcción y de actualización de una aplicación…"); la guía del docente retroalimenta cada entrega de todas las actividades, no solo el proyecto; el aprendizaje colaborativo abarca todas las actividades grupales ("las responsabilidades de las actividades grupales"), y si hay una sola grupal se nombra exacta; el proyecto y el estudio de casos se anclan a su actividad; el autónomo, a la actividad formativa.${(()=>{const v=metodologiasVariationBlock(); return v?'\n\n'+v:'';})()}`,
+ALCANCE: la enseñanza directa dice la acción general del curso, no un producto ni una técnica puntual, y cierra con el procedimiento que aprende el estudiante ("para que los estudiantes aprendan los procedimientos de la definición de reglas y conceptos"), no con imágenes abstractas como "el camino lógico"; la guía del docente "dé seguimiento a las actividades realizadas en el curso"; el aprendizaje colaborativo abarca todas las actividades grupales ("las responsabilidades de las actividades grupales"), y si hay una sola grupal se nombra exacta; el proyecto cierra con "para + el propósito nominalizado de su producto", nunca "un prototipo final"; el estudio de casos habla de "situaciones problema" (nunca "reales"): el estudiante diagnostica y propone la solución, y si es práctico no lleva "con respaldo en fuentes técnicas"; el aprendizaje autónomo se centra en la autorregulación del estudio independiente ("regulen los horarios de estudio independiente…"), ya no en la actividad formativa.${(()=>{const v=metodologiasVariationBlock(); return v?'\n\n'+v:'';})()}`,
 
     estrategias:`Crea las ESTRATEGIAS DE APRENDIZAJE CON PROPÓSITO del curso "${name}":
 
@@ -2195,7 +2318,7 @@ E3: ${s?.e3||'[Pendiente]'}`,
 3. SUMATIVA — "[qué es]. En este curso, los estudiantes ponen en práctica lo aprendido + [lista actividades del curso]."
 
 REGLAS: Verbos nominalizados. Sin frases pedagógicas genéricas ("desarrollo del aprendizaje", "construcción del conocimiento").
-Actividades formativas según el grado: en maestría no se usan resúmenes ni glosarios (son muy básicos); se usan actividades que relacionan conceptos, como los diagramas conceptuales o los cuadros comparativos. La actividad formativa es la misma que la del aprendizaje autónomo.
+Actividades formativas según el grado: en maestría no se usan resúmenes ni glosarios (son muy básicos); se usan actividades que relacionan conceptos, como los diagramas conceptuales o los cuadros comparativos.
 
 Sumativas: ${s?.e1||''} / ${s?.e2||''} / ${s?.e3||''}${(()=>{const v=tiposVariationBlock(); return v?'\n\n'+v:'';})()}`,
 
@@ -2320,32 +2443,115 @@ function showCourseWork(course){
 function renderProjects(){
   const grid = document.getElementById('projects-grid');
   grid.innerHTML = '';
+  paintHello();
   projects.forEach(p=>{
-    const card=document.createElement('div');
-    card.className='project-card';
-    const md=Object.values(maestroData[p.sheetId]||{});
-    const nf=md.filter(s=>courseStage(s).ficha).length, np=md.filter(s=>courseStage(s).programa).length;
-    card.tabIndex=0; card.setAttribute('role','button'); card.setAttribute('aria-label','Abrir '+p.name);
+    const md=Object.entries(maestroData[p.sheetId]||{});
+    const nf=md.filter(([,s])=>courseStage(s).ficha).length, np=md.filter(([,s])=>courseStage(s).programa).length;
+    const nfin=md.filter(([code])=>{ try{ return (localStorage.getItem('dcd_ver_'+code)||'')==='Final'; }catch(e){ return false; } }).length;
+    const total=Math.max(p.nCourses||0, nf, np, 6);
     const est=estadoOf(p);
-    card.innerHTML=`<div class="pc-top"><span style="display:flex;align-items:center;gap:10px"><span class="pc-icon" aria-hidden="true">${escHtml((p.name||'?').trim().slice(0,2).toUpperCase())}</span><span class="est-pill ${est.c}">${est.v}</span></span><span class="pc-actions"><button class="del-btn" onclick="event.stopPropagation();openProjectModal('${p.id}')" title="Editar proyecto" aria-label="Editar proyecto"><span class="ic" aria-hidden="true">✎</span></button><button class="del-btn danger" onclick="event.stopPropagation();delProject('${p.id}')" title="Eliminar proyecto" aria-label="Eliminar proyecto"><span class="ic" aria-hidden="true">×</span></button></span></div>
-      <h3>${escHtml(p.name)}</h3>
-      ${p.career?`<div class="pc-career">${escHtml(p.career)}${p.career2?`<br>${escHtml(p.career2)}`:''}</div>`:'<div class="pc-career pc-muted">Sin nombre de carrera (editá el proyecto)</div>'}
-      <div class="pc-stats"><span><strong>${nf}</strong> fichas</span><span><strong>${np}</strong> programas</span>${p.nivel?`<span>${escHtml(p.nivel)}</span>`:''}</div>
-      <div class="pc-url" title="${escHtml(p.url||'')}">${escHtml(p.url||'')}</div>
-      <div class="pc-foot"><span class="pc-date">Creado el ${p.created?new Date(p.created).toLocaleDateString('es-CR',{day:'numeric',month:'long',year:'numeric'}):'—'}</span><span class="pc-open">Abrir <span class="ic" aria-hidden="true">→</span></span></div>`;
-    card.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); showProject(p.id); } });
+    const card=document.createElement('div');
+    card.className='hm-bld'; card.tabIndex=0; card.setAttribute('role','button');
+    card.setAttribute('aria-label',`Abrir ${p.name}: ${np} programas y ${nf} fichas de ${total} cursos`);
+    card.innerHTML = buildingSVG(p, total, nf, np, est)
+      + `<div class="hm-card hm-plate">
+          <div class="hm-tools"><button onclick="event.stopPropagation();openProjectModal('${p.id}')" title="Editar proyecto" aria-label="Editar proyecto">✎</button><button class="danger" onclick="event.stopPropagation();delProject('${p.id}')" title="Eliminar proyecto" aria-label="Eliminar proyecto">×</button></div>
+          <h3>${escHtml(p.name)}</h3>
+          <div class="hm-car">${p.career?escHtml(p.career)+(p.career2?' · '+escHtml(p.career2):''):'Sin nombre de carrera (editá el proyecto)'}</div>
+          <div class="hm-chips"><span class="hm-est ${est.c}">${est.v}</span><span class="hm-chip"><b>${nf}</b> fichas</span><span class="hm-chip"><b>${np}</b> programas</span>${nfin?`<span class="hm-chip">🏆 <b>${nfin}</b></span>`:''}</div>
+          <div class="hm-open"><span>${p.nivel?escHtml(p.nivel):(p.created?'Desde '+new Date(p.created).toLocaleDateString('es-CR',{month:'short',year:'numeric'}):'')}</span><span>Entrar →</span></div>
+        </div>`;
+    card.addEventListener('keydown',e=>{ if(e.target!==card) return; if(e.key==='Enter'||e.key===' '){ e.preventDefault(); showProject(p.id); } });
     card.addEventListener('click',()=>showProject(p.id));
     grid.appendChild(card);
   });
-  const add=document.createElement('div');
-  add.className='add-card'+(projects.length?' add-small':'');
-  add.innerHTML='<div class="plus">+</div><span>Agregar proyecto</span>';
+  const add=document.createElement('button');
+  add.className='hm-lot'; add.type='button';
+  add.innerHTML=`<svg viewBox="0 0 160 110" aria-hidden="true"><path d="M80 100 150 65 80 30 10 65Z" fill="#c9e3b8" stroke="#8fbf7c" stroke-width="2" stroke-dasharray="6 5"/><rect x="76" y="34" width="6" height="40" rx="2" fill="#8a6a4a"/><rect x="52" y="18" width="54" height="28" rx="5" fill="#fffdf8" stroke="#1c2131" stroke-opacity=".2"/><text x="79" y="37" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="17" fill="#ff6a3d">+</text><path d="M30 70l8-4 8 4-8 4Z" fill="#ff6a3d"/><path d="M118 74l8-4 8 4-8 4Z" fill="#ff6a3d"/></svg><span>Lote disponible: nuevo proyecto</span>`;
   add.onclick=()=>openProjectModal(null);
   grid.appendChild(add);
   if(window.__renderIcons) window.__renderIcons();
 }
+function paintHello(){
+  const h=new Date().getHours(); const sal=h<12?'Buenos días':h<19?'Buenas tardes':'Buenas noches';
+  const n=userFirstName(); const el=document.getElementById('hm-hello'); if(el) el.textContent = n?`${sal}, ${n}`:sal;
+  const d=document.getElementById('hm-date'); if(d) d.textContent=new Date().toLocaleDateString('es-CR',{weekday:'long',day:'numeric',month:'long'})+' · '+(projects.length===1?'1 proyecto':projects.length+' proyectos');
+}
+// Edificio isométrico: cada ventana es un curso (apagada, celeste con ficha, amarilla con programa)
+function buildingSVG(p, total, nf, np, est){
+  const per=5, floors=Math.max(2,Math.min(6,Math.ceil(total/per)));
+  const U=26, FH=30, W=3, D=2, cx=125, base=196;
+  const P=(x,y,z)=>[cx+(x-y)*U, base-(W+D)*U*0.5+(x+y)*U*0.5 - z];
+  const pt=a=>a.map(v=>v.toFixed(1)).join(',');
+  const poly=(pts,fill,extra='')=>`<polygon points="${pts.map(pt).join(' ')}" fill="${fill}" ${extra}/>`;
+  const H=floors*FH+10, top=base-(W+D)*U*0.5;
+  const acc={'est-dev':'#ff6a3d','est-ent':'#1f9e8f','est-apr':'#1e9e66'}[est.c]||'#ff6a3d';
+  const vb=Math.ceil(H+70);
+  let o=`<svg viewBox="0 ${200-vb-30} 250 ${vb+40}" role="img" aria-hidden="true">`;
+  // césped y camino
+  o+=poly([P(-1.2,-1.2,0),P(W+1.2,-1.2,0),P(W+1.2,D+1.2,0),P(-1.2,D+1.2,0)],'#a7d494');
+  o+=poly([P(W*0.45,D,0),P(W*0.45+0.7,D,0),P(W*0.45+0.7,D+1.2,0),P(W*0.45,D+1.2,0)],'#e8d9b8');
+  // caras
+  o+=poly([P(0,D,0),P(W,D,0),P(W,D,H),P(0,D,H)],'#f4ead8');          // izquierda (frente)
+  o+=poly([P(W,0,0),P(W,D,0),P(W,D,H),P(W,0,H)],'#ddd0b8');          // derecha
+  o+=poly([P(0,0,H),P(W,0,H),P(W,D,H),P(0,D,H)],'#ebe3d2');          // techo
+  o+=poly([P(0,D,H-4),P(W,D,H-4),P(W,D,H),P(0,D,H)],acc);            // franja
+  o+=poly([P(W,0,H-4),P(W,D,H-4),P(W,D,H),P(W,0,H)],acc,'opacity=".8"');
+  // ventanas
+  const lit=i=> i<np?2:(i<nf?1:0); const col=['#7d93ad','#a8dcff','#ffd66b'];
+  let k=0; const wins=[];
+  for(let f=0; f<floors; f++){
+    const z0=8+f*FH;
+    for(let c=0;c<W;c++){ wins.push(['L',c,z0]); }
+    for(let c=0;c<D;c++){ wins.push(['R',c,z0]); }
+  }
+  // la puerta ocupa la ventana central de abajo
+  wins.forEach(([side,c,z0])=>{
+    if(side==='L' && c===1 && z0===8){ o+=poly([P(1.3,D,0),P(1.7,D,0),P(1.7,D,22),P(1.3,D,22)],'#7a4e2e'); return; }
+    const st=k<total?lit(k):-1; k++;
+    const fill=st<0?'#cbbfa7':col[st];
+    const pts= side==='L' ? [P(c+0.22,D,z0+4),P(c+0.78,D,z0+4),P(c+0.78,D,z0+20),P(c+0.22,D,z0+20)]
+                           : [P(W,c+0.22,z0+4),P(W,c+0.78,z0+4),P(W,c+0.78,z0+20),P(W,c+0.22,z0+20)];
+    o+=poly(pts,fill,`class="${st===2?'win2':''}" stroke="#fffdf8" stroke-width="1.5"`);
+  });
+  // letrero del techo y bandera
+  const sig=escHtml(String(p.sigla1||p.name||'').trim().slice(0,8).toUpperCase());
+  const s1=P(0.35,0.9,H), s2=P(2.2,0.9,H);
+  o+=`<polygon points="${pt(s1)} ${pt(s2)} ${pt([s2[0],s2[1]-20])} ${pt([s1[0],s1[1]-20])}" fill="#1c2131"/>`;
+  const mx=(s1[0]+s2[0])/2, my=(s1[1]+s2[1])/2-6;
+  o+=`<text x="${mx.toFixed(1)}" y="${my.toFixed(1)}" text-anchor="middle" font-family="Chakra Petch,monospace" font-weight="700" font-size="12" fill="#fffdf8" transform="rotate(26.57 ${mx.toFixed(1)} ${my.toFixed(1)})">${sig}</text>`;
+  const fp=P(W-0.35,0.4,H);
+  o+=`<rect x="${(fp[0]-1).toFixed(1)}" y="${(fp[1]-34).toFixed(1)}" width="2.2" height="34" fill="#5a6377"/><path class="hm-flag" d="M${(fp[0]+1).toFixed(1)} ${(fp[1]-34).toFixed(1)}h18l-5 6 5 6h-18Z" fill="${acc}"/>`;
+  // arbolito
+  const t=P(-0.6,D+0.5,0);
+  o+=`<ellipse cx="${t[0].toFixed(1)}" cy="${(t[1]+2).toFixed(1)}" rx="11" ry="4" fill="rgba(28,33,49,.15)"/><rect x="${(t[0]-2).toFixed(1)}" y="${(t[1]-14).toFixed(1)}" width="4" height="15" fill="#8a6a4a"/><circle cx="${t[0].toFixed(1)}" cy="${(t[1]-22).toFixed(1)}" r="12" fill="#3a9a5b"/><circle cx="${(t[0]-6).toFixed(1)}" cy="${(t[1]-16).toFixed(1)}" r="7" fill="#4bb46c"/>`;
+  return o+'</svg>';
+}
+function loginSkipped(){ try{ return sessionStorage.getItem('dcd_skip_login')==='1'; }catch(e){ return false; } }
+function skipLogin(){ try{ sessionStorage.setItem('dcd_skip_login','1'); }catch(e){} const pr=document.getElementById('google-prompt'); if(pr) pr.style.display='none'; }
+function renderLobby(){
+  const box=document.getElementById('lb-actions'); if(!box) return;
+  const G='<svg viewBox="0 0 24 24" width="18" height="18"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>';
+  const h=new Date().getHours(); const sal=h<12?'Buenos días':h<19?'Buenas tardes':'Buenas noches';
+  if (gUserInfo){
+    const n=userFirstName();
+    document.getElementById('lb-kicker').textContent='De vuelta en el vestíbulo';
+    document.getElementById('lb-title').textContent=`${sal}, ${n||'de nuevo'}`;
+    document.getElementById('lb-text').textContent='El equipo ya está en sus escritorios. Tu sesión de Google venció; con un clic volvés a entrar sin dar permisos otra vez.';
+    const ini=escHtml(((n||gUserInfo.email||'?')[0]||'?').toUpperCase());
+    const av=gUserInfo.picture?`<img src="${escHtml(gUserInfo.picture)}" alt="" referrerpolicy="no-referrer">`:ini;
+    box.innerHTML=`<div class="lb-who"><div class="auth-avatar">${av}</div><div><strong>${escHtml(gUserInfo.name||n)}</strong><div style="font-size:12px;color:var(--o-muted)">${escHtml(gUserInfo.email||'')}</div></div></div>
+      <button class="btn-google" onclick="googleSignIn()">${G} Continuar como ${escHtml(n||'yo')}</button>
+      <button class="lb-alt" onclick="googleSignOut()">Entrar con otra cuenta</button>`;
+  } else {
+    document.getElementById('lb-kicker').textContent='Vestíbulo';
+    document.getElementById('lb-title').textContent='Bienvenido a la oficina';
+    document.getElementById('lb-text').textContent='Entrá con tu cuenta de Google para que el equipo lea la hoja Base, escriba en el Maestro y respalde tu trabajo en Drive.';
+    box.innerHTML=`<button class="btn-google" onclick="googleSignIn()">${G} Iniciar sesión con Google</button>`;
+  }
+}
 let editingProjectId=null;
-const PROJ_FIELDS={name:'in-name',estado:'in-estado',career:'in-career',career2:'in-career2',nivel:'in-nivel',escuela:'in-escuela',url:'in-url',folderFichas:'in-fold-fichas',folderProgramas:'in-fold-prog'};
+const PROJ_FIELDS={name:'in-name',estado:'in-estado',career:'in-career',career2:'in-career2',sigla1:'in-sigla1',sigla2:'in-sigla2',nivel:'in-nivel',escuela:'in-escuela',url:'in-url',folderFichas:'in-fold-fichas',folderProgramas:'in-fold-prog'};
 const ESTADOS=[{v:'En desarrollo',c:'est-dev'},{v:'Entregado',c:'est-ent'},{v:'Aprobado',c:'est-apr'}];
 const estadoOf=p=>ESTADOS.find(e=>e.v===p?.estado)||ESTADOS[0];
 function setProjectEstado(v){
@@ -2397,6 +2603,58 @@ function saveProjectModal(){
   setTimeout(()=>showProject(id),350);
 }
 function createProject(){ editingProjectId=null; saveProjectModal(); }
+/* ── Hoja Base: versión del programa y carrera de cada curso ── */
+const BASE_VER_HEADER='Versión';
+const normH=h=>String(h||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+function projectSiglas(p=currentProject){ return [p?.sigla1, p?.sigla2].map(x=>String(x||'').trim()); }
+function careerCodeOf(code){ const cars=projectCareers(); let com=null; try{ com=JSON.parse(localStorage.getItem('dcd_comun_'+code)||'null'); }catch(e){} if(!com||cars.length<2) return ''; if(com.on) return 'both'; if(com.carrera1===cars[1]) return 'c2'; if(com.carrera1===cars[0]) return 'c1'; return ''; }
+function careerToBase(code){ const sg=projectSiglas(); const v=careerCodeOf(code); if(!v||!sg[0]||!sg[1]) return null; return v==='both'?`${sg[0]}, ${sg[1]}`:(v==='c2'?sg[1]:sg[0]); }
+function careerFromBase(txt){ const sg=projectSiglas().map(x=>x.toUpperCase()); if(!sg[0]||!sg[1]) return ''; const t=String(txt||'').toUpperCase().split(/[,;\/]|\sY\s/).map(x=>x.trim()).filter(Boolean); const a=t.includes(sg[0]), b=t.includes(sg[1]); return a&&b?'both':a?'c1':b?'c2':''; }
+let baseQueue=[]; let baseTimer=null;
+function baseEnqueue(code, header, value){
+  const sid=extractSheetId(currentProject?.url||''); if(!sid||!code) return;
+  baseQueue=baseQueue.filter(u=>!(u.sid===sid&&u.code===code&&u.header===header)); baseQueue.push({sid,code,header,value:String(value??'')});
+  const c=(allCourses||[]).find(x=>x['Código']===code); if(c) c[header]=String(value??'');
+  clearTimeout(baseTimer); baseTimer=setTimeout(baseFlush, 900);
+}
+async function baseFlush(){
+  if(!gAccessToken||!baseQueue.length) return;
+  const q=baseQueue; baseQueue=[];
+  const bySid={}; q.forEach(u=>(bySid[u.sid]=bySid[u.sid]||[]).push(u));
+  for (const [sid,ups] of Object.entries(bySid)){
+    try{
+      const vals=(await sheetsReq(`/${sid}/values/Base`)).values||[]; if(!vals.length) continue;
+      const hdr=vals[0].slice(); const ci=hdr.findIndex(h=>normH(h)==='codigo'); if(ci<0) continue;
+      const data=[];
+      ups.forEach(u=>{
+        let col=hdr.findIndex(h=>normH(h)===normH(u.header));
+        if(col<0){ col=hdr.length; while(col>0&&!String(hdr[col-1]||'').trim()) col--; hdr[col]=u.header; data.push({range:`Base!${colLetter(col)}1`, values:[[u.header]]}); }
+        const ri=vals.findIndex((r,i)=>i>0&&String(r[ci]||'').trim()===u.code); if(ri<0) return;
+        data.push({range:`Base!${colLetter(col)}${ri+1}`, values:[[u.value]]});
+      });
+      if(data.length) await sheetsReq(`/${sid}/values:batchUpdate`,'POST',{valueInputOption:'RAW', data});
+    }catch(e){ console.warn('Base:',e); baseQueue=baseQueue.concat(ups); toast('No pude escribir en la hoja Base: '+e.message,'error'); }
+  }
+}
+function colLetter(i){ let s=''; i++; while(i>0){ const m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-1)/26); } return s; }
+// Guarda la versión del curso aquí y en la última columna de Base
+function rememberVersion(code, v){ v=String(v||'').trim(); if(!code||!v) return; let old=''; try{ old=localStorage.getItem('dcd_ver_'+code)||''; localStorage.setItem('dcd_ver_'+code, v); }catch(e){}
+  const c=(allCourses||[]).find(x=>x['Código']===code); if(old!==v || (c && String(c[BASE_VER_HEADER]||'').trim()!==v)) baseEnqueue(code, BASE_VER_HEADER, v); try{ autoBackup(); }catch(e){} }
+function rememberCareer(code){ const v=careerToBase(code); if(v===null) return; const c=(allCourses||[]).find(x=>x['Código']===code); if(c && String(c['Carrera']||'').trim()===v) return; baseEnqueue(code,'Carrera',v); }
+// Al cargar Base: lo que dice la hoja manda; lo que solo está aquí se sube a la hoja
+function syncBaseMeta(){
+  const cars=projectCareers(); const sg=projectSiglas();
+  (allCourses||[]).forEach(c=>{
+    const code=c['Código']; if(!code) return;
+    const bv=String(c[BASE_VER_HEADER]||c['Version']||'').trim(); let lv=''; try{ lv=localStorage.getItem('dcd_ver_'+code)||''; }catch(e){}
+    if(bv){ if(bv!==lv) try{ localStorage.setItem('dcd_ver_'+code, bv); }catch(e){} } else if(lv) baseEnqueue(code, BASE_VER_HEADER, lv);
+    if(cars.length>=2 && sg[0] && sg[1]){
+      const bc=careerFromBase(c['Carrera']);
+      if(bc){ const val={on:bc==='both', carrera1:bc==='c2'?cars[1]:cars[0], carrera2:bc==='both'?cars[1]:''}; try{ localStorage.setItem('dcd_comun_'+code, JSON.stringify(val)); }catch(e){} }
+      else rememberCareer(code);
+    }
+  });
+}
 function projectCareers(p=currentProject){ return [p?.career, p?.career2].map(x=>String(x||'').trim()).filter(Boolean); }
 function delProject(id){
   if(!confirm('¿Eliminar este proyecto?')) return;
@@ -2418,6 +2676,8 @@ async function loadCourses(){
   try{
     allCourses=await fetchBase(currentProject.url);
     if(!allCourses.length){cont.innerHTML=`<div class="err-card">No se encontraron cursos en la hoja "Base". Verifica el nombre.</div>`;return;}
+    try{ syncBaseMeta(); }catch(e){ console.warn(e); }
+    if (currentProject && currentProject.nCourses!==allCourses.length){ currentProject.nCourses=allCourses.length; try{ localStorage.setItem('dcd_projects',JSON.stringify(projects)); autoBackup(); }catch(e){} }
     document.getElementById('course-count').textContent=`${allCourses.length} cursos encontrados`;
 
     // If authenticated, import existing Maestro data into local store
@@ -3215,6 +3475,7 @@ document.getElementById('modal-tematicas').addEventListener('click',e=>{if(e.tar
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closePromptEditor();closeTematicasEditor();closeClaudeFlow();closeBulkModal();closeGmailDraft();closeRasgosGrupos();closeWordExport();closeRevision();}});
 
 renderProjects();
+try{ renderNavAuth(); }catch(e){}
 initGoogleAuth();
 
 /* ══════════════════════════════════════════════════════
@@ -3999,7 +4260,7 @@ REDACCIÓN CLARA Y VARIADA (lo que más se corrige):
 - Recursos didácticos: ningún recurso nombra ni alude a las evaluaciones del curso (proyecto, tareas, prácticas, estudio de casos…); cada uno describe de forma transversal lo que permite hacer en el curso (por ejemplo, "permiten que en este curso los estudiantes modelen las vistas de la arquitectura de un sistema de software"). Si el curso no tiene requisitos, no lleva recurso de experiencia previa; cada software dice en pocas palabras qué hacen los estudiantes con él; unir en un mismo recurso las aplicaciones con un propósito similar y preferir herramientas especializadas del área (nada genérico como diagrams.net); con varios requisitos, un solo recurso de experiencia previa que los una. Incluí también los tres recursos institucionales adaptados al curso, una oración cada uno: las aulas (por ejemplo, para proyectar los diagramas durante las sesiones), los laboratorios de informática (con las herramientas especializadas del curso, sin marcas) y eLibro (con libros sobre los temas del curso). No escribas la biblioteca ni Google Workspace: ya están en la plantilla.
 - Cronograma: en "modulo" va solo el número del módulo; los subtemas ya no van en el cronograma. Las entregas se nombran con ordinales en palabras ("Empieza el primer avance…", "Realiza la primera entrega del glosario…"), nunca "el avance 1" ni "el glosario de los módulos 1 y 2", y se varía un poco la redacción entre avances ("Continúa con el desarrollo del segundo avance…").
 - Porcentaje en la descripción de la actividad: si las entregas no valen lo mismo (15 %, 15 % y 20 %), solo el total.
-- Importancia: una oración corta con lo que la asignatura le aporta al profesional en su trabajo ("radica en que le permite…"), con un solo verbo y una sola idea, de 3 a 4 líneas como máximo, no a una empresa; genérica, sin ejemplos de una industria y sin nombrar el curso ni su núcleo.
+- Importancia: una oración corta con la estructura "radica en que [la acción general del curso, nominalizada] permite [una acción nominalizada]" (nunca "le permite + infinitivo"), con una sola idea, de 3 a 4 líneas como máximo, no a una empresa; genérica, sin ejemplos de una industria y sin nombrar el curso ni su núcleo.
 - "En el curso…": verbo sinónimo del de la competencia y de nivel de maestría ("Implementar" → "integran" o "despliegan", no "incorporan"), complemento directo concreto ("componentes predictivos") y corto. El núcleo del curso no se repite en todo el párrafo de la descripción, salvo donde la estructura lo exige.
 - Metodologías de 200 a 260 caracteres (unas tres líneas). Estudio de casos: el estudiante aplica técnicas para resolver el problema de una organización. Guía del docente: retroalimentación o acompañamiento, no "interpretación".
 - La estrategia de aprendizaje del estudio de casos se orienta a resolver un problema ("…permite que los estudiantes resuelvan la necesidad de una organización con…"), no a emplear una herramienta.
@@ -4009,12 +4270,19 @@ REDACCIÓN CLARA Y VARIADA (lo que más se corrige):
 - Tecnicismos en palabras comunes, sin perder el registro académico: no "producto fiel a su diseño", "búsqueda automática de contraejemplos" ni "según la fase de su construcción"; decí qué hace el estudiante o qué se ve.
 - LECTURA FINAL COMO NO ESPECIALISTA: antes de entregar, leé todo como alguien que no es del área, buscá expresiones abstractas ("operación autónoma", "versión ejecutable", "fiel a", "brecha"…) y reescribilas en palabras que se puedan imaginar. En "observaciones", avisá si el nombre del proyecto repite el nombre del curso y si los módulos mezclan infinitivos ("Modelar…") con sustantivos ("Modelado…").
 - Rúbricas con el método cualitativo: cada nivel es el criterio completo seguido de "de manera …" (nivel 1 y 4 antónimos como escueta y profunda, insuficiente y suficiente, inadecuada y adecuada; nivel 2 básica, incipiente o limitada; nivel 3 aceptable, regular o parcial). Nunca cantidades como "1 o 2 de los 6".
+7. Lecciones de la revisión de SOFT-207 (correcciones de Pedro; mandan sobre las anteriores si chocan):
+- Objeto de estudio: "la organización de…" solo en cursos de estructura (arquitectura, diseño). En cursos de un tipo de sistema, empieza por el sistema concreto ("los programas de computadora que guardan…"). La definición es conceptualmente correcta (un sistema basado en conocimiento no es un sistema experto con reglas de especialistas: es saber escrito en conceptos y reglas más la deducción). La segunda acción pasa al propósito ("para la deducción de…"), no se encadena con "y con…".
+- Importancia: "radica en que [acción general del curso, nominalizada] permite [acción nominalizada]"; nunca "le permite + infinitivo".
+- Metodologías: el aprendizaje basado en proyectos cierra con "para + el propósito nominalizado del producto" ("para la respuesta a las consultas de los usuarios…"), nunca "un prototipo final". El estudio de casos práctico no lleva "con respaldo en fuentes técnicas": el estudiante diagnostica y propone la solución. El aprendizaje autónomo se centra en la autorregulación del estudio independiente ("regulen los horarios de estudio independiente…"), ya no en producir la actividad formativa. La guía del docente "dé seguimiento a las actividades realizadas en el curso". La enseñanza directa cierra con el procedimiento que aprende el estudiante ("los procedimientos de la definición de reglas y conceptos"), no con imágenes abstractas como "el camino lógico".
+- Descripción de cada actividad: el "qué es" usa la nota de diseño de la tabla de la ficha, dicha como sustantivo ("Depura" → "ejercicios de depuración de bases de conocimiento"). El estudio de casos habla de "situaciones problema", nunca de "reales" (esa palabra no va en ninguna parte del programa). El "cómo se hace" tiene registro académico ("codificar las reglas de inferencia", "contrastar la coherencia lógica de las respuestas con el juicio de un especialista"). La enumeración del entregable va solo con comas y la "y" final, sin punto y coma.
+- Estrategias de aprendizaje: el objeto es preciso ("un modelo de representación del conocimiento de la disciplina elegida", no "un modelo del tema elegido").
+- Recursos didácticos: sin jerga ("ontología", "clases", "razonador", "grafos de conocimiento", "lenguajes de consulta"); decí lo que se ve ("organicen los conceptos de un tema y sus relaciones", "una red de datos conectados"). No agregues una tercera herramienta si obliga a meter jerga. El software de cada actividad corresponde a lo que de verdad se hace en ella: si el estudio de casos no es investigativo, nada de Scopus ni Google Académico, ni en su oración del software ni en recursos.
 6. Lecciones de las revisiones de SOFT-205 y SOFT-206 (la definición es concreta y la metodología es transversal):
 - Objeto de estudio: en cursos de diseño o arquitectura empieza por la estructura que el curso produce ("la organización estructural de los componentes de un programa informático y de las conexiones entre ellos…"), no por "las estrategias" ni "las técnicas". Toda acción nominalizada dice de qué ("verificación del comportamiento esperado de…") y ningún término paraguas va solo ("componentes", "elementos" → dos tipos concretos, como "los módulos de código y las bases de datos").
 - Importancia: una acción que se ve en el trabajo, no una operación mental ("la incorporación de nuevas funciones en una aplicación sin alterar el funcionamiento de sus demás partes", no "la predicción del efecto de una modificación"). El efecto sobre los usuarios va como "su uso" o "su funcionamiento", no "su trabajo".
 - "En el curso…": si la competencia cambió por una corrección, su verbo también cambia en la misma ronda por su sinónimo.
 - Metodologías transversales: la enseñanza directa dice la acción general del curso, no un producto ni una técnica puntual; la guía del docente retroalimenta cada entrega de todas las actividades, no solo el proyecto; el aprendizaje colaborativo abarca todas las actividades grupales ("las responsabilidades de las actividades grupales").
-- Evaluación formativa de maestría: sin resúmenes ni glosarios; diagramas conceptuales o cuadros comparativos, iguales en la formativa y en el aprendizaje autónomo.
+- Evaluación formativa de maestría: sin resúmenes ni glosarios; diagramas conceptuales o cuadros comparativos.
 - Recursos de software agrupados por etapa del trabajo: de 2 a 4 recursos, como máximo dos herramientas en el sujeto y una tercera de la misma etapa como complemento; nunca un recurso por herramienta, y ninguno nombra una evaluación.
 - Si en la ficha hay un RA con un verbo derivado de un sustantivo ("Prototipa", "Modulariza"), avisalo en "observaciones".
 - Antes de entregar, preguntate: ¿hay algo que el revisor podría responder con "¿de qué?" o "¿cuáles?", o con "debería ser más general"? Corregilo.
@@ -5660,7 +5928,7 @@ function setCourseVersion(v){
   // Al pasar a una versión nueva sin copia de la anterior, lo que hay ahora queda como la anterior
   const io=VERSIONES.indexOf(old), iv=VERSIONES.indexOf(v);
   if (iv>io && io>=0 && !versionSnap(old)) saveVersionSnap(old, currentSaved());
-  try{ localStorage.setItem('dcd_ver_'+(currentCourse['Código']||''), v); }catch(e){}
+  rememberVersion(currentCourse['Código']||'', v);
   refreshVersionUI();
   toast(v==='Final' ? 'Versión Final: el Word se descarga sin resaltar' : `Versión ${v}`, 'success');
 }
@@ -5686,7 +5954,8 @@ async function prepareWordBlob(mode){
   if (carrera2 && carrera2===carrera) carrera2='';
   try{ localStorage.setItem('dcd_word_'+currentProject.id, JSON.stringify({escuela,carrera})); }catch(e){}
   try{ localStorage.setItem('dcd_comun_'+(currentCourse['Código']||''), JSON.stringify({on:comun, carrera1:carrera, carrera2:document.getElementById('wx-carrera2').value.trim()})); }catch(e){}
-  try{ localStorage.setItem('dcd_ver_'+(currentCourse['Código']||''), wordVersion()); }catch(e){}
+  rememberVersion(currentCourse['Código']||'', wordVersion());
+  if (projectCareers().length>=2) rememberCareer(currentCourse['Código']||'');
   let saved = currentSaved();
     if (document.getElementById('wx-maestro').checked && gAccessToken){
       try{
@@ -7062,7 +7331,7 @@ function applyItems(items, skip){
 }
 async function writeMaestro(){ if(!gAccessToken) throw new Error('Conectá Google para escribir en el Maestro'); await writeCourseToMaestro(extractSheetId(P().url), currentCourse['Código'], buildMaestroColMap(currentSaved()), currentCourse); }
 async function syncFromBlob(blob, skip){ const d=parseFichaDocx(await readDocxXml(blob)); const items=fichaDocxToItems(d).filter(i=>i.secId); const n=applyItems(items, skip); await writeMaestro(); return n; }
-function setVersion(v){ try{ const old=courseVersion(); const io=VERSIONES.indexOf(old), iv=VERSIONES.indexOf(v); if(iv>io&&io>=0&&!versionSnap(old)) saveVersionSnap(old,currentSaved()); localStorage.setItem('dcd_ver_'+currentCourse['Código'],v); }catch(e){} }
+function setVersion(v){ try{ const old=courseVersion(); const io=VERSIONES.indexOf(old), iv=VERSIONES.indexOf(v); if(iv>io&&io>=0&&!versionSnap(old)) saveVersionSnap(old,currentSaved()); rememberVersion(currentCourse['Código'],v); }catch(e){} }
 function mailCfg(){ const p=P(), pp=(typeof gmPrefs==='function'?gmPrefs():{})||{}, g=(typeof gmGlobal==='function'?gmGlobal():{})||{}; return { prefix:(p.mailPrefix??pp.prefix??p.sigla??'').trim(), prog:(p.mailProg||'Programa de curso').trim(), ficha:(p.mailFicha||'Ficha de curso').trim(), to:(p.mailTo||pp.to||g.to||'').trim(), name:(p.mailName||pp.name||g.name||'Ralph').trim(), cc:(p.mailCc||pp.cc||'').trim() }; }
 function fmtAddr(list){ return String(list||'').split(',').map(a=>a.trim()).filter(Boolean).map(a=>{ const m=a.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/); return m&&m[1].trim()?`${mimeWord(m[1].trim())} <${m[2]}>`:a; }).join(', '); }
 async function makeDraft({to,cc,subject,body,fname,blob,threadId,inReply,refs}){
@@ -7346,10 +7615,10 @@ function panelBiblio(){
 /* ---------- Registrador: carrera de cada curso ---------- */
 function comunOf(code){ try{ return JSON.parse(localStorage.getItem('dcd_comun_'+code)||'null'); }catch(e){ return null; } }
 function careerOf(code){ const cars=projectCareers(); const com=comunOf(code); if(!com) return ''; if(com.on&&cars.includes(String(com.carrera2||'').trim())) return 'both'; if(com.carrera1===cars[1]&&!com.on) return 'c2'; if(com.carrera1===cars[0]&&!com.on) return 'c1'; if(com.on) return 'both'; return ''; }
-function setCareer(code,v){ const cars=projectCareers(); if(cars.length<2) return; const val={on:v==='both', carrera1:v==='c2'?cars[1]:cars[0], carrera2:v==='both'?cars[1]:''}; try{ localStorage.setItem('dcd_comun_'+code, JSON.stringify(val)); }catch(e){} }
+function setCareer(code,v){ const cars=projectCareers(); if(cars.length<2) return; const val={on:v==='both', carrera1:v==='c2'?cars[1]:cars[0], carrera2:v==='both'?cars[1]:''}; try{ localStorage.setItem('dcd_comun_'+code, JSON.stringify(val)); }catch(e){} try{ rememberCareer(code); autoBackup(); }catch(e){} }
 function careerSet(code,v){ setCareer(code,v); refresh(); }
 function careerAll(v){ (allCourses||[]).forEach(c=>setCareer(c['Código'],v)); toast('✓ Todos los cursos asignados','success'); const r=personByK('carreras'); if(r){ r.bub='ok'; r.bubT=2; } refresh(); }
-function careerAbbr(name,i){ const a=String(name||'').split(/\s+/).filter(w=>/^[A-ZÁÉÍÓÚÑ]/.test(w)).map(w=>w[0]).join('').slice(0,5); return a||('Carrera '+(i+1)); }
+function careerAbbr(name,i){ const sg=projectSiglas()[i]; if(sg) return sg; const a=String(name||'').split(/\s+/).filter(w=>/^[A-ZÁÉÍÓÚÑ]/.test(w)).map(w=>w[0]).join('').slice(0,5); return a||('Carrera '+(i+1)); }
 function panelCarreras(){
   const cars=projectCareers();
   if(cars.length<2) return head('carreras','Registrador','Carrera de cada curso','Estoy dormido porque el proyecto tiene una sola carrera. Si agregás una segunda carrera al proyecto, me despierto y te ayudo a decidir de cuál carrera es cada curso (o si es de las dos).')
@@ -7360,7 +7629,7 @@ function panelCarreras(){
   return head('carreras','Registrador','Carrera de cada curso', sin?`Hay ${sin} curso${sin>1?'s':''} sin asignar. Elegí si cada uno es de una carrera o de las dos. Con «Las dos», el encabezado del Word lleva ambas carreras.`:'Todos los cursos tienen carrera. Podés cambiarla cuando quieras.')
     + `<div class="of-item"><div class="m" style="margin:0"><strong>${esc(ab[0])}</strong>: ${esc(cars[0])}<br><strong>${esc(ab[1])}</strong>: ${esc(cars[1])}</div><div class="of-row"><span class="of-note" style="margin:0;align-self:center">Asignar todos a</span>${[['c1',ab[0]],['c2',ab[1]],['both','Las dos']].map(([v,l])=>`<button class="of-btn sm" onclick="Office.careerAll('${v}')">${esc(l)}</button>`).join('')}</div></div>`
     + `<div class="of-sec"><h4>Cursos</h4>${all.length?all.map(c=>{ const code=c['Código']; const cur=careerOf(code); return `<div class="of-item"><div class="t">${cur?'':'<span class="of-tag rev">SIN ASIGNAR</span>'}${esc(code)} ${esc(cName(c))}</div><div class="of-row">${seg(code,cur)}</div></div>`; }).join(''):'<div class="of-note">Cargando los cursos…</div>'}</div>`
-    + `<div class="of-note">El encabezado del Word cambia la próxima vez que se genere o se suba a Drive.</div>`;
+    + `<div class="of-note">${projectSiglas().every(Boolean)?`Cada cambio se escribe también en la columna «Carrera» de la hoja Base (${esc(projectSiglas().join(', '))}).`:'Para que la carrera quede escrita en la columna «Carrera» de la hoja Base, poné las siglas de cada carrera en <a href="#" onclick="openProjectModal(currentProject.id);return false">Editar proyecto</a>.'} El encabezado del Word cambia la próxima vez que se genere o se suba a Drive.</div>`;
 }
 
 /* ---------- Peche, Ajustes y Tomo ---------- */
