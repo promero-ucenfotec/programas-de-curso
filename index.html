@@ -5557,7 +5557,8 @@ function openWordExport(){
   const cars=projectCareers(); const sel=document.getElementById('wx-carrera-sel'); const inp=document.getElementById('wx-carrera');
   if(cars.length>1){
     sel.innerHTML=cars.map(c=>`<option>${escHtml(c)}</option>`).join('');
-    const want=[pref.carrera, d._carrera].find(x=>x && cars.includes(x));
+    let com0=null; try{ com0=JSON.parse(localStorage.getItem('dcd_comun_'+(currentCourse['Código']||''))||'null'); }catch(e){}
+    const want=[com0?.carrera1, pref.carrera, d._carrera].find(x=>x && cars.includes(x));
     sel.value = want || cars[0];
     sel.style.display=''; inp.style.display='none';
   } else {
@@ -5659,7 +5660,7 @@ async function prepareWordBlob(mode){
   let carrera2=comun ? document.getElementById('wx-carrera2').value.trim() : '';
   if (carrera2 && carrera2===carrera) carrera2='';
   try{ localStorage.setItem('dcd_word_'+currentProject.id, JSON.stringify({escuela,carrera})); }catch(e){}
-  try{ localStorage.setItem('dcd_comun_'+(currentCourse['Código']||''), JSON.stringify({on:comun, carrera2:document.getElementById('wx-carrera2').value.trim()})); }catch(e){}
+  try{ localStorage.setItem('dcd_comun_'+(currentCourse['Código']||''), JSON.stringify({on:comun, carrera1:carrera, carrera2:document.getElementById('wx-carrera2').value.trim()})); }catch(e){}
   try{ localStorage.setItem('dcd_ver_'+(currentCourse['Código']||''), wordVersion()); }catch(e){}
   let saved = currentSaved();
     if (document.getElementById('wx-maestro').checked && gAccessToken){
@@ -6267,8 +6268,8 @@ function headlessWordOpts(){
   const s=currentSaved(); const d=courseDatos(currentCourse,s);
   let pref={}; try{ pref=JSON.parse(localStorage.getItem('dcd_word_'+currentProject.id)||'{}'); }catch(e){}
   const cars=projectCareers();
-  const carrera = cars.length>1 ? ([pref.carrera, d._carrera].find(x=>x && cars.includes(x)) || cars[0]) : (cars[0] || d._carrera || pref.carrera || '');
   let com=null; try{ com=JSON.parse(localStorage.getItem('dcd_comun_'+(currentCourse['Código']||''))||'null'); }catch(e){}
+  const carrera = cars.length>1 ? ([com?.carrera1, pref.carrera, d._carrera].find(x=>x && cars.includes(x)) || cars[0]) : (cars[0] || d._carrera || pref.carrera || '');
   let carrera2 = com?.on ? String(com.carrera2||'').trim() : ''; if (carrera2===carrera) carrera2='';
   const ver=courseVersion();
   const escuela = currentProject.escuela || d._escuela || pref.escuela || '';
@@ -6467,8 +6468,12 @@ a.of-btn{display:inline-flex;align-items:center;justify-content:center;color:var
 #of-game .of-card{background:var(--o-paper);padding:14px;position:relative;width:min(400px,100%);}
 #of-game h2{margin:0;font-family:var(--o-fd);font-size:20px;font-weight:800;}
 #of-game p{margin:4px 0 10px;font-size:12.5px;color:var(--o-muted);}
+.of-gtabs{display:flex;gap:4px;background:var(--o-chip);border-radius:10px;padding:3px;margin:0 40px 10px 0;}
+.of-gtabs button{flex:1;height:32px;border-radius:8px;font-weight:800;font-size:12.5px;border:0;background:none;cursor:pointer;color:var(--o-ink);font-family:inherit;}
+.of-gtabs button[aria-selected="true"]{background:var(--o-ink);color:#fff;}
 #of-gcv{width:100%;aspect-ratio:3/4;display:block;border-radius:12px;background:#1d2550;touch-action:none;}
 .of-gfoot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-family:var(--o-fn);font-weight:700;font-size:14px;}
+@media (max-width:1560px){ .of-tool.x .l{display:none} .of-tool.x{padding:0 10px} }
 @media (max-width:900px){ #of-hint{display:none} }
 @media (max-width:720px){
   .of-tool .l{display:none}
@@ -6506,8 +6511,9 @@ a.of-btn{display:inline-flex;align-items:center;justify-content:center;color:var
 <div id="of-game" role="dialog" aria-modal="true" aria-labelledby="of-gt">
   <div class="of-card">
     <button class="of-close" onclick="Office.gameClose()" aria-label="Cerrar">×</button>
+    <div class="of-gtabs" role="tablist" aria-label="Elegir juego"><button role="tab" id="of-gtab-cafe" onclick="Office.gameMode('cafe')">Café y comentarios</button><button role="tab" id="of-gtab-jump" onclick="Office.gameMode('jump')">Toggle Jump</button></div>
     <h2 id="of-gt">Café y comentarios</h2>
-    <p>Mové la taza con el mouse, el dedo o las flechas. Atrapá cafés y documentos aprobados; esquivá los comentarios rojos.</p>
+    <p id="of-gp"></p>
     <canvas id="of-gcv" width="360" height="480"></canvas>
     <div class="of-gfoot"><span id="of-gscore">0 puntos</span><span id="of-gbest">Récord 0</span><button class="of-btn sm pri" onclick="Office.gameStart()">Jugar de nuevo</button></div>
   </div>
@@ -6575,6 +6581,7 @@ const AGENTS=[
   {k:'programa', n:'Programadora', role:'Programas de curso nuevos', desk:[5,4,2], col:'#7b5ea7', look:{skin:'#a46f48',hair:'#2b1d16',hs:1,shirt:'#7b5ea7',pants:'#5a4636'}},
   {k:'ficha', n:'Fichero', role:'Fichas de curso nuevas', desk:[6,4,2], col:'#23a596', look:{skin:'#e2ae86',hair:'#7d808c',hs:3,shirt:'#23a596',pants:'#3f3f46'}},
   {k:'recepcion', n:'Recepcionista', role:'Recibe el esbozo del experto (XLSX)', desk:[3,10,2], col:'#f2a541', look:{skin:'#f6dccb',hair:'#a8642c',hs:1,shirt:'#f2a541',pants:'#34466b'}},
+  {k:'carreras', n:'Registrador', role:'Asigna cada curso a su carrera', desk:[7,4,2], col:'#3fa66f', look:{skin:'#c98c62',hair:'#4a2f22',hs:0,shirt:'#3fa66f',pants:'#34466b'}},
   {k:'biblio', n:'Bibliotecaria', role:'Bibliografía de los cursos', desk:[2,3,3], col:'#e86a92', look:{skin:'#76503a',hair:'#161616',hs:2,shirt:'#e86a92',pants:'#2f3542'}},
 ];
 const SLOTS=[{x:5,y:8,f:1},{x:7,y:8,f:3},{x:6,y:9,f:2},{x:5,y:9,f:1},{x:7,y:9,f:3}];
@@ -6585,7 +6592,7 @@ function buildScene(){
   objs=[]; seq=1; for(const k in byId) delete byId[k];
   add('board',2,0,0); add('coffee',4,0,0); add('cooler',5,0,0); add('plant',6,0,0); add('trophy',7,0,0); add('printer',8,0,0); add('server',9,0,0); add('server',10,0,0); add('arcade',11,0,0);
   add('monstera',0,0,1); add('shelf',0,2,1); add('shelf',0,3,1); add('shelf',0,4,1); add('lamp',0,6,1); add('plant',0,1,1);
-  add('plant',3,4,0); add('plant',7,4,0); add('mailbox',1,11,0); add('plant',4,11,0);
+  add('plant',3,4,0); add('plant',8,4,0); add('mailbox',1,11,0); add('plant',4,11,0);
   for(let x=9;x<=10;x++) for(let y=5;y<=7;y++) add('rug',x,y,0,'#2f9c8a');
   add('sofa',9,5,0,'#c9663d'); add('sofa',10,5,0,'#c9663d'); add('lamp',11,5,0); add('plant',11,7,0);
   add('monstera',11,11,0); add('plant',8,11,0); add('plant',8,8,0);
@@ -6634,6 +6641,12 @@ function needOf(k){
     const c=F.find(f=>f.stage==='comentado'); if(c) return {alert:true, visit:true, say:`${c.code} está listo para corregir`, sig:'c:'+c.id};
     const r=F.find(f=>f.stage==='corregido'); if(r) return {alert:true, say:`${r.code} espera tu revisión en Drive`, sig:'r:'+r.id};
     const l=F.find(f=>f.stage==='enviado'&&!f.learned); if(l) return {idea:true, say:'¿Le pedimos a Claude lo aprendido?'};
+    return {};
+  }
+  if(k==='carreras'){
+    const cars=projectCareers(); if(cars.length<2) return {sleep:true};
+    const sin=(allCourses||[]).filter(c=>!careerOf(c['Código'])).length;
+    if(sin) return {alert:true, visit:true, say:`El proyecto tiene dos carreras: ${sin===1?'falta un curso':'faltan '+sin+' cursos'} por asignar`, sig:'car:'+P().id+':'+cars.join('|')};
     return {};
   }
   if(k==='programa'||k==='ficha'){
@@ -6906,7 +6919,7 @@ function paintAvatars(){ panel.querySelectorAll('canvas[data-av]').forEach(cn=>{
 function head(k,title,sub,say){ return `<button class="of-close" onclick="Office.closePanel()" aria-label="Cerrar">×</button><div class="of-ph">${avatar(k)}<div><h3>${esc(title)}</h3><div class="sub">${esc(sub)}</div></div></div>${say?`<div class="of-say">${say}</div>`:''}`; }
 function renderPanel(){
   const k=panelKey; if(!k) return;
-  const f={peche:panelPeche,cartero:panelCartero,corrector:panelCorrector,programa:()=>panelNuevo('programa'),ficha:()=>panelNuevo('ficha'),recepcion:panelRecepcion,biblio:panelBiblio,ajustes:panelAjustes,tomo:panelTomo}[k];
+  const f={carreras:panelCarreras,peche:panelPeche,cartero:panelCartero,corrector:panelCorrector,programa:()=>panelNuevo('programa'),ficha:()=>panelNuevo('ficha'),recepcion:panelRecepcion,biblio:panelBiblio,ajustes:panelAjustes,tomo:panelTomo}[k];
   if(!f) return; const keepScroll=panel.scrollTop; const vals={}; panel.querySelectorAll('input[id],textarea[id],select[id]').forEach(el=>{ if(el.type==='file') return; vals[el.id]=el.type==='checkbox'?el.checked:el.value; }); const act=document.activeElement&&panel.contains(document.activeElement)?document.activeElement.id:'';
   panel.innerHTML=f(); Object.entries(vals).forEach(([id,v])=>{ const el=document.getElementById(id); if(!el||!panel.contains(el)) return; if(el.type==='checkbox') el.checked=v; else el.value=v; if(el.dataset.pick) filterPick(el.dataset.pick,el.value); });
   if(act){ const el=document.getElementById(act); if(el) el.focus(); } panel.scrollTop=keepScroll; paintAvatars(); wireDrops();
@@ -6974,7 +6987,34 @@ async function makeDraft({to,cc,subject,body,fname,blob,threadId,inReply,refs}){
   if(inReply) raw=raw.replace('MIME-Version: 1.0',`In-Reply-To: ${inReply}\r\nReferences: ${((refs||'')+' '+inReply).trim()}\r\nMIME-Version: 1.0`);
   const msg={raw:b64url(utf8B64(raw))}; if(threadId) msg.threadId=threadId;
   const d=await gmail('drafts',{method:'POST',body:JSON.stringify({message:msg})});
-  return `https://mail.google.com/mail/u/0/#drafts?compose=${encodeURIComponent(d.message?.id||'')}`;
+  return {link:`https://mail.google.com/mail/u/0/#drafts?compose=${encodeURIComponent(d.message?.id||'')}`, id:d.id||''};
+}
+async function dropDraft(id){ if(!id) return; try{ const r=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/drafts/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+gAccessToken}}); return r.ok; }catch(e){ return false; } }
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const hhmm=t=>new Date(t).toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+// Google Docs guarda los cambios de un .docx con unos segundos de retraso: antes de leerlo se espera a que Drive termine.
+// También detecta si el documento se convirtió a Google Docs (copia aparte) y usa esa copia, que es la que tiene los cambios.
+async function freshDoc(fileId, since, code){
+  const F='id,name,modifiedTime,webViewLink,parents';
+  let meta=await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=${F}&supportsAllDrives=true`);
+  try{
+    const par=(meta.parents||[])[0];
+    if(par){ const q=encodeURIComponent(`'${par}' in parents and trashed=false and mimeType='application/vnd.google-apps.document'`);
+      const out=await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&pageSize=50&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=allDrives`);
+      const base=normTxt(meta.name.replace(/\.docx$/i,'')); const re=codeRe(code);
+      const g=(out.files||[]).find(x=>(re?re.test(String(x.name).toUpperCase()):true) && normTxt(x.name).replace(/\.docx$/,'')===base && Date.parse(x.modifiedTime)>Date.parse(meta.modifiedTime));
+      if(g){ toast(`Encontré tu copia en Google Docs de ${code}: uso esa y actualizo el .docx con ella`,'');
+        const r=await fetch(`https://www.googleapis.com/drive/v3/files/${g.id}/export?mimeType=${encodeURIComponent(DOCX)}`,{headers:{Authorization:'Bearer '+gAccessToken}});
+        if(r.ok){ const blob=await r.blob(); const up=await driveReplace(fileId, blob, meta.name); return {meta:Object.assign(meta,up,{modifiedTime:new Date().toISOString()}), blob, fromCopy:g.name}; } } }
+  }catch(e){ if(e.status===401||e.scope) throw e; }
+  // Si se guardó hace poco, se espera a que deje de cambiar (Docs sigue guardando)
+  let t=Date.parse(meta.modifiedTime);
+  if(Date.now()-t<90000){ toast('Esperando a que Google Docs termine de guardar tus cambios…',''); let stable=0;
+    for(let i=0;i<15&&stable<2;i++){ await sleep(5000); const m2=await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=${F}&supportsAllDrives=true`); if(m2.modifiedTime===meta.modifiedTime) stable++; else { stable=0; meta=m2; } } t=Date.parse(meta.modifiedTime); }
+  if(since && t<since-2000){
+    if(!confirm(`En Drive no veo cambios en ${code} desde ${hhmm(since)} (último guardado: ${hhmm(t)}).\n\nSi lo editaste en Google Docs, cerrá esa pestaña para que termine de guardar, esperá unos segundos y volvé a intentar.\n\n¿Seguir de todos modos con la versión que está ahora en Drive?`)) throw new Error('Listo, no envié nada. Cerrá la pestaña de Google Docs y volvé a tocar el botón.');
+  }
+  return {meta, blob:await driveBlob(fileId)};
 }
 
 /* ---------- Cartero ---------- */
@@ -7079,20 +7119,21 @@ function fixUpload(id,file){ if(!file) return; run('up:'+id, async()=>{
   f.fileName=r.name; f.link=r.webViewLink||f.link; f.stage='corregido'; f.fixedAt=Date.now(); saveFlows(F);
   toast(`✓ ${f.code}: el documento corregido reemplazó al de Drive (${r.name})`,'success');
 }); }
-function fixReview(id){ const f=flows().find(x=>x.id===id); if(!f) return; window.open(docLink(f.fileId,f.link),'_blank','noopener'); const F=flows(); const x=F.find(y=>y.id===id); if(x&&!x.opened){ x.opened=true; saveFlows(F); refresh(); } }
-function fixDone(id){ run('done:'+id, async()=>{
-  if(!ensureDrive(()=>fixDone(id))) return;
-  if(!mailWriteOk()){ toast('Gmail pide permiso para crear el borrador. Aceptá y sigo solo.',''); requestMail(()=>fixDone(id)); return; }
-  const F=flows(); const f=F.find(x=>x.id===id); setCourse(f.code);
-  const meta=await driveMeta(f.fileId); const blob=await driveBlob(f.fileId);
+function fixReview(id){ const f=flows().find(x=>x.id===id); if(!f) return; window.open(docLink(f.fileId,f.link),'_blank','noopener'); const F=flows(); const x=F.find(y=>y.id===id); if(x){ x.opened=true; x.openedAt=x.openedAt||Date.now(); saveFlows(F); refresh(); } }
+function fixDone(id, redo){ run('done:'+id, async()=>{
+  if(!ensureDrive(()=>fixDone(id,redo))) return;
+  if(!mailWriteOk()){ toast('Gmail pide permiso para crear el borrador. Aceptá y sigo solo.',''); requestMail(()=>fixDone(id,redo)); return; }
+  let F=flows(); let f=F.find(x=>x.id===id); setCourse(f.code);
+  const {meta, blob}=await freshDoc(f.fileId, redo?0:(f.openedAt||f.fixedAt), f.code);
   const n=await syncFromBlob(blob);
+  if(redo&&f.draftId) await dropDraft(f.draftId);
   const m=mailCfg(); const quien=m.name||'Ralph';
   const docTxt=f.kind==='ficha'?'la ficha de curso corregida':'el programa de curso corregido';
   const body=`Buen día, ${quien}. Muchísimas gracias. Le comparto ${docTxt} para su revisión, quedo atento a sus comentarios.\nSaludos cordiales,`;
   const subject=/^re:/i.test(f.subject)?f.subject:'Re: '+f.subject;
-  const link=await makeDraft({to:f.from, cc:m.cc, subject, body, fname:meta.name, blob, threadId:f.threadId, inReply:f.rfc, refs:f.refs});
-  f.stage='enviado'; f.draft=link; f.sentAt=Date.now(); f.fileName=meta.name; saveFlows(F);
-  toast(`✓ Maestro actualizado (${n} campos) y respuesta lista en Gmail`,'success'); floatTxt(9.5,.5,'Maestro ✓');
+  const dr=await makeDraft({to:f.from, cc:m.cc, subject, body, fname:meta.name, blob, threadId:f.threadId, inReply:f.rfc, refs:f.refs}); const link=dr.link;
+  F=flows(); f=F.find(x=>x.id===id); f.stage='enviado'; f.draft=link; f.draftId=dr.id; f.sentAt=Date.now(); f.savedAt=Date.parse(meta.modifiedTime)||Date.now(); f.fileName=meta.name; saveFlows(F);
+  toast(`✓ Maestro actualizado (${n} campos) y respuesta lista en Gmail con la versión guardada a las ${hhmm(f.savedAt)}${redo?'. El borrador anterior se borró':''}`,'success'); floatTxt(9.5,.5,'Maestro ✓');
   window.open(link,'_blank','noopener');
 }, ()=>fixDone(id)); }
 function learnCopy(id){ const F=flows(); const f=F.find(x=>x.id===id); if(!f) return; const ok=copyText(LEARN_PROMPT(f)); openClaude(); f.learned=true; saveFlows(F); toast(ok?'✓ Prompt de aprendizaje copiado. Pegalo en la misma conversación de Claude.':'No pude copiar el texto', ok?'success':'error'); refresh(); }
@@ -7108,11 +7149,11 @@ function panelCorrector(){
         ${li(0,'Corregir con Claude','Copio las instrucciones, abro Claude y descargo el documento con los comentarios para que lo adjuntés.',`<button class="of-btn pri sm" onclick="Office.fixCopy('${f.id}')">Copiar instrucciones y abrir Claude</button><button class="of-btn sm" ${B('dl')?'disabled':''} onclick="Office.fixDownload('${f.id}')">Solo descargar</button>`)}
         ${li(1,'Subir el Word corregido',st>=1?'Listo: ya reemplazó al de Drive. Podés subir otro si Claude lo vuelve a corregir.':'Lo subo a Drive en el mismo archivo, con el nombre de la versión '+f.next+'.',`<label class="of-drop" data-drop="${f.id}">${B('up')?'Subiendo…':'Soltá aquí el .docx o tocá para elegirlo'}<input type="file" accept=".docx" onchange="Office.fixUpload('${f.id}',this.files[0]);this.value=''"></label>`)}
         ${li(2,'Revisar en Google Docs','Corregí ahí lo que haga falta. La app ya no edita el texto.',st>=1?`<button class="of-btn sm ink" onclick="Office.fixReview('${f.id}')">Abrir en Drive</button>`:'')}
-        ${li(3,'Está revisado','Actualizo el Maestro con el documento de Drive y dejo en Gmail la respuesta al revisor con el documento adjunto.',st>=1?`<button class="of-btn pri sm" ${B('done')?'disabled':''} onclick="Office.fixDone('${f.id}')">${B('done')?'Trabajando…':'Está revisado'}</button>`:'')}
+        ${li(3,'Está revisado','Primero cerrá la pestaña de Google Docs para que guarde tus últimos cambios. Espero a que Drive termine, actualizo el Maestro y dejo en Gmail la respuesta al revisor con el documento adjunto.',st>=1?`<button class="of-btn pri sm" ${B('done')?'disabled':''} onclick="Office.fixDone('${f.id}')">${B('done')?'Trabajando…':'Está revisado'}</button>`:'')}
       </ol><div class="of-row" style="justify-content:flex-end"><button class="of-btn sm" onclick="Office.flowArchive('${f.id}')">Archivar</button></div></div>`; };
   return head('corrector','Corrector','Comentarios del revisor', say)
     + (act.length?`<div class="of-sec"><h4>En corrección</h4>${act.map(card).join('')}</div>`:'')
-    + (sent.length?`<div class="of-sec"><h4>Respondidos</h4>${sent.slice(-5).reverse().map(f=>`<div class="of-item"><div class="t">${esc(f.code)} · ${esc(f.next)} <span class="of-tag fin">respuesta en Gmail</span></div><div class="m">${f.draft?`<a href="${attr(f.draft)}" target="_blank" rel="noopener">Abrir el borrador</a> · `:''}<a href="${attr(docLink(f.fileId,f.link))}" target="_blank" rel="noopener">Ver en Drive</a></div><div class="of-row"><button class="of-btn sm ${f.learned?'':'pri'}" onclick="Office.learnCopy('${f.id}')">${f.learned?'Copiar de nuevo lo aprendido':'¿Qué aprendimos? Copiar prompt'}</button><button class="of-btn sm" onclick="Office.flowArchive('${f.id}')">Archivar</button></div></div>`).join('')}</div>`:'');
+    + (sent.length?`<div class="of-sec"><h4>Respondidos</h4>${sent.slice(-5).reverse().map(f=>`<div class="of-item"><div class="t">${esc(f.code)} · ${esc(f.next)} <span class="of-tag fin">respuesta en Gmail</span></div><div class="m">${f.draft?`<a href="${attr(f.draft)}" target="_blank" rel="noopener">Abrir el borrador</a> · `:''}<a href="${attr(docLink(f.fileId,f.link))}" target="_blank" rel="noopener">Ver en Drive</a>${f.savedAt?`<br>Adjunto: versión guardada a las ${hhmm(f.savedAt)}`:''}</div><div class="of-row"><button class="of-btn sm" ${busy['done:'+f.id]?'disabled':''} onclick="Office.fixDone('${f.id}',true)" title="Borra el borrador anterior, vuelve a leer Drive, actualiza el Maestro y crea la respuesta de nuevo">${busy['done:'+f.id]?'Trabajando…':'Rehacer con lo último de Drive'}</button><button class="of-btn sm ${f.learned?'':'pri'}" onclick="Office.learnCopy('${f.id}')">${f.learned?'Copiar de nuevo lo aprendido':'¿Qué aprendimos? Copiar prompt'}</button><button class="of-btn sm" onclick="Office.flowArchive('${f.id}')">Archivar</button></div></div>`).join('')}</div>`:'');
 }
 function wireDrops(){ panel.querySelectorAll('[data-drop]').forEach(el=>{ const id=el.dataset.drop; el.ondragover=e=>{ e.preventDefault(); el.classList.add('over'); }; el.ondragleave=()=>el.classList.remove('over'); el.ondrop=e=>{ e.preventDefault(); el.classList.remove('over'); const f=e.dataTransfer.files[0]; if(el.dataset.kind) nuevoFile(el.dataset.kind,f); else fixUpload(id,f); }; }); }
 
@@ -7142,22 +7183,23 @@ async function uploadKind(kind){
   const blob=await buildDocx(kind,{escuela:o.escuela,carrera:o.carrera,carrera2:o.carrera2,saved:o.saved,highlight:o.highlight});
   return driveUploadDocx(blob, wordFileName(kind,o.ver), folder, kind);
 }
-function nuevoOpen(kind){ const j=jobs()[kind]; if(j?.fileId) window.open(docLink(j.fileId,j.link),'_blank','noopener'); const J=jobs(); if(J[kind]){ J[kind].opened=true; saveJobs(J); refresh(); } }
-function nuevoMail(kind){ run('mail:'+kind, async()=>{
-  if(!ensureDrive(()=>nuevoMail(kind))) return;
-  if(!mailWriteOk()){ toast('Gmail pide permiso para crear el borrador. Aceptá y sigo solo.',''); requestMail(()=>nuevoMail(kind)); return; }
-  const J=jobs(); const j=J[kind]; const c=setCourse(j.code); const m=mailCfg();
+function nuevoOpen(kind){ const j=jobs()[kind]; if(j?.fileId) window.open(docLink(j.fileId,j.link),'_blank','noopener'); const J=jobs(); if(J[kind]){ J[kind].opened=true; J[kind].openedAt=J[kind].openedAt||Date.now(); saveJobs(J); refresh(); } }
+function nuevoMail(kind, redo){ run('mail:'+kind, async()=>{
+  if(!ensureDrive(()=>nuevoMail(kind,redo))) return;
+  if(!mailWriteOk()){ toast('Gmail pide permiso para crear el borrador. Aceptá y sigo solo.',''); requestMail(()=>nuevoMail(kind,redo)); return; }
+  let J=jobs(); let j=J[kind]; const c=setCourse(j.code); const m=mailCfg();
   const toEl=document.getElementById('of-to-'+kind); const to=(toEl?.value||m.to).trim();
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to.split(',')[0].trim())) throw new Error('Escribí el correo del revisor');
   if(to!==P().mailTo){ P().mailTo=to; saveProjects(); }
-  const meta=await driveMeta(j.fileId); const blob=await driveBlob(j.fileId);
+  const {meta, blob}=await freshDoc(j.fileId, redo?0:(j.openedAt||j.t), j.code);
   const n=await syncFromBlob(blob);
+  if(redo&&j.draftId) await dropDraft(j.draftId);
   let body=gmBodyText(m.name); if(kind==='ficha') body=body.replace('el programa de curso en mención','la ficha de curso en mención');
   const subject=`${m.prefix?m.prefix+' | ':''}${kind==='ficha'?m.ficha:m.prog} ${j.code} ${cName(c)}`.trim();
-  const link=await makeDraft({to, cc:m.cc, subject, body, fname:meta.name, blob});
-  gmRot++; try{ localStorage.setItem('dcd_mail_rot',String(gmRot)); }catch(e){}
-  j.stage='enviado'; j.draft=link; saveJobs(J);
-  toast(`✓ Maestro al día (${n} campos) y correo nuevo listo en Gmail`,'success'); window.open(link,'_blank','noopener');
+  const dr=await makeDraft({to, cc:m.cc, subject, body, fname:meta.name, blob}); const link=dr.link;
+  if(!redo){ gmRot++; try{ localStorage.setItem('dcd_mail_rot',String(gmRot)); }catch(e){} }
+  J=jobs(); j=J[kind]; j.stage='enviado'; j.draft=link; j.draftId=dr.id; j.savedAt=Date.parse(meta.modifiedTime)||Date.now(); saveJobs(J);
+  toast(`✓ Maestro al día (${n} campos) y correo nuevo listo en Gmail con la versión guardada a las ${hhmm(j.savedAt)}`,'success'); window.open(link,'_blank','noopener');
 }, ()=>nuevoMail(kind)); }
 function nuevoReset(kind){ panel.innerHTML=''; const J=jobs(); delete J[kind]; saveJobs(J); pendingJSON[kind]=''; refresh(); }
 function panelNuevo(kind){
@@ -7176,7 +7218,7 @@ function panelNuevo(kind){
         ${li(0,'Copiar el prompt y abrir Claude','',`<div class="of-row"><button class="of-btn pri sm" onclick="Office.nuevoPrompt('${kind}')">${j.copied?'Copiar de nuevo':'Copiar prompt y abrir Claude'}</button></div>`)}
         ${li(1,'Pegar la respuesta de Claude','Pegá el bloque JSON. Lo guardo en el Maestro y genero el Word en Drive.',st===0?`<textarea class="of-ta" id="of-json-${kind}" placeholder="Pegá aquí la respuesta completa o solo el bloque JSON">${esc(pendingJSON[kind]||'')}</textarea><label class="of-drop" data-drop="x" data-kind="${kind}" style="padding:8px">o soltá un archivo .json o .txt<input type="file" accept=".json,.txt,.md" onchange="Office.nuevoFile('${kind}',this.files[0]);this.value=''"></label><div class="of-row"><button class="of-btn ink sm" ${B('imp')?'disabled':''} onclick="Office.nuevoImport('${kind}')">${B('imp')?'Guardando y subiendo…':'Guardar en el Maestro y subir a Drive'}</button></div>`:'')}
         ${li(2,'Revisar en Google Docs','La app ya no edita el texto: corregí en Drive.',st>=1?`<div class="of-row"><button class="of-btn ink sm" onclick="Office.nuevoOpen('${kind}')">Abrir en Drive</button></div>`:'')}
-        ${li(3,'Todo listo','Actualizo el Maestro con lo que corregiste en Drive y preparo un correo nuevo para el revisor.',st===1?`<label class="of-lb" for="of-to-${kind}">Para</label><input class="of-in" id="of-to-${kind}" value="${attr(mailCfg().to)}" placeholder="correo del revisor"><div class="of-row"><button class="of-btn pri sm" ${B('mail')?'disabled':''} onclick="Office.nuevoMail('${kind}')">${B('mail')?'Trabajando…':'Está revisado, preparar correo'}</button></div>`:st===2&&j.draft?`<div class="of-row"><a class="of-btn sm" href="${attr(j.draft)}" target="_blank" rel="noopener">Abrir el borrador</a></div>`:'')}
+        ${li(3,'Todo listo','Cerrá la pestaña de Google Docs para que guarde tus últimos cambios. Espero a que Drive termine, actualizo el Maestro y preparo un correo nuevo para el revisor.',st===1?`<label class="of-lb" for="of-to-${kind}">Para</label><input class="of-in" id="of-to-${kind}" value="${attr(mailCfg().to)}" placeholder="correo del revisor"><div class="of-row"><button class="of-btn pri sm" ${B('mail')?'disabled':''} onclick="Office.nuevoMail('${kind}')">${B('mail')?'Trabajando…':'Está revisado, preparar correo'}</button></div>`:st===2&&j.draft?`<div class="of-note" style="margin-top:2px">Se adjuntó la versión guardada en Drive a las ${j.savedAt?hhmm(j.savedAt):'—'}.</div><div class="of-row"><a class="of-btn sm" href="${attr(j.draft)}" target="_blank" rel="noopener">Abrir el borrador</a><button class="of-btn sm" ${B('mail')?'disabled':''} onclick="Office.nuevoMail('${kind}',true)" title="Borra el borrador anterior y crea otro con lo último de Drive">Rehacer con lo último de Drive</button></div>`:'')}
       </ol></div>
       <div class="of-row"><button class="of-btn sm" onclick="Office.nuevoReset('${kind}')">${j.stage==='enviado'?'Terminar y elegir otro curso':'Cambiar de curso'}</button></div>`;
 }
@@ -7216,6 +7258,26 @@ function panelBiblio(){
        <label class="of-lb" for="of-bco">Bibliografía complementaria</label><textarea class="of-ta" id="of-bco" style="font-family:inherit">${esc(s.biblio_co||'')}</textarea>
        <label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;margin-top:10px"><input type="checkbox" id="of-bdrv" checked> <span>Actualizar también el programa en Drive. Antes leo el documento de Drive para no perder lo que corregiste ahí.</span></label>
        <div class="of-row"><button class="of-btn pri" ${busy.bib?'disabled':''} onclick="Office.biblioSave()">${busy.bib?'Guardando…':'Guardar en el Maestro'}</button><button class="of-btn" onclick="Office.biblioPick('')">Otro curso</button></div>`;
+}
+
+/* ---------- Registrador: carrera de cada curso ---------- */
+function comunOf(code){ try{ return JSON.parse(localStorage.getItem('dcd_comun_'+code)||'null'); }catch(e){ return null; } }
+function careerOf(code){ const cars=projectCareers(); const com=comunOf(code); if(!com) return ''; if(com.on&&cars.includes(String(com.carrera2||'').trim())) return 'both'; if(com.carrera1===cars[1]&&!com.on) return 'c2'; if(com.carrera1===cars[0]&&!com.on) return 'c1'; if(com.on) return 'both'; return ''; }
+function setCareer(code,v){ const cars=projectCareers(); if(cars.length<2) return; const val={on:v==='both', carrera1:v==='c2'?cars[1]:cars[0], carrera2:v==='both'?cars[1]:''}; try{ localStorage.setItem('dcd_comun_'+code, JSON.stringify(val)); }catch(e){} }
+function careerSet(code,v){ setCareer(code,v); refresh(); }
+function careerAll(v){ (allCourses||[]).forEach(c=>setCareer(c['Código'],v)); toast('✓ Todos los cursos asignados','success'); const r=personByK('carreras'); if(r){ r.bub='ok'; r.bubT=2; } refresh(); }
+function careerAbbr(name,i){ const a=String(name||'').split(/\s+/).filter(w=>/^[A-ZÁÉÍÓÚÑ]/.test(w)).map(w=>w[0]).join('').slice(0,5); return a||('Carrera '+(i+1)); }
+function panelCarreras(){
+  const cars=projectCareers();
+  if(cars.length<2) return head('carreras','Registrador','Carrera de cada curso','Estoy dormido porque el proyecto tiene una sola carrera. Si agregás una segunda carrera al proyecto, me despierto y te ayudo a decidir de cuál carrera es cada curso (o si es de las dos).')
+    + `<div class="of-row"><button class="of-btn pri" onclick="openProjectModal(currentProject.id)">Agregar la segunda carrera</button></div>`;
+  let ab=cars.map(careerAbbr); if(ab[0]===ab[1]) ab=['Carrera 1','Carrera 2'];
+  const all=allCourses||[]; const sin=all.filter(c=>!careerOf(c['Código'])).length;
+  const seg=(code,cur)=>[['c1',ab[0]],['c2',ab[1]],['both','Las dos']].map(([v,l])=>`<button class="of-btn sm ${cur===v?'ink':''}" aria-pressed="${cur===v}" onclick="Office.careerSet('${attr(code)}','${v}')" title="${attr(v==='both'?cars.join(' y '):cars[v==='c1'?0:1])}">${esc(l)}</button>`).join('');
+  return head('carreras','Registrador','Carrera de cada curso', sin?`Hay ${sin} curso${sin>1?'s':''} sin asignar. Elegí si cada uno es de una carrera o de las dos. Con «Las dos», el encabezado del Word lleva ambas carreras.`:'Todos los cursos tienen carrera. Podés cambiarla cuando quieras.')
+    + `<div class="of-item"><div class="m" style="margin:0"><strong>${esc(ab[0])}</strong>: ${esc(cars[0])}<br><strong>${esc(ab[1])}</strong>: ${esc(cars[1])}</div><div class="of-row"><span class="of-note" style="margin:0;align-self:center">Asignar todos a</span>${[['c1',ab[0]],['c2',ab[1]],['both','Las dos']].map(([v,l])=>`<button class="of-btn sm" onclick="Office.careerAll('${v}')">${esc(l)}</button>`).join('')}</div></div>`
+    + `<div class="of-sec"><h4>Cursos</h4>${all.length?all.map(c=>{ const code=c['Código']; const cur=careerOf(code); return `<div class="of-item"><div class="t">${cur?'':'<span class="of-tag rev">SIN ASIGNAR</span>'}${esc(code)} ${esc(cName(c))}</div><div class="of-row">${seg(code,cur)}</div></div>`; }).join(''):'<div class="of-note">Cargando los cursos…</div>'}</div>`
+    + `<div class="of-note">El encabezado del Word cambia la próxima vez que se genere o se suba a Drive.</div>`;
 }
 
 /* ---------- Peche, Ajustes y Tomo ---------- */
@@ -7268,11 +7330,11 @@ function paintTools(){
   const badge=k=>{ const n=needOf(k); return n.alert?'<span class="bdg">!</span>':''; };
   tools.innerHTML=AGENTS.map(a=>`<button class="of-tool${panelKey===a.k?' on':''}" onclick="Office.openAgent('${a.k}')" title="${attr(a.n+' · '+a.role)}"><span class="dot" style="background:${a.col}"></span><span class="l">${a.n}</span>${a.k==='peche'?'':badge(a.k)}</button>`).join('')
     +`<span class="of-sep"></span>
-    <button class="of-tool${panelKey==='tomo'?' on':''}" onclick="Office.openPanel('tomo')" title="Tomo II"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v4a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/></svg><span class="l">Tomo II</span></button>
-    <button class="of-tool" onclick="Office.gameOpen()" title="Minijuego"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="7" width="18" height="11" rx="4"/><path d="M8 10.5v4M6 12.5h4M15.5 11.5h.01M17.5 13.5h.01"/></svg><span class="l">Jugar</span></button>
-    <button class="of-tool${panelKey==='ajustes'?' on':''}" onclick="Office.openPanel('ajustes')" title="Ajustes del proyecto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span class="l">Ajustes</span></button>
-    <button class="of-tool" onclick="Office.classic()" title="Vista clásica de la app"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 10h16M10 10v9"/></svg><span class="l">Clásica</span></button>
-    <button class="of-tool" onclick="showHome()" title="Volver a los proyectos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"/></svg><span class="l">Salir</span></button>`;
+    <button class="of-tool x${panelKey==='tomo'?' on':''}" onclick="Office.openPanel('tomo')" title="Tomo II"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v4a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/></svg><span class="l">Tomo II</span></button>
+    <button class="of-tool x" onclick="Office.gameOpen()" title="Minijuego"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="7" width="18" height="11" rx="4"/><path d="M8 10.5v4M6 12.5h4M15.5 11.5h.01M17.5 13.5h.01"/></svg><span class="l">Jugar</span></button>
+    <button class="of-tool x${panelKey==='ajustes'?' on':''}" onclick="Office.openPanel('ajustes')" title="Ajustes del proyecto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span class="l">Ajustes</span></button>
+    <button class="of-tool x" onclick="Office.classic()" title="Vista clásica de la app"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 10h16M10 10v9"/></svg><span class="l">Clásica</span></button>
+    <button class="of-tool x" onclick="showHome()" title="Volver a los proyectos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"/></svg><span class="l">Salir</span></button>`;
 }
 function paintHud(){
   const p=P(); if(!p) return; document.getElementById('of-title').textContent=p.name||'Oficina';
@@ -7304,12 +7366,31 @@ function leave(){ running=false; document.body.classList.remove('office-on'); wi
 function classic(){ try{ localStorage.setItem('dcd_view','classic'); }catch(e){} leave(); showScreen('project'); }
 window.addEventListener('resize',()=>{ if(running){ resize(); fitCam(); } });
 
-/* ---------- Minijuego ---------- */
-const G={on:false};
+/* ---------- Minijuegos: Café y comentarios · Toggle Jump ---------- */
+const G={on:false, mode:'cafe'};
+try{ G.mode=localStorage.getItem('dcd_game_mode')||'cafe'; }catch(e){}
+const GINFO={cafe:{t:'Café y comentarios',p:'Mové la taza con el mouse, el dedo o las flechas. Atrapá cafés y documentos aprobados; esquivá los comentarios rojos.',k:'dcd_game_best'},
+  jump:{t:'Toggle Jump',p:'Tocá la pantalla o la barra espaciadora para invertir la gravedad y saltar entre el piso y el techo. Esquivá los comentarios rojos y atrapá cafés.',k:'dcd_game_best_jump'}};
 function gameOpen(){ document.getElementById('of-game').classList.add('on'); gameStart(); }
 function gameClose(){ document.getElementById('of-game').classList.remove('on'); G.on=false; }
-function gameStart(){ const cvg=document.getElementById('of-gcv'); Object.assign(G,{on:true,cv:cvg,c:cvg.getContext('2d'),x:180,items:[],score:0,lives:3,t:0,spawn:0,last:0,keys:{}}); G.best=parseInt(localStorage.getItem('dcd_game_best')||'0',10)||0; document.getElementById('of-gbest').textContent='Récord '+G.best; requestAnimationFrame(gameFrame); }
-function gameFrame(ts){ if(!G.on) return; const t=ts/1000; const dt=Math.min(.05,G.last?t-G.last:0); G.last=t; G.t+=dt; const c=G.c, Wg=360, Hg=480;
+function gameMode(m){ G.mode=m; try{ localStorage.setItem('dcd_game_mode',m); }catch(e){} gameStart(); }
+function gameStart(){ const cvg=document.getElementById('of-gcv'); const I=GINFO[G.mode]||GINFO.cafe;
+  ['cafe','jump'].forEach(k=>document.getElementById('of-gtab-'+k).setAttribute('aria-selected',String(k===G.mode)));
+  document.getElementById('of-gt').textContent=I.t; document.getElementById('of-gp').textContent=I.p;
+  const was=G.on; Object.assign(G,{on:true,cv:cvg,c:cvg.getContext('2d'),x:180,items:[],score:0,lives:3,t:0,spawn:0,last:0,keys:{},
+    py:400, vy:0, grav:1, dist:0, over:false, coffees:0, parts:[]});
+  G.best=parseInt(localStorage.getItem(I.k)||'0',10)||0; document.getElementById('of-gbest').textContent='Récord '+G.best;
+  G.gen=(G.gen||0)+1; const gen=G.gen; requestAnimationFrame(ts=>gameFrame(ts,gen)); }
+function gameOver(){ const I=GINFO[G.mode]; G.on=false; if(G.score>G.best){ G.best=G.score; try{ localStorage.setItem(I.k,String(G.best)); }catch(e){} } document.getElementById('of-gbest').textContent='Récord '+G.best;
+  const c=G.c; c.fillStyle='rgba(0,0,0,.55)'; c.fillRect(0,0,360,480); c.fillStyle='#fff'; c.textAlign='center'; c.font='800 26px "Bricolage Grotesque",sans-serif'; c.fillText('¡Fin del turno!',180,230); c.font='600 15px "Nunito Sans",sans-serif'; c.fillText(`${G.score} puntos · récord ${G.best}`,180,258); }
+function drawCup(c){ c.fillStyle='#fffdf8'; rr(c,-10,-10,20,20,4); c.fill(); c.fillStyle='#8a5a3c'; c.fillRect(-8,-7,16,4); c.strokeStyle='#fffdf8'; c.lineWidth=3; c.beginPath(); c.arc(11,0,5,-Math.PI/2,Math.PI/2); c.stroke(); }
+function drawBug(c,w,h){ c.fillStyle='#d6424a'; rr(c,-w/2,-h/2,w,h,6); c.fill(); c.fillStyle='#fff'; c.font='900 13px "Nunito Sans",sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('!',0,0); }
+function gameFrame(ts,gen){ if(!G.on||gen!==G.gen) return; const t=ts/1000; const dt=Math.min(.05,G.last?t-G.last:0); G.last=t; G.t+=dt;
+  (G.mode==='jump'?frameJump:frameCafe)(dt);
+  document.getElementById('of-gscore').textContent=G.score+' puntos';
+  if(G.over) { gameOver(); return; }
+  requestAnimationFrame(ts2=>gameFrame(ts2,gen)); }
+function frameCafe(dt){ const c=G.c, Wg=360, Hg=480;
   if(G.keys.ArrowLeft) G.x-=320*dt; if(G.keys.ArrowRight) G.x+=320*dt; G.x=clamp(G.x,30,Wg-30);
   G.spawn-=dt; const speed=1+G.t/40; if(G.spawn<=0){ G.spawn=Math.max(.28,.9-G.t/80); const r=Math.random(); G.items.push({x:rnd(20,Wg-20),y:-20,k:r<.5?'cafe':r<.75?'doc':'bug',v:rnd(110,170)*speed}); }
   for(const it of G.items){ it.y+=it.v*dt; if(it.y>Hg-62&&it.y<Hg-30&&Math.abs(it.x-G.x)<34&&!it.hit){ it.hit=true; if(it.k==='bug'){ G.lives--; } else G.score+=it.k==='doc'?3:1; } }
@@ -7317,25 +7398,53 @@ function gameFrame(ts){ if(!G.on) return; const t=ts/1000; const dt=Math.min(.05
   const g=c.createLinearGradient(0,0,0,Hg); g.addColorStop(0,'#1d2550'); g.addColorStop(1,'#3b3a72'); c.fillStyle=g; c.fillRect(0,0,Wg,Hg);
   c.fillStyle='rgba(255,255,255,.6)'; for(let i=0;i<30;i++){ c.fillRect((i*97)%Wg,(i*53+G.t*10*(i%3+1))%Hg,1.5,1.5); }
   for(const it of G.items){ c.save(); c.translate(it.x,it.y);
-    if(it.k==='cafe'){ c.fillStyle='#fffdf8'; rr(c,-10,-10,20,20,4); c.fill(); c.fillStyle='#8a5a3c'; c.fillRect(-8,-7,16,4); c.strokeStyle='#fffdf8'; c.lineWidth=3; c.beginPath(); c.arc(11,0,5,-Math.PI/2,Math.PI/2); c.stroke(); }
+    if(it.k==='cafe') drawCup(c);
     else if(it.k==='doc'){ c.fillStyle='#ffffff'; c.fillRect(-10,-13,20,26); c.fillStyle='#ffd23f'; c.fillRect(-7,-8,14,3); c.fillRect(-7,-2,10,3); c.strokeStyle='#1e9e66'; c.lineWidth=3; c.beginPath(); c.moveTo(-5,6); c.lineTo(-1,10); c.lineTo(7,2); c.stroke(); }
-    else { c.fillStyle='#d6424a'; rr(c,-13,-10,26,18,6); c.fill(); c.beginPath(); c.moveTo(-4,8); c.lineTo(0,14); c.lineTo(4,8); c.fill(); c.fillStyle='#fff'; c.font='900 13px "Nunito Sans",sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('!',0,-1); }
+    else { drawBug(c,26,18); c.fillStyle='#d6424a'; c.beginPath(); c.moveTo(-4,8); c.lineTo(0,14); c.lineTo(4,8); c.fill(); }
     c.restore(); }
   c.fillStyle='#ff6a3d'; rr(c,G.x-30,Hg-46,60,14,7); c.fill(); c.fillStyle='#c9482a'; c.fillRect(G.x-24,Hg-32,48,6);
   c.fillStyle='#fff'; c.font='700 14px "Chakra Petch",monospace'; c.textAlign='left'; c.fillText('♥'.repeat(Math.max(0,G.lives)),12,24);
-  document.getElementById('of-gscore').textContent=G.score+' puntos';
-  if(G.lives<=0){ G.on=false; if(G.score>G.best){ G.best=G.score; try{ localStorage.setItem('dcd_game_best',String(G.best)); }catch(e){} } document.getElementById('of-gbest').textContent='Récord '+G.best;
-    c.fillStyle='rgba(0,0,0,.55)'; c.fillRect(0,0,Wg,Hg); c.fillStyle='#fff'; c.textAlign='center'; c.font='800 26px "Bricolage Grotesque",sans-serif'; c.fillText('¡Fin del turno!',Wg/2,Hg/2-10); c.font='600 15px "Nunito Sans",sans-serif'; c.fillText(`${G.score} puntos · récord ${G.best}`,Wg/2,Hg/2+18); return; }
-  requestAnimationFrame(gameFrame); }
-(function(){ const cvg=document.getElementById('of-gcv'); const mv=e=>{ const r=cvg.getBoundingClientRect(); G.x=clamp((e.clientX-r.left)/r.width*360,30,330); }; cvg.addEventListener('pointermove',mv); cvg.addEventListener('pointerdown',mv);
-  window.addEventListener('keydown',e=>{ if(!G.on) return; if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ G.keys[e.key]=true; e.preventDefault(); } if(e.key==='Escape') gameClose(); });
+  if(G.lives<=0) G.over=true; }
+// Toggle Jump: el personaje corre solo; cada toque invierte la gravedad (piso ↔ techo)
+const JF=400, JC=80, PS=22, PX=78;
+function jumpToggle(){ if(!G.on||G.mode!=='jump') return; const onSurf=(G.grav>0&&G.py>=JF-PS-.5)||(G.grav<0&&G.py<=JC+.5); if(onSurf||G.t<.2){ G.grav*=-1; G.vy=G.grav*-120; for(let i=0;i<8;i++) G.parts.push({x:PX+PS/2,y:G.py+(G.grav>0?0:PS),vx:rnd(-80,20),vy:rnd(-60,60),l:.4}); } }
+function frameJump(dt){ const c=G.c, Wg=360, Hg=480; const speed=170+G.t*7; G.dist+=speed*dt;
+  G.vy+=G.grav*2200*dt; G.py+=G.vy*dt; if(G.py>JF-PS){ G.py=JF-PS; G.vy=0; } if(G.py<JC){ G.py=JC; G.vy=0; }
+  G.spawn-=dt; if(G.spawn<=0){ G.spawn=Math.max(.55,1.25-G.t/60)*rnd(.8,1.25); const top=Math.random()<.5; const h=rnd(46,Math.min(150,70+G.t*2.2)); const w=rnd(22,34);
+    G.items.push({k:'bug',x:Wg+20,w,h,top}); if(Math.random()<.55) G.items.push({k:'cafe',x:Wg+20+rnd(70,120),y:rnd(JC+40,JF-40)}); }
+  for(const it of G.items) it.x-=speed*dt;
+  G.items=G.items.filter(it=>it.x>-60&&!it.hit);
+  for(const it of G.items){ if(it.k==='bug'){ const y0=it.top?JC:JF-it.h, y1=it.top?JC+it.h:JF; if(PX+PS-3>it.x-it.w/2&&PX+3<it.x+it.w/2&&G.py+PS-3>y0&&G.py+3<y1) G.over=true; }
+    else if(Math.abs(it.x-(PX+PS/2))<20&&Math.abs(it.y-(G.py+PS/2))<22){ it.hit=true; G.coffees++; } }
+  G.score=Math.floor(G.dist/40)+G.coffees*5;
+  const g=c.createLinearGradient(0,0,0,Hg); g.addColorStop(0,'#1d2550'); g.addColorStop(1,'#3b3a72'); c.fillStyle=g; c.fillRect(0,0,Wg,Hg);
+  c.fillStyle='rgba(255,255,255,.55)'; for(let i=0;i<34;i++){ const sx=(((i*97-G.dist*.15*(i%3+1))%Wg)+Wg)%Wg; c.fillRect(sx,(i*53)%Hg,1.5,1.5); }
+  // piso y techo
+  c.fillStyle='#e2bf92'; c.fillRect(0,JF,Wg,Hg-JF); c.fillStyle='#c99460'; for(let x=-(G.dist%32);x<Wg;x+=32) c.fillRect(x,JF,2,Hg-JF);
+  c.fillStyle='#ff6a3d'; c.fillRect(0,JF,Wg,4);
+  c.fillStyle='#efe9de'; c.fillRect(0,0,Wg,JC); c.fillStyle='#d6cdbd'; for(let x=-(G.dist%48);x<Wg;x+=48) c.fillRect(x,0,2,JC); c.fillStyle='#ff6a3d'; c.fillRect(0,JC-4,Wg,4);
+  for(const it of G.items){ c.save(); if(it.k==='bug'){ const y0=it.top?JC:JF-it.h; c.translate(it.x,y0+it.h/2); drawBug(c,it.w,it.h); } else { c.translate(it.x,it.y); drawCup(c); } c.restore(); }
+  for(const pa of G.parts){ pa.l-=dt; pa.x+=pa.vx*dt; pa.y+=pa.vy*dt; } G.parts=G.parts.filter(pa=>pa.l>0); c.fillStyle='rgba(255,255,255,.7)'; for(const pa of G.parts) c.fillRect(pa.x,pa.y,3,3);
+  // personaje (Peche corriendo)
+  c.save(); c.translate(PX+PS/2,G.py+PS/2); if(G.grav<0) c.scale(1,-1);
+  const run=Math.sin(G.t*18)*4; c.fillStyle='#2f3542'; c.fillRect(-6+run*.5,4,4,8); c.fillRect(2-run*.5,4,4,8);
+  c.fillStyle='#164a98'; rr(c,-8,-8,16,14,4); c.fill(); c.fillStyle='#e2ae86'; c.beginPath(); c.arc(0,-13,6,0,Math.PI*2); c.fill(); c.fillStyle='#2b1d16'; c.beginPath(); c.arc(0,-15,6,Math.PI,0); c.fill(); c.fillStyle='#2b2420'; c.fillRect(2,-13,2,2);
+  c.restore();
+  c.fillStyle='#1c2131'; c.font='700 13px "Chakra Petch",monospace'; c.textAlign='left'; c.fillText(`${Math.floor(G.dist/40)} m · ☕ ${G.coffees}`,12,JC-12+ (JC<30?20:0));
+  if(G.t<2.5){ c.fillStyle='rgba(255,255,255,.9)'; c.font='700 14px "Nunito Sans",sans-serif'; c.textAlign='center'; c.fillText('Tocá para invertir la gravedad',Wg/2,240); }
+}
+(function(){ const cvg=document.getElementById('of-gcv'); const mv=e=>{ if(G.mode!=='cafe') return; const r=cvg.getBoundingClientRect(); G.x=clamp((e.clientX-r.left)/r.width*360,30,330); }; cvg.addEventListener('pointermove',mv);
+  cvg.addEventListener('pointerdown',e=>{ if(G.mode==='jump'){ e.preventDefault(); if(!G.on) gameStart(); else jumpToggle(); } else mv(e); });
+  window.addEventListener('keydown',e=>{ if(!document.getElementById('of-game').classList.contains('on')) return; if(e.key==='Escape'){ gameClose(); return; }
+    if(G.mode==='jump'&&(e.key===' '||e.key==='ArrowUp'||e.key==='ArrowDown')){ e.preventDefault(); if(!G.on) gameStart(); else jumpToggle(); return; }
+    if(!G.on) return; if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ G.keys[e.key]=true; e.preventDefault(); } });
   window.addEventListener('keyup',e=>{ G.keys[e.key]=false; });
   document.getElementById('of-game').addEventListener('click',e=>{ if(e.target===e.currentTarget) gameClose(); });
   window.addEventListener('keydown',e=>{ if(e.key==='Escape'&&running&&!panel.hidden&&!document.querySelector('.overlay.active')&&!G.on) closePanel(); });
 })();
 
 return {enter,leave,classic,openAgent,openPanel,closePanel,paintHud,refresh,filterPick,pick,showAllPick,checkMail,requestMail,processMail,processAll,setMailCourse,setMailKind,dismissMail,
-  fixCopy,fixDownload,fixUpload,fixReview,fixDone,learnCopy,flowArchive,nuevoPrompt,nuevoImport,nuevoFile,nuevoOpen,nuevoMail,nuevoReset,biblioPick,biblioSave,ajustesSave,doSync,gameOpen,gameClose,gameStart,
+  fixCopy,fixDownload,fixUpload,fixReview,fixDone,learnCopy,flowArchive,nuevoPrompt,nuevoImport,nuevoFile,nuevoOpen,nuevoMail,nuevoReset,biblioPick,biblioSave,careerSet,careerAll,ajustesSave,doSync,gameOpen,gameClose,gameStart,gameMode,
   _t:{parseMail,stripQuoted,findCourseIn,needOf,people:()=>people,inbox,flows,jobs}};
 })();
 // Los flujos de la oficina reciben los campos que antes iban al panel de revisión
