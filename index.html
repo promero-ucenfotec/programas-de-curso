@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Chakra+Petch:wght@500;600;700&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700;6..12,800&display=swap" rel="stylesheet">
 <!-- Google Identity Services -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
@@ -689,6 +690,7 @@ select.est-pill::before{display:none;}
         <span id="sheets-status-txt">Sin conexión</span>
       </div>
       <span class="tb-sep" aria-hidden="true"></span>
+      <button class="btn btn-primary btn-sm" onclick="openOffice()" title="Volver a la oficina de los agentes"><span class="ic" aria-hidden="true">▦</span> Oficina</button>
       <button class="btn btn-quiet btn-sm" onclick="openProjectModal(currentProject.id)" title="Carrera, nivel y escuela del proyecto"><span class="ic" aria-hidden="true">✎</span> Editar proyecto</button>
       <button class="btn btn-quiet btn-sm" onclick="openRasgosGrupos()" title="Rasgos del perfil compartidos por grupos de cursos afines"><span class="ic" aria-hidden="true">◎</span> Rasgos por grupo</button>
       <button class="btn btn-quiet btn-sm" onclick="openTomoExport()" title="Todos los programas en un Word, por cuatrimestre"><span class="ic" aria-hidden="true">⤓</span> Tomo II</button>
@@ -1240,6 +1242,7 @@ function onTokenReceived(resp) {
   gAccessToken = resp.access_token;
   localStorage.setItem('dcd_gtoken', gAccessToken);
   if (/gmail\.compose/.test(resp.scope||'')) localStorage.setItem('dcd_gmail_ok','1');
+  if (resp.scope!==undefined){ if (/gmail\.modify/.test(resp.scope||'')) localStorage.setItem('dcd_gmailr_ok','1'); else localStorage.removeItem('dcd_gmailr_ok'); }
   // El permiso de Drive se revisa en cada token: si el token nuevo no lo trae, se vuelve a pedir antes de subir
   if (resp.scope!==undefined){ if (/auth\/drive(\s|$)/.test(resp.scope||'')) localStorage.setItem('dcd_drive_ok','1'); else localStorage.removeItem('dcd_drive_ok'); }
   localStorage.setItem('dcd_gtoken_exp', String(Date.now() + (parseInt(resp.expires_in)||3600)*1000));
@@ -1258,7 +1261,8 @@ function onTokenReceived(resp) {
     const fn = afterTokenFn; afterTokenFn = null;
     if (fn) { try { fn(); } catch(e){ console.error(e); } }
     // Si los cursos no cargaron por la sesión vencida, se vuelven a leer aquí mismo
-    if (activeScreenId()==='screen-project' && !(allCourses||[]).length && currentProject) { try { loadCourses(); } catch(e){} }
+    if ((activeScreenId()==='screen-project'||activeScreenId()==='screen-office') && !(allCourses||[]).length && currentProject) { try { loadCourses().then(()=>{ if((typeof Office!=='undefined')) Office.refresh(); }); } catch(e){} }
+    if (activeScreenId()==='screen-office' && (typeof Office!=='undefined')) Office.refresh();
     // El respaldo de Drive se carga solo la primera vez; al reconectar no toca lo que estás editando
     if (!driveLoadedOnce) {
       driveLoadedOnce = true;
@@ -2251,6 +2255,7 @@ FORMATO: Apellido, N. (Año). Título en cursiva. Editorial. https://url
    NAVIGATION
 ══════════════════════════════════════════════════════ */
 function showScreen(id) {
+  if (id!=='office' && (typeof Office!=='undefined')) { try{ Office.leave(); }catch(e){} }
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-'+id).classList.add('active');
   window.scrollTo(0,0);
@@ -2263,10 +2268,15 @@ function showProject(pid){
   document.getElementById('proj-name-disp').textContent = currentProject.name;
   document.getElementById('proj-url-disp').textContent = (currentProject.url||'').slice(0,55)+'…';
   paintProjectEstado();
-  showScreen('project');
+  let view='office'; try{ view=localStorage.getItem('dcd_view')||'office'; }catch(e){}
+  if (pid!==showProject._last) allCourses=[];
+  showProject._last=pid;
+  showScreen(view==='classic'?'project':'office');
   updateSheetsStatusAll();
-  loadCourses();
+  loadCourses().then(()=>{ if((typeof Office!=='undefined')) Office.refresh(); });
+  if (view!=='classic' && (typeof Office!=='undefined')) Office.enter();
 }
+function openOffice(){ try{ localStorage.setItem('dcd_view','office'); }catch(e){} showScreen('office'); Office.enter(); }
 function showCourseWork(course){
   currentCourse = course;
   currentSection = null;
@@ -5366,6 +5376,11 @@ async function buildDocx(mode, opts){
     }
   }
 
+  // Títulos numerados vacíos (dejaban un "10." en blanco entre Bibliografía y Cronograma)
+  wEls(body,'p').filter(p=>{
+    const st=wEls(p,'pStyle')[0]; const sv=st&&(st.getAttribute('w:val')||'');
+    return /^(Heading|Ttulo|Titulo)/i.test(sv) && wEls(p,'numPr').length && !pText(p).trim();
+  }).forEach(p=>p.parentNode&&p.parentNode.removeChild(p));
   if (opts.highlight && opts.highlight.length) highlightPieces(body, opts.highlight);
   if (opts.returnDoc) return { zip, doc };
   const out = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + new XMLSerializer().serializeToString(doc).replace(/^<\?xml[^>]*\?>\s*/,'');
@@ -6361,5 +6376,971 @@ async function uploadCourseWords(){
 window.__renderIcons = function(){};
 
 </script>
+<!-- ══════════════════════════════════════
+     LA OFICINA (vista de juego del proyecto)
+══════════════════════════════════════ -->
+<style>
+#screen-office,#of-game{--o-ink:#1c2131;--o-muted:#5a6377;--o-paper:#fffdf8;--o-glass:rgba(255,253,248,.94);--o-line:rgba(28,33,49,.12);--o-accent:#ff6a3d;--o-teal:#1f9e8f;--o-good:#1e9e66;--o-warn:#e48f1f;--o-bad:#d6424a;--o-chip:#f1ede4;--o-fd:'Bricolage Grotesque','Trebuchet MS',system-ui,sans-serif;--o-fu:'Nunito Sans','Segoe UI',system-ui,sans-serif;--o-fn:'Chakra Petch',ui-monospace,monospace;}
+#screen-office.active{display:block;position:fixed;inset:0;z-index:40;background:#bfe0ef;color:var(--o-ink);font-family:var(--o-fu);overflow:hidden;color-scheme:light;}
+body.office-on{overflow:hidden;}
+body.office-on #auth-banner{display:none!important;}
+a.of-btn{display:inline-flex;align-items:center;justify-content:center;color:var(--o-ink);text-decoration:none;}
+#of-panel a{color:#164a98;}
+#of-cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab;}
+#of-cv.dragging{cursor:grabbing} #of-cv.pointing{cursor:pointer}
+#screen-office button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;}
+#screen-office button:focus-visible,#screen-office select:focus-visible,#screen-office input:focus-visible,#screen-office textarea:focus-visible{outline:2px solid var(--o-accent);outline-offset:2px;}
+.of-card{background:var(--o-glass);border:1px solid var(--o-line);border-radius:14px;box-shadow:0 6px 22px -10px rgba(28,33,49,.35),0 1px 0 rgba(255,255,255,.7) inset;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+#of-hud{position:absolute;top:14px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;pointer-events:none;z-index:5;}
+#of-hud>*{pointer-events:auto;}
+.of-brand{display:flex;align-items:center;gap:12px;padding:8px 12px;max-width:min(520px,100%);}
+.of-brand svg{width:34px;height:34px;flex:none;}
+.of-brand h1{margin:0;font-family:var(--o-fd);font-weight:800;font-size:18px;letter-spacing:-.01em;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;}
+.of-brand .of-clock{display:block;margin-top:3px;font-family:var(--o-fn);font-weight:600;font-size:12.5px;color:var(--o-muted);}
+#of-estado{font-size:12px;}
+.of-right{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;justify-content:flex-end;}
+.of-stats{display:flex;align-items:stretch;padding:6px;}
+.of-stat{padding:4px 12px;display:flex;flex-direction:column;justify-content:center;gap:3px;}
+.of-stat+.of-stat{border-left:1px solid var(--o-line);}
+.of-stat label{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--o-muted);font-weight:700;}
+.of-stat b{font-family:var(--o-fn);font-weight:700;font-size:16px;line-height:1;}
+.of-auth{padding:6px;display:flex;gap:6px;align-items:center;}
+.of-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:6px 10px;border-radius:999px;background:var(--o-chip);}
+.of-pill i{width:8px;height:8px;border-radius:50%;background:var(--o-good);}
+.of-pill.off i{background:var(--o-bad);}
+#of-tools{position:absolute;left:50%;transform:translateX(-50%);bottom:14px;display:flex;gap:3px;padding:6px;z-index:6;max-width:calc(100% - 24px);overflow-x:auto;scrollbar-width:thin;}
+.of-tool{position:relative;display:flex;align-items:center;gap:7px;height:42px;padding:0 12px;border-radius:10px;font-weight:700;font-size:13.5px;white-space:nowrap;flex:none;}
+.of-tool:hover{background:var(--o-chip);}
+.of-tool.on{background:var(--o-ink);color:#fff;}
+.of-tool .dot{width:11px;height:11px;border-radius:50%;flex:none;box-shadow:0 0 0 2px rgba(255,255,255,.8);}
+.of-tool .bdg{position:absolute;top:3px;right:3px;min-width:16px;height:16px;border-radius:8px;background:var(--o-accent);color:#fff;font-family:var(--o-fn);font-size:10.5px;line-height:16px;text-align:center;padding:0 4px;}
+.of-tool svg{width:19px;height:19px;flex:none;}
+.of-sep{width:1px;background:var(--o-line);margin:6px 2px;flex:none;}
+#of-panel{position:absolute;right:16px;top:92px;bottom:80px;width:360px;max-width:calc(100% - 32px);padding:16px;z-index:7;overflow-y:auto;}
+.of-ph{display:flex;gap:12px;align-items:center;padding-right:28px;}
+.of-ph canvas{width:60px;height:68px;border-radius:12px;background:linear-gradient(180deg,#e9f3f6,#f6efe4);flex:none;}
+.of-ph h3{margin:0;font-family:var(--o-fd);font-size:19px;font-weight:800;line-height:1.1;}
+.of-ph .sub{font-size:12.5px;color:var(--o-muted);margin-top:3px;}
+.of-close{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--o-muted);font-size:18px;}
+.of-close:hover{background:var(--o-chip);}
+.of-say{margin:12px 0 4px;background:#fff;border:1px solid var(--o-line);border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.45;position:relative;}
+.of-say::before{content:'';position:absolute;top:-7px;left:26px;width:12px;height:12px;background:#fff;border-left:1px solid var(--o-line);border-top:1px solid var(--o-line);transform:rotate(45deg);}
+.of-sec{margin-top:14px;padding-top:12px;border-top:1px solid var(--o-line);}
+.of-sec h4{margin:0 0 8px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--o-muted);font-weight:800;}
+.of-item{border:1px solid var(--o-line);border-radius:12px;background:var(--o-paper);padding:10px 12px;margin-bottom:8px;}
+.of-item .t{font-weight:800;font-size:13.5px;line-height:1.3;}
+.of-item .m{font-size:12px;color:var(--o-muted);margin-top:3px;line-height:1.4;word-break:break-word;}
+.of-tag{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.04em;padding:2px 7px;border-radius:6px;background:var(--o-chip);margin-right:4px;}
+.of-tag.rev{background:#fff1d6;color:#8a5a00;} .of-tag.fin{background:#dff5ea;color:#11643f;} .of-tag.err{background:#fbe3e2;color:var(--o-bad);}
+.of-steps{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px;}
+.of-steps li{display:grid;grid-template-columns:24px 1fr;gap:8px;align-items:start;}
+.of-steps .n{width:24px;height:24px;border-radius:50%;background:var(--o-chip);font-family:var(--o-fn);font-weight:700;font-size:12px;display:grid;place-items:center;}
+.of-steps li.done .n{background:var(--o-good);color:#fff;}
+.of-steps li.now .n{background:var(--o-accent);color:#fff;}
+.of-steps .lbl{font-size:13px;font-weight:700;line-height:1.35;padding-top:3px;}
+.of-steps .lbl small{display:block;font-weight:500;color:var(--o-muted);font-size:12px;margin-top:2px;}
+.of-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.of-btn{flex:1 1 auto;min-height:36px;border-radius:9px;font-weight:700;font-size:13px;background:var(--o-chip)!important;padding:6px 12px!important;text-align:center;}
+.of-btn:hover{filter:brightness(.96);}
+.of-btn.pri{background:var(--o-accent)!important;color:#fff!important;}
+.of-btn.ink{background:var(--o-ink)!important;color:#fff!important;}
+.of-btn.sm{flex:none;min-height:30px;font-size:12px;padding:4px 10px!important;}
+.of-btn[disabled]{opacity:.45;cursor:not-allowed!important;}
+.of-in,.of-ta{width:100%;box-sizing:border-box;border:1px solid var(--o-line);border-radius:9px;padding:8px 10px;font:inherit;font-size:13px;background:#fff;color:var(--o-ink);}
+.of-ta{min-height:110px;resize:vertical;font-family:ui-monospace,monospace;font-size:12px;}
+.of-lb{display:block;font-size:12px;font-weight:700;margin:10px 0 4px;}
+.of-pick{max-height:260px;overflow-y:auto;margin-top:6px;border:1px solid var(--o-line);border-radius:10px;background:#fff;}
+.of-pick button{display:flex;width:100%;text-align:left;gap:8px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--o-line)!important;font-size:12.5px;}
+.of-pick button:hover{background:#faf6ee;}
+.of-pick .c{font-family:var(--o-fn);font-weight:700;font-size:12px;min-width:72px;}
+.of-pick .nm{flex:1;line-height:1.3;}
+.of-pick .ch{font-size:10.5px;color:var(--o-muted);white-space:nowrap;}
+.of-note{font-size:12px;color:var(--o-muted);line-height:1.45;margin-top:8px;}
+.of-warn{font-size:12.5px;background:#fff1d6;border-radius:9px;padding:8px 10px;margin-top:8px;line-height:1.4;}
+.of-drop{display:block;border:2px dashed rgba(28,33,49,.22);border-radius:12px;padding:14px;text-align:center;font-size:13px;font-weight:700;color:var(--o-muted);cursor:pointer;margin-top:8px;}
+.of-drop:hover,.of-drop.over{border-color:var(--o-accent);color:var(--o-accent);background:#fff6f2;}
+.of-drop input{display:none;}
+#of-hint{position:absolute;left:16px;top:84px;font-size:12px;color:var(--o-muted);background:var(--o-glass);border:1px solid var(--o-line);border-radius:10px;padding:7px 10px;max-width:250px;line-height:1.4;z-index:4;}
+#of-game{position:fixed;inset:0;background:rgba(20,24,36,.55);display:none;place-items:center;z-index:600;padding:16px;}
+#of-game.on{display:grid;}
+#of-game{font-family:var(--o-fu);color:var(--o-ink);}
+#of-game .of-card{background:var(--o-paper);padding:14px;position:relative;width:min(400px,100%);}
+#of-game h2{margin:0;font-family:var(--o-fd);font-size:20px;font-weight:800;}
+#of-game p{margin:4px 0 10px;font-size:12.5px;color:var(--o-muted);}
+#of-gcv{width:100%;aspect-ratio:3/4;display:block;border-radius:12px;background:#1d2550;touch-action:none;}
+.of-gfoot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-family:var(--o-fn);font-weight:700;font-size:14px;}
+@media (max-width:900px){ #of-hint{display:none} }
+@media (max-width:720px){
+  .of-tool .l{display:none}
+  #of-panel{left:12px;right:12px;width:auto;top:auto;bottom:72px;max-height:58vh;}
+  .of-stat{padding:3px 8px} .of-stat b{font-size:14px}
+  .of-brand h1{font-size:16px;max-width:150px}
+  #of-hud{left:12px;right:12px}
+}
+@media (max-width:520px){ .of-stats{display:none} #of-estado{display:none} .of-brand{max-width:calc(100% - 110px)} }
+</style>
+
+<div id="screen-office" class="screen">
+  <canvas id="of-cv" aria-label="Oficina del proyecto: tocá a cada agente para trabajar con él"></canvas>
+  <header id="of-hud">
+    <div class="of-card of-brand">
+      <svg viewBox="0 0 34 34" aria-hidden="true"><path d="M17 3 30 10.5 17 18 4 10.5Z" fill="#ffb08f"/><path d="M4 10.5 17 18v13L4 23.5Z" fill="#ff6a3d"/><path d="M30 10.5 17 18v13l13-7.5Z" fill="#c9482a"/><path d="M11 9.3 17 12.8 23 9.3" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <div style="min-width:0"><h1 id="of-title">Oficina</h1><span class="of-clock" id="of-clock">—</span></div>
+      <select id="of-estado" class="est-pill est-dev" onchange="setProjectEstado(this.value);Office.paintHud()" title="Estado del proyecto" aria-label="Estado del proyecto"></select>
+    </div>
+    <div class="of-right">
+      <div class="of-card of-stats">
+        <div class="of-stat"><label>Fichas</label><b id="of-sf">—</b></div>
+        <div class="of-stat"><label>Programas</label><b id="of-sp">—</b></div>
+        <div class="of-stat"><label>Finales</label><b id="of-sfin">—</b></div>
+        <div class="of-stat"><label>Correos</label><b id="of-smail">—</b></div>
+      </div>
+      <div class="of-card of-auth" id="of-auth"></div>
+    </div>
+  </header>
+  <aside id="of-panel" class="of-card" hidden aria-live="polite"></aside>
+  <nav id="of-tools" class="of-card" aria-label="Agentes y lugares de la oficina"></nav>
+  <div id="of-hint">Tocá a un agente para ver qué tiene listo. Arrastrá para mover la vista y usá la rueda para acercar.</div>
+</div>
+
+<div id="of-game" role="dialog" aria-modal="true" aria-labelledby="of-gt">
+  <div class="of-card">
+    <button class="of-close" onclick="Office.gameClose()" aria-label="Cerrar">×</button>
+    <h2 id="of-gt">Café y comentarios</h2>
+    <p>Mové la taza con el mouse, el dedo o las flechas. Atrapá cafés y documentos aprobados; esquivá los comentarios rojos.</p>
+    <canvas id="of-gcv" width="360" height="480"></canvas>
+    <div class="of-gfoot"><span id="of-gscore">0 puntos</span><span id="of-gbest">Récord 0</span><button class="of-btn sm pri" onclick="Office.gameStart()">Jugar de nuevo</button></div>
+  </div>
+</div>
+
+<script>
+const GMAIL_READ_SCOPE='https://www.googleapis.com/auth/gmail.modify';
+const Office=(()=>{
+'use strict';
+/* ---------- Motor isométrico ---------- */
+const N=12, TW=64, TH=32, TZ=38, WH=2.4, DOOR_Y=9;
+const DIRS=[[0,1],[1,0],[0,-1],[-1,0]];
+const FV=[[-32,16],[32,16],[32,-16],[-32,-16]];
+const iso=(x,y,z=0)=>[(x-y)*TW/2,(x+y)*TH/2-z*TZ];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const _rgb={};
+function hexRgb(h){ if(_rgb[h])return _rgb[h]; if(h.startsWith('rgb')) return _rgb[h]=h.match(/[\d.]+/g).slice(0,3).map(Number); let s=h.replace('#',''); if(s.length===3)s=s.split('').map(c=>c+c).join(''); const n=parseInt(s,16); return _rgb[h]=[(n>>16)&255,(n>>8)&255,n&255]; }
+const _sh={};
+function shade(h,f){ const k=h+'|'+f; if(_sh[k])return _sh[k]; const [r,g,b]=hexRgb(h); const m=f<0?0:255,a=Math.abs(f); return _sh[k]=`rgb(${Math.round(r+(m-r)*a)},${Math.round(g+(m-g)*a)},${Math.round(b+(m-b)*a)})`; }
+function mix(a,b,t){ const A=hexRgb(a),B=hexRgb(b); return `rgb(${Math.round(A[0]+(B[0]-A[0])*t)},${Math.round(A[1]+(B[1]-A[1])*t)},${Math.round(A[2]+(B[2]-A[2])*t)})`; }
+function poly(c,pts,fill,stroke,lw){ c.beginPath(); c.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++)c.lineTo(pts[i][0],pts[i][1]); c.closePath(); if(fill){c.fillStyle=fill;c.fill();} if(stroke){c.strokeStyle=stroke;c.lineWidth=lw||1;c.stroke();} }
+function box(c,x,y,z,w,d,h,col){
+  const A=iso(x,y,z+h),B=iso(x+w,y,z+h),C=iso(x+w,y+d,z+h),D=iso(x,y+d,z+h),E=iso(x+w,y,z),F=iso(x+w,y+d,z),G=iso(x,y+d,z);
+  poly(c,[B,C,F,E],shade(col,-0.14)); poly(c,[D,C,F,G],shade(col,-0.28)); poly(c,[A,B,C,D],col);
+  c.strokeStyle='rgba(20,18,30,.22)'; c.lineWidth=.6; c.beginPath(); c.moveTo(D[0],D[1]); c.lineTo(C[0],C[1]); c.lineTo(B[0],B[1]); c.moveTo(C[0],C[1]); c.lineTo(F[0],F[1]); c.stroke();
+}
+function rr(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+function qp(q,s,t){ const tx=q[0][0]+(q[1][0]-q[0][0])*s, ty=q[0][1]+(q[1][1]-q[0][1])*s, bx=q[3][0]+(q[2][0]-q[3][0])*s, by=q[3][1]+(q[2][1]-q[3][1])*s; return [tx+(bx-tx)*t, ty+(by-ty)*t]; }
+function subq(q,s0,t0,s1,t1){ return [qp(q,s0,t0),qp(q,s1,t0),qp(q,s1,t1),qp(q,s0,t1)]; }
+function mapPt(r,u,v){ switch(r){case 0:return[u,v];case 1:return[v,1-u];case 2:return[1-u,1-v];default:return[1-v,u];} }
+function Rig(o){ this.o=o; this.parts=[]; }
+Rig.prototype.box=function(u,v,z,w,d,h,col){ const o=this.o,a=mapPt(o.r,u,v),b=mapPt(o.r,u+w,v+d); const x0=o.x+Math.min(a[0],b[0]),x1=o.x+Math.max(a[0],b[0]),y0=o.y+Math.min(a[1],b[1]),y1=o.y+Math.max(a[1],b[1]); this.parts.push({b:{x0,x1,y0,y1,z0:z,z1:z+h},f:c=>box(c,x0,y0,z,x1-x0,y1-y0,h,col)}); };
+Rig.prototype.at=function(u,v,z,w,h,fn){ const o=this.o,p=mapPt(o.r,u,v),X=o.x+p[0],Y=o.y+p[1]; this.parts.push({b:{x0:X-w/2,x1:X+w/2,y0:Y-w/2,y1:Y+w/2,z0:z,z1:z+h},f:c=>fn(c,X,Y,z)}); };
+Rig.prototype.face=function(v,u0,u1,z0,z1,fn){ const o=this.o; if(o.r>1) return; const a=mapPt(o.r,u0,v),b=mapPt(o.r,u1,v); const A=[o.x+a[0],o.y+a[1]],B=[o.x+b[0],o.y+b[1]]; const q=[iso(A[0],A[1],z1),iso(B[0],B[1],z1),iso(B[0],B[1],z0),iso(A[0],A[1],z0)]; this.parts.push({b:{x0:Math.min(A[0],B[0]),x1:Math.max(A[0],B[0]),y0:Math.min(A[1],B[1]),y1:Math.max(A[1],B[1]),z0,z1},f:c=>fn(c,q)}); };
+function sbox(b){ return [(b.x0-b.y1)*TW/2,(b.x1-b.y0)*TW/2,(b.x0+b.y0)*TH/2-b.z1*TZ,(b.x1+b.y1)*TH/2-b.z0*TZ]; }
+function cmpB(a,b){ const E=1e-4; if(a.x0>=b.x1-E) return 1; if(b.x0>=a.x1-E) return -1; if(a.y0>=b.y1-E) return 1; if(b.y0>=a.y1-E) return -1; if(a.z0>=b.z1-E) return 1; if(b.z0>=a.z1-E) return -1; return (a.x0+a.x1+a.y0+a.y1+a.z0+a.z1)>(b.x0+b.x1+b.y0+b.y1+b.z0+b.z1)?1:-1; }
+function depthSort(parts){ const n=parts.length; if(n<2) return parts; const sb=parts.map(p=>sbox(p.b)); const before=Array.from({length:n},()=>[]);
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){ const A=sb[i],B=sb[j]; if(A[1]<=B[0]||B[1]<=A[0]||A[3]<=B[2]||B[3]<=A[2]) continue; if(cmpB(parts[i].b,parts[j].b)>0) before[i].push(j); else before[j].push(i); }
+  const out=[],st=new Uint8Array(n); const visit=i=>{ if(st[i]) return; st[i]=1; for(const j of before[i]) visit(j); st[i]=2; out.push(parts[i]); }; for(let i=0;i<n;i++) visit(i); return out; }
+
+/* ---------- Catálogo de la oficina ---------- */
+const CAT={
+  desk:{h:1.25,use:'sit'}, board:{h:1.5,act:'ajustes',lbl:'Pizarra · ajustes del proyecto'}, server:{h:1.8,act:'sync',lbl:'Servidor · sincronizar con el Maestro'},
+  printer:{h:.85}, coffee:{h:1.25,use:'front',lbl:'Cafetera'}, cooler:{h:1.15,use:'front',lbl:'Agua'}, sofa:{h:.75},
+  shelf:{h:1.84,act:'biblio',lbl:'Biblioteca · bibliografía'}, arcade:{h:1.65,act:'juego',lbl:'Arcade · minijuego'},
+  plant:{h:.9}, monstera:{h:1.35}, lamp:{h:1.65}, rug:{h:0,floor:true},
+  trophy:{h:1.55,act:'tomo',lbl:'Vitrina · Tomo II'}, mailbox:{h:1.12,act:'cartero',lbl:'Buzón · correos del revisor'},
+};
+let objs=[], seq=1; const byId={};
+function add(t,x,y,r,c,extra){ const o=Object.assign({id:seq++,t,x,y,r:r||0,c:c||null,occ:null,owner:null},extra||{}); objs.push(o); byId[o.id]=o; return o; }
+const objAt=(x,y)=>objs.find(o=>o.x===x&&o.y===y&&!CAT[o.t].floor)||null;
+const rugAt=(x,y)=>objs.find(o=>o.x===x&&o.y===y&&CAT[o.t].floor)||null;
+const inB=(x,y)=>x>=0&&y>=0&&x<N&&y<N;
+const walkable=(x,y)=>inB(x,y)&&!objAt(x,y);
+function frontTile(o){ const f=mapPt(o.r,.5,1.5); return {x:o.x+Math.floor(f[0]),y:o.y+Math.floor(f[1])}; }
+function seatPos(o){ const s=mapPt(o.r,.5,.72); return [o.x+s[0],o.y+s[1]]; }
+const tileOf=p=>({x:clamp(Math.floor(p.x),0,N-1),y:clamp(Math.floor(p.y),0,N-1)});
+
+/* ---------- Agentes ---------- */
+const AGENTS=[
+  {k:'peche', n:'Peche', role:'Curriculista · tu escritorio', desk:[6,8,2], col:'#164a98', look:{skin:'#e2ae86',hair:'#2b1d16',hs:0,shirt:'#164a98',pants:'#2f3542'}},
+  {k:'cartero', n:'Cartero', role:'Lee los correos del revisor y sube los adjuntos a Drive', desk:[2,10,2], col:'#2e86ab', look:{skin:'#c98c62',hair:'#161616',hs:0,shirt:'#2e86ab',pants:'#34466b'}},
+  {k:'corrector', n:'Corrector', role:'Atiende los comentarios del revisor', desk:[4,4,2], col:'#d6424a', look:{skin:'#f3cdb0',hair:'#6b4423',hs:2,shirt:'#d6424a',pants:'#2f3542'}},
+  {k:'programa', n:'Programadora', role:'Programas de curso nuevos', desk:[5,4,2], col:'#7b5ea7', look:{skin:'#a46f48',hair:'#2b1d16',hs:1,shirt:'#7b5ea7',pants:'#5a4636'}},
+  {k:'ficha', n:'Fichero', role:'Fichas de curso nuevas', desk:[6,4,2], col:'#23a596', look:{skin:'#e2ae86',hair:'#7d808c',hs:3,shirt:'#23a596',pants:'#3f3f46'}},
+  {k:'recepcion', n:'Recepcionista', role:'Recibe el esbozo del experto (XLSX)', desk:[3,10,2], col:'#f2a541', look:{skin:'#f6dccb',hair:'#a8642c',hs:1,shirt:'#f2a541',pants:'#34466b'}},
+  {k:'biblio', n:'Bibliotecaria', role:'Bibliografía de los cursos', desk:[2,3,3], col:'#e86a92', look:{skin:'#76503a',hair:'#161616',hs:2,shirt:'#e86a92',pants:'#2f3542'}},
+];
+const SLOTS=[{x:5,y:8,f:1},{x:7,y:8,f:3},{x:6,y:9,f:2},{x:5,y:9,f:1},{x:7,y:9,f:3}];
+let people=[];
+const personByK=k=>people.find(p=>p.k===k);
+
+function buildScene(){
+  objs=[]; seq=1; for(const k in byId) delete byId[k];
+  add('board',2,0,0); add('coffee',4,0,0); add('cooler',5,0,0); add('plant',6,0,0); add('trophy',7,0,0); add('printer',8,0,0); add('server',9,0,0); add('server',10,0,0); add('arcade',11,0,0);
+  add('monstera',0,0,1); add('shelf',0,2,1); add('shelf',0,3,1); add('shelf',0,4,1); add('lamp',0,6,1); add('plant',0,1,1);
+  add('plant',3,4,0); add('plant',7,4,0); add('mailbox',1,11,0); add('plant',4,11,0);
+  for(let x=9;x<=10;x++) for(let y=5;y<=7;y++) add('rug',x,y,0,'#2f9c8a');
+  add('sofa',9,5,0,'#c9663d'); add('sofa',10,5,0,'#c9663d'); add('lamp',11,5,0); add('plant',11,7,0);
+  add('monstera',11,11,0); add('plant',8,11,0); add('plant',8,8,0);
+  for(let x=4;x<=7;x++) for(let y=7;y<=9;y++) add('rug',x,y,0,'#5b6fb8');
+  people=AGENTS.map((a,i)=>{ const d=add('desk',a.desk[0],a.desk[1],a.desk[2],a.col,{owner:a.k}); const p={id:100+i,k:a.k,name:a.n,role:a.role,look:a.look,col:a.col,desk:d.id,x:0,y:0,z:0,face:0,path:[],state:'seated',sitting:null,alpha:1,ph:0,bub:null,bubT:0,say:'',sayT:0,timer:rnd(20,80),goal:null}; sitAt(p,d); return p; });
+}
+function sitAt(p,o){ const s=seatPos(o); p.x=s[0]; p.y=s[1]; p.z=.42; p.sitting=o.id; o.occ=p.id; p.face=(o.r+2)%4; p.state='seated'; p.path=[]; }
+function standUp(p){ const o=byId[p.sitting]; if(o&&o.occ===p.id) o.occ=null; p.sitting=null; p.z=0; const f=frontTile(o); p.x=f.x+.5; p.y=f.y+.5; }
+function bfs(st){
+  const dist=new Int16Array(N*N).fill(-1), prev=new Int16Array(N*N).fill(-1); const sx=clamp(st.x,0,N-1), sy=clamp(st.y,0,N-1); const s=sy*N+sx; dist[s]=0; const q=[s]; let h=0;
+  while(h<q.length){ const c=q[h++], cx=c%N, cy=(c/N)|0; for(const [dx,dy] of DIRS){ const nx=cx+dx, ny=cy+dy; if(!walkable(nx,ny)) continue; const k=ny*N+nx; if(dist[k]>=0) continue; dist[k]=dist[c]+1; prev[k]=c; q.push(k); } }
+  return {path(goal){ const out=[]; let k=goal.y*N+goal.x; if(dist[k]<0) return null; while(k!==s){ out.push([k%N+.5,((k/N)|0)+.5]); k=prev[k]; } return out.reverse(); }};
+}
+function goTo(p,tile,mode){ if(p.sitting!=null) standUp(p); const path=bfs(tileOf(p)).path(tile); if(!path){ return false; } p.path=path; p.state='walking'; p.goal=mode; return true; }
+function goHome(p){ const o=byId[p.desk]; if(p.sitting!=null) return; const f=frontTile(o); if(!goTo(p,f,'home')){ sitAt(p,o); return; } const s=seatPos(o); p.path.push([s[0],s[1]]); }
+function walk(p,dt){ let d=1.7*dt; let moved=false;
+  while(d>0&&p.path.length){ const [tx,ty]=p.path[0]; const dx=tx-p.x, dy=ty-p.y, dist=Math.hypot(dx,dy);
+    if(dist>1e-4){ if(Math.abs(dx)>Math.abs(dy)) p.face=dx>0?1:3; else p.face=dy>0?0:2; moved=true; }
+    if(dist<=d){ p.x=tx; p.y=ty; p.path.shift(); d-=dist; } else { p.x+=dx/dist*d; p.y+=dy/dist*d; d=0; } }
+  if(moved) p.ph+=dt*9; return p.path.length===0; }
+function freeSlot(p){ const used=people.filter(q=>q!==p&&(q.goal==='peche'||q.atSlot)).map(q=>q.slot); return SLOTS.findIndex((s,i)=>!used.includes(i)); }
+
+/* ---------- Estado de trabajo ---------- */
+const P=()=>currentProject;
+const LS={ get(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } }, set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} } };
+const kInbox=()=>'dcd_inbox_'+(P()?.id||''), kFlows=()=>'dcd_flows_'+(P()?.id||''), kJobs=()=>'dcd_jobs_'+(P()?.id||''), kAck=()=>'dcd_ack_'+(P()?.id||'');
+const inbox=()=>LS.get(kInbox(),[]), flows=()=>LS.get(kFlows(),[]), jobs=()=>LS.get(kJobs(),{});
+const saveInbox=v=>LS.set(kInbox(),v), saveFlows=v=>LS.set(kFlows(),v), saveJobs=v=>LS.set(kJobs(),v);
+let ack={}, mailNeedPerm=false, mailBusy=false, mailLast=0, busy={};
+function courseBy(code){ return (allCourses||[]).find(c=>normCode(c['Código'])===normCode(code)); }
+function setCourse(code){ const c=courseBy(code); if(!c) throw new Error(`El curso ${code} no está en la hoja Base`); currentCourse=c; currentSection=null; return c; }
+const cName=c=>(c?.['Curso']||c?.['Nombre']||'').trim();
+const attr=s=>String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const esc=s=>escHtml(String(s??''));
+
+function needOf(k){
+  const nI=inbox().filter(m=>m.status==='nuevo'), F=flows(), J=jobs();
+  if(k==='cartero'){
+    if(!gAccessToken) return {sleep:true};
+    if(mailNeedPerm) return {alert:true, say:'Necesito permiso para leer tu correo', sig:'perm'};
+    if(nI.length) return {alert:true, say:nI.length===1?`Llegó un correo de ${shortCode(nI[0])}`:`Llegaron ${nI.length} correos del revisor`, sig:'m:'+nI.map(m=>m.id).join(',')};
+    if(mailBusy) return {say:'Revisando el correo…'};
+    return {sleep:true};
+  }
+  if(k==='corrector'){
+    const c=F.find(f=>f.stage==='comentado'); if(c) return {alert:true, visit:true, say:`${c.code} está listo para corregir`, sig:'c:'+c.id};
+    const r=F.find(f=>f.stage==='corregido'); if(r) return {alert:true, say:`${r.code} espera tu revisión en Drive`, sig:'r:'+r.id};
+    const l=F.find(f=>f.stage==='enviado'&&!f.learned); if(l) return {idea:true, say:'¿Le pedimos a Claude lo aprendido?'};
+    return {};
+  }
+  if(k==='programa'||k==='ficha'){
+    const j=J[k]; if(j?.stage==='subido') return {alert:true, visit:true, say:`${j.code} ya está en Drive para revisar`, sig:'j:'+k+':'+j.code+':'+(j.t||'')};
+    if(j?.stage==='prompt') return {say:`Esperando la respuesta de Claude (${j.code})`};
+    return {};
+  }
+  return {};
+}
+const shortCode=m=>m.code||'un curso';
+
+/* ---------- Simulación ---------- */
+function tick(dt){
+  for(const p of people){
+    if(p.bubT>0) p.bubT-=dt; if(p.sayT>0) p.sayT-=dt;
+    if(p.k==='peche'){ continue; }
+    const need=needOf(p.k);
+    if(p.state==='seated'){
+      if(need.visit && ack[p.k]!==need.sig){ const s=freeSlot(p); if(s>=0){ p.slot=s; const sl=SLOTS[s]; if(goTo(p,{x:sl.x,y:sl.y},'peche')) { p.bub='walk'; } } }
+      else if(!need.alert && !need.sleep && !need.say){ p.timer-=dt; if(p.timer<=0){ p.timer=rnd(50,140); const ty=Math.random()<.6?'coffee':'cooler'; const cf=objs.find(o=>o.t===ty); if(!cf) continue; const ft=frontTile(cf); if(walkable(ft.x,ft.y)&&!people.some(q=>q!==p&&q.goal==='coffee')) goTo(p,ft,'coffee'); } }
+    } else if(p.state==='walking'){
+      if(walk(p,dt)){
+        if(p.goal==='home'){ sitAt(p,byId[p.desk]); }
+        else if(p.goal==='peche'){ p.state='standing'; p.atSlot=true; p.face=SLOTS[p.slot].f; p.goal=null; }
+        else if(p.goal==='coffee'){ p.state='break'; p.timer=rnd(5,9); const cf=objAt(Math.floor(p.x),Math.floor(p.y)-1); p.face=2; p.bub='coffee'; p.bubT=3; p.goal=null; }
+      }
+    } else if(p.state==='break'){ p.timer-=dt; if(p.timer<=0){ p.bub='heart'; p.bubT=2; goHome(p); } }
+    else if(p.state==='standing'){ if(!need.visit || ack[p.k]===need.sig){ p.atSlot=false; p.slot=null; goHome(p); } }
+    // burbujas de estado
+    if(need.sleep && p.state==='seated') p.icon='zz';
+    else if(need.alert) p.icon='!';
+    else if(need.idea) p.icon='idea';
+    else p.icon=null;
+    if(p.atSlot && need.say) { p.say=need.say; p.sayT=1; }
+    else if(need.say && p.state==='seated'){ p.sayCycle=(p.sayCycle||0)+dt; const per=need.alert?14:24; if(p.sayCycle>per){ p.sayCycle=0; } if(p.sayCycle<5.5){ p.say=need.say; p.sayT=1; } }
+  }
+}
+
+/* ---------- Dibujo ---------- */
+let sel=null, GLOWS=[];
+function drawPerson(c,p,wx,wy,wz,t,opt){
+  opt=opt||{};
+  const [sx,sy]=iso(wx,wy,wz); const L=p.look; const f=p.face|0; const front=f<2; const dir=(f===1||f===2)?1:-1;
+  const sit=!!opt.sit, moving=!!opt.moving, ph=p.ph||0;
+  const sw=moving?Math.sin(ph)*2.6:0, bob=moving?Math.abs(Math.cos(ph))*1.2:0;
+  const nod=opt.sleep?Math.sin(t*1.5)*0.8+2.2:0;
+  c.save(); c.globalAlpha*=(p.alpha==null?1:p.alpha); c.lineCap='round'; c.lineJoin='round';
+  if(opt.sel){ const g=iso(wx,wy,0); c.strokeStyle='#ff6a3d'; c.lineWidth=2.2; c.beginPath(); c.ellipse(g[0],g[1],14,7,0,0,Math.PI*2); c.stroke(); }
+  if(!sit){ c.fillStyle='rgba(40,28,18,.2)'; c.beginPath(); c.ellipse(sx,sy,8.5,4,0,0,Math.PI*2); c.fill(); }
+  let hip;
+  if(sit){ hip=sy-1; const fv=FV[f]; c.strokeStyle=L.pants; c.lineWidth=4.3; for(const o of [-2.3,2.3]){ c.beginPath(); c.moveTo(sx+o,hip); const kx=sx+o+fv[0]*.27, ky=hip+fv[1]*.27; c.lineTo(kx,ky); c.lineTo(kx,ky+10); c.stroke(); } }
+  else { hip=sy-11-bob; c.strokeStyle=L.pants; c.lineWidth=4.2;
+    c.beginPath(); c.moveTo(sx-2.3,hip); c.lineTo(sx-2.3+sw*dir,sy-2); c.stroke(); c.beginPath(); c.moveTo(sx+2.3,hip); c.lineTo(sx+2.3-sw*dir,sy-2); c.stroke();
+    c.fillStyle='#2a2522'; c.beginPath(); c.ellipse(sx-2.3+sw*dir+dir*.8,sy-1.3,2.4,1.5,0,0,Math.PI*2); c.fill(); c.beginPath(); c.ellipse(sx+2.3-sw*dir+dir*.8,sy-1.3,2.4,1.5,0,0,Math.PI*2); c.fill(); }
+  const ty=hip-15.5, hx=sx, hy=ty-7.2+nod;
+  if(L.hs===1&&front){ c.fillStyle=L.hair; rr(c,hx-7.6,hy-2,15.2,15,6); c.fill(); }
+  c.fillStyle=L.shirt; rr(c,sx-6.6,ty,13.2,17,5); c.fill();
+  c.fillStyle=shade(L.shirt,-0.16); c.save(); rr(c,sx-6.6,ty,13.2,17,5); c.clip(); c.fillRect(dir>0?sx-6.6:sx+2.6,ty,4,17); c.restore();
+  c.lineWidth=3.6;
+  if(opt.typing){ const fv=FV[f]; const w=Math.sin(t*16+p.id*2)*1.1;
+    for(const o of [-5.6,5.6]){ c.strokeStyle=shade(L.shirt,-0.1); c.beginPath(); c.moveTo(sx+o,ty+3.5); const ex=sx+o*.55+fv[0]*.2, ey=ty+9+fv[1]*.2+(o>0?w:-w); c.lineTo(ex,ey); c.stroke(); c.fillStyle=L.skin; c.beginPath(); c.arc(ex,ey,1.9,0,Math.PI*2); c.fill(); } }
+  else if(opt.wave){ c.strokeStyle=shade(L.shirt,-0.1); c.beginPath(); c.moveTo(sx-6,ty+3.5); c.lineTo(sx-6.6,ty+13); c.stroke(); const a=Math.sin(t*8)*.35; const ex=sx+9+Math.sin(a)*3, ey=ty-6; c.beginPath(); c.moveTo(sx+6,ty+3.5); c.lineTo(ex,ey); c.stroke(); c.fillStyle=L.skin; c.beginPath(); c.arc(ex,ey,2.1,0,Math.PI*2); c.fill(); c.beginPath(); c.arc(sx-6.6,ty+14,1.9,0,Math.PI*2); c.fill(); }
+  else { for(const o of [-1,1]){ const s=moving?-o*sw*dir*.9:0; c.strokeStyle=shade(L.shirt,-0.1); c.beginPath(); c.moveTo(sx+o*6,ty+3.5); const ex=sx+o*6.6+s, ey=ty+13; c.lineTo(ex,ey); c.stroke(); c.fillStyle=L.skin; c.beginPath(); c.arc(ex,ey+1,1.9,0,Math.PI*2); c.fill(); } }
+  c.fillStyle=shade(L.skin,-0.12); c.fillRect(hx-2,hy+4-nod,4,4.5);
+  c.fillStyle=L.skin; c.beginPath(); c.arc(hx,hy,7,0,Math.PI*2); c.fill();
+  if(front){ const ex=hx+dir*1.7;
+    if(opt.sleep){ c.strokeStyle='#2b2420'; c.lineWidth=1; c.beginPath(); c.moveTo(ex-3.2,hy+1); c.lineTo(ex-1.2,hy+1); c.moveTo(ex+1.2,hy+1); c.lineTo(ex+3.2,hy+1); c.stroke(); }
+    else { c.fillStyle='#2b2420'; c.beginPath(); c.arc(ex-2.2,hy+.9,.95,0,Math.PI*2); c.arc(ex+2.2,hy+.9,.95,0,Math.PI*2); c.fill(); }
+    c.fillStyle='rgba(232,110,110,.28)'; c.beginPath(); c.arc(ex-3.6,hy+3,1.4,0,Math.PI*2); c.arc(ex+3.6,hy+3,1.4,0,Math.PI*2); c.fill();
+    if(L.hs!==3){ c.fillStyle=L.hair; c.beginPath(); c.moveTo(hx-7.4,hy-.5); c.arc(hx,hy-.5,7.4,Math.PI,0); c.quadraticCurveTo(hx+dir*2,hy-3.2,hx-dir*4,hy-1.6); c.closePath(); c.fill(); c.beginPath(); c.ellipse(hx-dir*5.4,hy+.6,2.4,4.2,0,0,Math.PI*2); c.fill(); }
+    else { c.fillStyle=L.hair; c.globalAlpha*=.6; c.beginPath(); c.arc(hx,hy-.6,7.1,Math.PI*1.05,Math.PI*1.95); c.lineTo(hx,hy-3); c.closePath(); c.fill(); c.globalAlpha/=.6; }
+  } else { if(L.hs===1){ c.fillStyle=L.hair; rr(c,hx-7.6,hy-2,15.2,15,6); c.fill(); } c.fillStyle=L.hs===3?mix(L.hair,L.skin,.45):L.hair; c.beginPath(); c.arc(hx,hy-.2,7.3,0,Math.PI*2); c.fill(); }
+  if(L.hs===2){ c.fillStyle=L.hair; c.beginPath(); c.arc(hx-dir*1.2,hy-8,3.3,0,Math.PI*2); c.fill(); }
+  if(p.k==='cartero'){ c.fillStyle='#1f3b5c'; c.beginPath(); c.ellipse(hx,hy-4.5,8,3.2,0,Math.PI,0); c.fill(); c.fillRect(hx-7.6,hy-5,15.2,2.2); c.fillRect(hx+(front?dir*2:0)-4,hy-4,8,2); }
+  c.restore();
+  p._sx=sx; p._sy=sit?iso(wx,wy,0)[1]:sy; p._hy=hy-8;
+}
+function screenFace(c,q,on,t,seed){
+  poly(c,q,on?'#123a5c':'#1b1f27');
+  if(on){ const cols=['#5ad1c8','#ffd36b','#ff8a65','#9ecbff']; c.lineWidth=1.1; for(let i=0;i<5;i++){ const yy=.2+i*.14, ind=.1+(i%3)*.06; const len=.2+((Math.sin(seed*3.1+i*1.7+Math.floor(t*1.6))+1)/2)*.5; const a=qp(q,ind,yy), b=qp(q,Math.min(.92,ind+len),yy); c.strokeStyle=cols[(i+seed)%4]; c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke(); } }
+  else { const a=qp(q,.15,.25), b=qp(q,.4,.25); c.strokeStyle='rgba(255,255,255,.12)'; c.lineWidth=1.4; c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke(); }
+}
+function leaves(c,X,Y,z,t,seed,big){
+  const [sx,sy]=iso(X,Y,z); const n=big?8:6; const greens=big?['#2f7d4f','#3c9460','#286b44']:['#4a9f5c','#5cb46d','#3e8a50'];
+  c.strokeStyle='#3b6e3e'; c.lineWidth=1.2;
+  for(let i=0;i<n;i++){ const a=(i/n)*Math.PI*2+seed, sway=Math.sin(t*1.4+i+seed)*.08; const r=big?14:9.5, lx=sx+Math.cos(a+sway)*r, ly=sy-(big?18:12)+Math.sin(a)*r*.42-(i%3)*(big?5:3.5);
+    c.beginPath(); c.moveTo(sx,sy-2); c.quadraticCurveTo((sx+lx)/2,ly-6,lx,ly); c.stroke(); c.fillStyle=greens[i%3]; c.beginPath(); c.ellipse(lx,ly,big?8.5:5.5,big?5:3.4,a+sway,0,Math.PI*2); c.fill(); }
+  c.fillStyle=greens[0]; c.beginPath(); c.ellipse(sx,sy-(big?24:16),big?7:4.5,big?4.5:3,0,0,Math.PI*2); c.fill();
+}
+let finalsRatio=0, unreadN=0;
+const DRAW={
+  desk(R,o,t,P2){
+    const metal='#3a3f4b', wood='#c99460';
+    for(const [u,v] of [[.08,.08],[.86,.08],[.08,.44],[.86,.44]]) R.box(u,v,0,.06,.06,.66,metal);
+    R.box(.62,.1,.18,.26,.38,.48,'#b07d4f'); R.box(.04,.04,.66,.92,.52,.06,wood);
+    R.box(.12,.32,.72,.1,.1,.11,'#f2efe9'); R.box(.44,.15,.72,.12,.08,.1,'#2a2e38'); R.box(.2,.12,.82,.6,.06,.38,'#262a33');
+    const on=P2&&P2.icon!=='zz';
+    R.face(.18,.23,.77,.85,1.17,(c,q)=>screenFace(c,q,on,t,o.id%4));
+    R.box(.3,.36,.72,.4,.12,.02,'#e7e9ef');
+    if(o.owner==='peche'){ R.box(.7,.3,.72,.1,.1,.12,'#ff6a3d'); R.box(.08,.18,.72,.2,.26,.05,'#f4f1ea'); }
+    const cc=o.c||'#3f6fb5';
+    R.box(.4,.66,.02,.2,.2,.05,'#2a2e38'); R.box(.47,.73,.07,.06,.06,.33,'#2a2e38'); R.box(.28,.56,.4,.44,.36,.07,cc); R.box(.28,.9,.47,.44,.06,.44,cc);
+    if(P2) R.at(.5,.72,.42,.3,1.05,(c,X,Y,z)=>drawPerson(c,P2,X,Y,z,t,{sit:true,typing:on,sleep:!on,sel:sel&&sel.k==='p'&&sel.id===P2.id}));
+    if(on){ const g=mapPt(o.r,.5,.2); GLOWS.push({x:o.x+g[0],y:o.y+g[1],z:1,r:26,c:'120,190,255',a:.35}); }
+  },
+  sofa(R,o){ const c1=o.c||'#4f8a72'; R.box(.06,.12,0,.88,.82,.3,shade(c1,-0.12)); R.box(.06,.12,.3,.88,.22,.42,c1); R.box(.06,.34,.3,.13,.6,.18,c1); R.box(.81,.34,.3,.13,.6,.18,c1); R.box(.19,.34,.3,.62,.6,.09,shade(c1,0.18)); },
+  coffee(R){ R.box(.08,.1,0,.84,.6,.68,'#ece6dc'); R.box(.06,.08,.68,.88,.64,.05,'#3d4350'); R.box(.2,.14,.73,.44,.34,.48,'#2c313b'); R.face(.48,.26,.58,.96,1.13,(c,q)=>{ poly(c,q,'#14171d'); const l=qp(q,.8,.3); c.fillStyle='#ff5a4a'; c.beginPath(); c.arc(l[0],l[1],1.3,0,Math.PI*2); c.fill(); }); R.box(.3,.48,.73,.24,.12,.03,'#6a7180'); R.box(.36,.5,.76,.1,.08,.1,'#ffffff'); R.box(.7,.3,.73,.11,.11,.12,'#d9573b'); R.box(.7,.5,.73,.11,.11,.12,'#ffffff'); },
+  cooler(R){ R.box(.28,.28,0,.44,.44,.72,'#e9edf3'); R.face(.72,.36,.64,.38,.58,(c,q)=>poly(c,q,'#cfd6e0')); R.at(.5,.5,.72,.36,.44,(c,X,Y,z)=>{ c.save(); c.globalAlpha*=.82; box(c,X-.17,Y-.17,z,.34,.34,.38,'#86c8f0'); box(c,X-.06,Y-.06,z+.38,.12,.12,.05,'#5aa9de'); c.restore(); }); },
+  plant(R,o,t){ R.box(.3,.3,0,.4,.4,.32,'#c4683f'); R.box(.33,.33,.32,.34,.34,.01,'#5a3d2a'); R.at(.5,.5,.33,.6,.6,(c,X,Y,z)=>leaves(c,X,Y,z,t,o.id,false)); },
+  monstera(R,o,t){ R.box(.27,.27,0,.46,.46,.42,'#ebe5d8'); R.box(.3,.3,.42,.4,.4,.01,'#5a3d2a'); R.at(.5,.5,.43,.8,1,(c,X,Y,z)=>leaves(c,X,Y,z,t,o.id,true)); },
+  shelf(R,o){ const wd='#8b5e3c'; R.box(.06,.12,0,.88,.05,1.8,shade(wd,-0.1)); R.box(.06,.12,0,.06,.36,1.8,wd); R.box(.88,.12,0,.06,.36,1.8,wd); for(const z of [0,.6,1.2,1.76]) R.box(.12,.17,z,.76,.31,.04,wd);
+    if(o.r<2){ const bc=['#d9573b','#2f6fb5','#e0a030','#2f9c8a','#7a5bb0','#f2efe9','#3a3f4b']; let s=o.id*7; const rn=()=>{ s=(s*9301+49297)%233280; return s/233280; }; for(const z of [.04,.64,1.24]){ let u=.14; while(u<.8){ const w=.05+rn()*.035, h=.28+rn()*.16; if(rn()<.12){u+=w;continue;} R.box(u,.2,z,Math.min(w,.86-u),.24,h,bc[Math.floor(rn()*bc.length)]); u+=w+.008; } } } },
+  arcade(R,o,t){ R.box(.16,.12,0,.68,.6,1.62,'#2d2f6e'); R.box(.16,.72,.82,.68,.18,.1,'#1c1e2b');
+    R.face(.72,.22,.78,1.0,1.42,(c,q)=>{ poly(c,q,'#0d0f1e'); const hue=(t*60+o.id*40)%360; const a=qp(q,.5+Math.sin(t*2)*.25,.55); c.fillStyle=`hsl(${hue},90%,65%)`; c.beginPath(); c.arc(a[0],a[1],2.6,0,Math.PI*2); c.fill(); c.fillStyle='#ffd36b'; for(let i=0;i<4;i++){ const b=qp(q,.15+i*.2,.2+((i+Math.floor(t*3))%3)*.08); c.fillRect(b[0]-1.2,b[1]-1.2,2.4,2.4);} });
+    R.face(.72,.18,.82,1.46,1.6,(c,q)=>{ poly(c,q,'#ff6a3d'); const a=qp(q,.5,.5); c.fillStyle='#fff3c4'; c.font='bold 5px "Chakra Petch",monospace'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('ARCADE',a[0],a[1]); });
+    const g=mapPt(o.r,.5,.8); GLOWS.push({x:o.x+g[0],y:o.y+g[1],z:1.2,r:34,c:'255,120,200',a:.4}); },
+  lamp(R,o){ R.box(.38,.38,0,.24,.24,.04,'#2b2f38'); R.box(.48,.48,.04,.04,.04,1.36,'#2b2f38'); R.box(.32,.32,1.36,.36,.36,.26,'#f3d27b'); GLOWS.push({x:o.x+.5,y:o.y+.5,z:1.45,r:70,c:'255,205,120',a:.55,lamp:true}); },
+  server(R,o,t){ R.box(.14,.14,0,.72,.7,1.8,'#22262f'); R.face(.84,.2,.8,.1,1.72,(c,q)=>{ poly(c,q,'#181b22'); const sp=syncing?4:1; for(let r=0;r<9;r++){ const s=subq(q,.08,.05+r*.105,.92,.13+r*.105); poly(c,s,'#2a2f3a'); for(let k=0;k<4;k++){ const on=Math.sin(t*(3+k)*sp+r*1.7+k*2.1+o.id)>.1; const pt=qp(q,.62+k*.07,.09+r*.105); c.fillStyle=on?(k===3?'#ffb340':'#3ee08f'):'#264032'; c.fillRect(pt[0]-.9,pt[1]-.9,1.8,1.8);} } }); GLOWS.push({x:o.x+.5,y:o.y+.9,z:.9,r:22,c:'80,240,150',a:.25}); },
+  board(R){ R.box(.12,.46,0,.05,.08,1.5,'#9aa1ad'); R.box(.83,.46,0,.05,.08,1.5,'#9aa1ad'); R.box(.08,.46,.62,.84,.06,.88,'#c9ced8');
+    R.face(.52,.12,.88,.66,1.46,(c,q)=>{ poly(c,q,'#f8f9fb'); c.lineWidth=1.1; const lines=[[.08,.2,.5,.2,'#2f6fb5'],[.08,.32,.38,.32,'#2f6fb5'],[.08,.44,.45,.44,'#2f6fb5'],[.1,.62,.3,.85,'#d9573b'],[.3,.85,.45,.6,'#d9573b']]; for(const [a,b,c2,d,col] of lines){ const A=qp(q,a,b),B=qp(q,c2,d); c.strokeStyle=col; c.beginPath(); c.moveTo(A[0],A[1]); c.lineTo(B[0],B[1]); c.stroke(); } poly(c,subq(q,.58,.14,.74,.38),'#ffd36b'); poly(c,subq(q,.77,.2,.92,.42),'#9fe0c9'); poly(c,subq(q,.6,.5,.78,.74),'#ffb3c1'); });
+    R.box(.1,.52,.62,.8,.06,.03,'#9aa1ad'); },
+  printer(R){ R.box(.16,.16,0,.68,.62,.5,'#5d6474'); R.box(.14,.14,.5,.72,.66,.28,'#e6e9ef'); R.box(.24,.2,.78,.52,.4,.03,'#cfd4dd'); R.box(.28,.62,.62,.44,.16,.02,'#ffffff'); },
+  trophy(R,o,t){
+    const gold=finalsRatio>=1?'#f2c230':finalsRatio>=.5?'#c9ced8':'#c98c4a';
+    R.box(.16,.16,0,.68,.68,.62,'#6e4a2f'); R.box(.12,.12,.62,.76,.76,.05,'#8b5e3c');
+    R.face(.84,.24,.76,.14,.5,(c,q)=>{ poly(c,q,'#5a3c26'); const a=qp(q,.5,.5); c.fillStyle='#ffe9a8'; c.font='bold 6px "Chakra Petch",monospace'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('TOMO II',a[0],a[1]); });
+    R.at(.5,.5,.67,.5,.88,(c,X,Y,z)=>{ const [sx,sy]=iso(X,Y,z); c.save(); c.fillStyle=shade(gold,-0.25); c.fillRect(sx-7,sy-5,14,5); c.fillStyle=gold; c.fillRect(sx-2.5,sy-14,5,9);
+      c.beginPath(); c.moveTo(sx-11,sy-31); c.lineTo(sx+11,sy-31); c.quadraticCurveTo(sx+10,sy-14,sx,sy-13); c.quadraticCurveTo(sx-10,sy-14,sx-11,sy-31); c.fill();
+      c.strokeStyle=gold; c.lineWidth=2.2; c.beginPath(); c.arc(sx-11,sy-25,4.5,Math.PI*.5,Math.PI*1.5); c.stroke(); c.beginPath(); c.arc(sx+11,sy-25,4.5,-Math.PI*.5,Math.PI*.5); c.stroke();
+      c.fillStyle='rgba(255,255,255,.55)'; c.fillRect(sx-6,sy-29,2.4,10);
+      const tw=(Math.sin(t*2.2)+1)/2; c.fillStyle=`rgba(255,255,255,${.4+tw*.6})`; c.beginPath(); c.arc(sx+7,sy-33,1.4+tw,0,Math.PI*2); c.fill(); c.restore(); });
+    GLOWS.push({x:o.x+.5,y:o.y+.5,z:1.2,r:30,c:'255,214,90',a:.35});
+  },
+  mailbox(R,o,t){
+    R.box(.45,.45,0,.1,.1,.72,'#3a3f4b'); R.box(.22,.28,.72,.56,.44,.34,'#d6424a'); R.box(.2,.26,1.06,.6,.48,.04,shade('#d6424a',0.15));
+    R.face(.72,.3,.7,.78,1.0,(c,q)=>{ poly(c,q,'#b8323a'); const a=qp(q,.2,.4),b=qp(q,.8,.4); c.strokeStyle='#1c2131'; c.lineWidth=1.6; c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke(); });
+    const up=unreadN>0; R.at(.86,.5,.8,.1,.6,(c,X,Y,z)=>{ const [sx,sy]=iso(X,Y,z); c.strokeStyle='#2b2f38'; c.lineWidth=1.4; c.beginPath(); c.moveTo(sx,sy); c.lineTo(sx,sy-(up?20:10)); c.stroke(); c.fillStyle=up?'#ffd23f':'#9aa1ad'; const wv=up?Math.sin(t*6)*1.5:0; c.beginPath(); c.moveTo(sx,sy-(up?20:10)); c.lineTo(sx+9,sy-(up?17:8)+wv); c.lineTo(sx,sy-(up?14:5)); c.fill(); });
+  },
+  rug(){},
+};
+function objBounds(o){ return {x0:o.x,x1:o.x+1,y0:o.y,y1:o.y+1,z0:0,z1:Math.max(.05,CAT[o.t].h)}; }
+function drawObj(c,o,t){ const R=new Rig(o); const P2=o.occ!=null?people.find(p=>p.id===o.occ&&p.sitting===o.id):null; DRAW[o.t](R,o,t,P2); for(const p of depthSort(R.parts)) p.f(c); }
+function drawRug(c,o){ const col=o.c; const same=(x,y)=>{ const r=rugAt(x,y); return r&&r.c===o.c; }; const {x,y}=o, e=.06;
+  const x0=same(x-1,y)?0:e, x1=same(x+1,y)?1:1-e, y0=same(x,y-1)?0:e, y1=same(x,y+1)?1:1-e;
+  poly(c,[iso(x+x0,y+y0,.005),iso(x+x1,y+y0,.005),iso(x+x1,y+y1,.005),iso(x+x0,y+y1,.005)],col); }
+
+const cv=document.getElementById('of-cv'), ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1; const cam={x:0,y:0,z:1}; let camFitted=false;
+function resize(){ DPR=Math.min(2,window.devicePixelRatio||1); W=cv.clientWidth; H=cv.clientHeight; cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR); }
+function fitCam(){ const roomW=N*TW+80, roomH=N*TH+WH*TZ+60; const panelW=(!panel.hidden&&W>720)?380:0; const top=96, bottom=76; const z=clamp(W<600?Math.min(W/(roomW*.78),(H-top-bottom)/roomH):Math.min((W-panelW-32)/roomW,(H-top-bottom)/roomH),.35,1.6); cam.z=z; const [cx,cy]=iso(N/2,N/2,WH*.45); cam.x=(W-panelW)/2-cx*z; cam.y=top+(H-top-bottom)/2-cy*z+10; }
+function skyColors(mod){ const h=mod/60; const keys=[[0,'#0f1530','#1f2a52'],[5.5,'#1d2550','#4a4c86'],[6.8,'#f6b38a','#ffd9b0'],[8.5,'#8fcbec','#dff0f7'],[16,'#93cdea','#e3f1f6'],[17.6,'#f39a6b','#ffd2a1'],[18.8,'#3b3a72','#8a5f8f'],[20,'#121a3a','#24305c'],[24,'#0f1530','#1f2a52']];
+  for(let i=0;i<keys.length-1;i++){ const a=keys[i],b=keys[i+1]; if(h>=a[0]&&h<=b[0]){ const t=(h-a[0])/(b[0]-a[0]); return [mix(a[1],b[1],t),mix(a[2],b[2],t)]; } } return ['#8fcbec','#dff0f7']; }
+function darkness(mod){ const h=mod/60; if(h>=7.5&&h<=17.5) return 0; if(h>17.5&&h<20) return (h-17.5)/2.5*.32; if(h<7.5&&h>5.5) return (7.5-h)/2*.32; return .32; }
+function wallQuadY(x0,x1,z0,z1){ return [iso(x0,0,z1),iso(x1,0,z1),iso(x1,0,z0),iso(x0,0,z0)]; }
+function wallQuadX(y0,y1,z0,z1){ return [iso(0,y0,z1),iso(0,y1,z1),iso(0,y1,z0),iso(0,y0,z0)]; }
+function withPlaneX(c,y,z,fn){ const [ox,oy]=iso(0,y,z); c.save(); c.transform(32/40,-16/40,0,1,ox,oy); fn(); c.restore(); }
+function withPlaneY(c,x,z,fn){ const [ox,oy]=iso(x,0,z); c.save(); c.transform(32/40,16/40,0,1,ox,oy); fn(); c.restore(); }
+function drawWindow(c,q,sky,mod){ const g=c.createLinearGradient(q[0][0],q[0][1],q[3][0],q[3][1]); g.addColorStop(0,sky[0]); g.addColorStop(1,sky[1]); poly(c,q,g);
+  if(darkness(mod)>.15){ c.fillStyle='rgba(255,255,255,.8)'; for(let i=0;i<5;i++){ const s=qp(q,((i*37)%100)/100*.9+.05,((i*53)%100)/100*.8+.1); c.fillRect(s[0],s[1],1,1); } }
+  else { c.fillStyle='rgba(120,150,180,.35)'; for(let i=0;i<4;i++){ const h=.35+((i*41)%30)/100; poly(c,subq(q,i*.25+.02,1-h,i*.25+.2,1)); c.fill(); } }
+  poly(c,q,null,'#fbfaf6',2.4); const a=qp(q,.5,0),b=qp(q,.5,1),m1=qp(q,0,.45),m2=qp(q,1,.45); c.strokeStyle='#fbfaf6'; c.lineWidth=1.6; c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.moveTo(m1[0],m1[1]); c.lineTo(m2[0],m2[1]); c.stroke(); }
+function drawWalls(c,mod){
+  const sky=skyColors(mod);
+  box(c,0,-.18,0,N,.18,WH,'#efe9de'); box(c,-.18,-.18,0,.18,N+.18,WH,'#f6f1e8');
+  poly(c,wallQuadY(0,N,0,.12),'#d6cdbd'); poly(c,wallQuadX(0,N,0,.12),'#ddd4c4');
+  poly(c,wallQuadY(0,N,1.02,1.08),'#ff6a3d'); poly(c,wallQuadX(0,N,1.02,1.08),'#ff6a3d');
+  for(const [a,b] of [[1.2,3.2],[5.5,7.5],[10.3,11.7]]) drawWindow(c,wallQuadY(a,b,1.15,2.15),sky,mod);
+  drawWindow(c,wallQuadX(5.4,7.6,1.15,2.15),sky,mod);
+  const dq=wallQuadX(DOOR_Y,DOOR_Y+1,0,1.75); poly(c,dq,'#3a3227'); poly(c,subq(dq,.1,.07,.9,1),'#6a5643'); const kn=qp(dq,.78,.55); c.fillStyle='#e6c56c'; c.beginPath(); c.arc(kn[0],kn[1],1.6,0,Math.PI*2); c.fill(); poly(c,dq,null,'#2b251d',1.5);
+  poly(c,wallQuadX(DOOR_Y+.1,DOOR_Y+.9,1.85,2.08),'#1e9e66');
+  withPlaneX(c,DOOR_Y+.5,1.965,()=>{ c.fillStyle='#fff'; c.font='bold 7px "Chakra Petch",monospace'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('PROYECTOS',0,0); });
+  const now=new Date(); const mins=now.getMinutes(), hrs=now.getHours()%12+mins/60;
+  withPlaneY(c,4.35,1.75,()=>{ c.fillStyle='#fffdf8'; c.strokeStyle='#2b2f38'; c.lineWidth=2; c.beginPath(); c.arc(0,0,11,0,Math.PI*2); c.fill(); c.stroke(); c.lineCap='round';
+    for(let i=0;i<12;i++){ const a=i/12*Math.PI*2; c.lineWidth=i%3===0?1.6:.8; c.beginPath(); c.moveTo(Math.sin(a)*8.6,-Math.cos(a)*8.6); c.lineTo(Math.sin(a)*10,-Math.cos(a)*10); c.stroke(); }
+    const ha=hrs/12*Math.PI*2, ma=mins/60*Math.PI*2; c.lineWidth=2; c.beginPath(); c.moveTo(0,0); c.lineTo(Math.sin(ha)*5.5,-Math.cos(ha)*5.5); c.stroke(); c.lineWidth=1.3; c.beginPath(); c.moveTo(0,0); c.lineTo(Math.sin(ma)*8,-Math.cos(ma)*8); c.stroke(); c.fillStyle='#ff6a3d'; c.beginPath(); c.arc(0,0,1.5,0,Math.PI*2); c.fill(); });
+  const sig=((P()?.sigla||P()?.name||'DCD')+'').trim().slice(0,10);
+  withPlaneX(c,8.25,1.6,()=>{ c.fillStyle='#1c2131'; c.font='800 13px "Bricolage Grotesque",sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('oficina',0,-8); c.fillStyle='#ff6a3d'; c.font='800 11px "Bricolage Grotesque",sans-serif'; c.fillText(sig.toLowerCase(),0,8); });
+  withPlaneX(c,1.3,1.62,()=>{ c.fillStyle='#164a98'; c.fillRect(-16,-11,32,22); c.fillStyle='#fff'; c.font='800 7px "Chakra Petch",monospace'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('DCD',0,-3); c.fillStyle='#ffd36b'; c.fillRect(-10,4,20,2); });
+}
+function drawFloor(c){ box(c,0,0,-.35,N,N,.35,'#8a6648');
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){ const h=((x*73+y*151)%7)/7; poly(c,[iso(x,y),iso(x+1,y),iso(x+1,y+1),iso(x,y+1)],mix('#e2bf92','#d6b080',h)); c.strokeStyle='rgba(120,80,40,.13)'; c.lineWidth=.7; c.beginPath(); for(const k of [1/3,2/3]){ const a=iso(x,y+k),b=iso(x+1,y+k); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); } c.stroke(); }
+  c.strokeStyle='rgba(120,80,40,.22)'; c.lineWidth=.8; c.beginPath(); for(let i=0;i<=N;i++){ let a=iso(i,0),b=iso(i,N); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); a=iso(0,i); b=iso(N,i); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); } c.stroke();
+  poly(c,[iso(.08,DOOR_Y+.12,.004),iso(.7,DOOR_Y+.12,.004),iso(.7,DOOR_Y+.88,.004),iso(.08,DOOR_Y+.88,.004)],'#6d6a60'); }
+function tileMark(c,x,y,col,fill){ const q=[iso(x,y,.01),iso(x+1,y,.01),iso(x+1,y+1,.01),iso(x,y+1,.01)]; if(fill) poly(c,q,fill); poly(c,q,null,col,2); }
+function drawIcon(c,p,t){
+  const x=p._sx, y=p._hy-4; const ic=p.icon; if(!ic) return;
+  c.save();
+  if(ic==='!'){ const b=Math.abs(Math.sin(t*4))*3; c.fillStyle='#ff6a3d'; c.strokeStyle='#fff'; c.lineWidth=2; c.beginPath(); c.arc(x,y-12-b,8,0,Math.PI*2); c.fill(); c.stroke(); c.fillStyle='#fff'; c.font='900 12px "Nunito Sans",sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('!',x,y-11.5-b); }
+  else if(ic==='zz'){ c.fillStyle='#5a6377'; c.textAlign='center'; for(let i=0;i<3;i++){ const ph=((t*.6+i/3)%1); c.globalAlpha=Math.sin(ph*Math.PI); c.font=`800 ${8+ph*6}px "Bricolage Grotesque",sans-serif`; c.fillText('z',x+6+ph*10,y-6-ph*18); } }
+  else if(ic==='idea'){ c.fillStyle='#fff'; c.strokeStyle='rgba(28,33,49,.25)'; rr(c,x-11,y-26,22,19,7); c.fill(); c.stroke(); c.fillStyle='#ffd23f'; c.beginPath(); c.arc(x,y-18,4.6,0,Math.PI*2); c.fill(); c.fillStyle='#9aa1ad'; c.fillRect(x-2,y-13.5,4,3); }
+  c.restore();
+}
+function drawSmall(c,p){ if(!(p.bubT>0)||!p.bub||p.bub==='walk') return; const x=p._sx, y=p._hy-6; c.save(); c.globalAlpha=Math.min(1,p.bubT*2); c.fillStyle='#fff'; c.strokeStyle='rgba(28,33,49,.25)'; rr(c,x-11,y-25,22,19,7); c.fill(); c.stroke(); const cx=x, cy=y-15.5;
+  if(p.bub==='coffee'){ c.fillStyle='#8a5a3c'; rr(c,cx-5,cy-3,8,8,2); c.fill(); c.strokeStyle='#8a5a3c'; c.lineWidth=1.5; c.beginPath(); c.arc(cx+3.5,cy+1,2.4,-Math.PI/2,Math.PI/2); c.stroke(); }
+  else if(p.bub==='heart'){ c.fillStyle='#ff5d73'; c.beginPath(); c.moveTo(cx,cy+5); c.bezierCurveTo(cx-9,cy-1,cx-4,cy-8,cx,cy-3); c.bezierCurveTo(cx+4,cy-8,cx+9,cy-1,cx,cy+5); c.fill(); }
+  else if(p.bub==='ok'){ c.strokeStyle='#1e9e66'; c.lineWidth=2.4; c.beginPath(); c.moveTo(cx-5,cy); c.lineTo(cx-1,cy+4); c.lineTo(cx+6,cy-4); c.stroke(); }
+  c.restore(); }
+function wrapText(c,txt,maxW){ const words=String(txt).split(/\s+/); const lines=[]; let cur=''; for(const w of words){ const t2=cur?cur+' '+w:w; if(c.measureText(t2).width>maxW&&cur){ lines.push(cur); cur=w; } else cur=t2; } if(cur) lines.push(cur); return lines.slice(0,3); }
+function drawSay(c,p){ if(!(p.sayT>0)||!p.say) return; c.save(); c.font='700 10px "Nunito Sans",sans-serif'; const lines=wrapText(c,p.say,120); const w=Math.max(...lines.map(l=>c.measureText(l).width))+16, h=lines.length*13+10; const x=p._sx, y=p._hy-(p.icon==='!'?26:8);
+  c.fillStyle='#fff'; c.strokeStyle='rgba(28,33,49,.28)'; c.lineWidth=1; rr(c,x-w/2,y-h-6,w,h,8); c.fill(); c.stroke(); c.beginPath(); c.moveTo(x-4,y-6.5); c.lineTo(x,y-1); c.lineTo(x+4,y-6.5); c.fill();
+  c.fillStyle='#1c2131'; c.textAlign='center'; c.textBaseline='top'; lines.forEach((l,i)=>c.fillText(l,x,y-h-1+i*13)); c.restore(); }
+function label(c,x,y,txt){ c.save(); c.font='700 10px "Nunito Sans",sans-serif'; const w=c.measureText(txt).width+14; c.fillStyle='rgba(28,33,49,.88)'; rr(c,x-w/2,y-17,w,17,8); c.fill(); c.fillStyle='#fff'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(txt,x,y-8.5); c.restore(); }
+let hover=null, hoverPerson=null, syncing=false;
+function render(t){
+  const now=new Date(); const mod=now.getHours()*60+now.getMinutes();
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  const sky=skyColors(mod); const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,sky[0]); g.addColorStop(1,sky[1]); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=`rgba(255,255,255,${.35-darkness(mod)*.8})`; for(let i=0;i<4;i++){ const cx=((t*8+i*W/3.2)%(W+300))-150, cy=60+i*45+(i%2)*30; ctx.beginPath(); ctx.ellipse(cx,cy,70,16,0,0,Math.PI*2); ctx.ellipse(cx+40,cy-8,40,14,0,0,Math.PI*2); ctx.fill(); }
+  ctx.setTransform(DPR*cam.z,0,0,DPR*cam.z,DPR*cam.x,DPR*cam.y);
+  GLOWS=[]; drawWalls(ctx,mod); drawFloor(ctx);
+  for(const o of objs) if(CAT[o.t].floor) drawRug(ctx,o);
+  if(hover&&inB(hover.x,hover.y)&&!hoverPerson){ const o=objAt(hover.x,hover.y); if(o&&(CAT[o.t].act||o.t==='desk')) tileMark(ctx,o.x,o.y,'rgba(255,106,61,.8)','rgba(255,106,61,.1)'); }
+  const items=[]; for(const o of objs){ if(CAT[o.t].floor) continue; items.push({b:objBounds(o),f:c=>drawObj(c,o,t)}); }
+  for(const p of people){ if(p.sitting!=null) continue; const r=.14; items.push({b:{x0:p.x-r,x1:p.x+r,y0:p.y-r,y1:p.y+r,z0:0,z1:1.15},f:c=>drawPerson(c,p,p.x,p.y,0,t,{moving:p.path.length>0,wave:p.atSlot,sel:sel&&sel.id===p.id})}); }
+  for(const it of depthSort(items)) it.f(ctx);
+  for(const p of people){ if(p._sx==null) continue; drawIcon(ctx,p,t); drawSmall(ctx,p); drawSay(ctx,p); }
+  if(hoverPerson&&hoverPerson._sx!=null&&!(hoverPerson.sayT>0)) label(ctx,hoverPerson._sx,hoverPerson._hy-(hoverPerson.icon?24:4),hoverPerson.name);
+  else if(hover&&!hoverPerson){ const o=inB(hover.x,hover.y)?objAt(hover.x,hover.y):null; if(o&&CAT[o.t].lbl&&CAT[o.t].act){ const [sx,sy]=iso(o.x+.5,o.y+.5,CAT[o.t].h+.25); label(ctx,sx,sy,CAT[o.t].lbl); } }
+  for(const f of floats){ const [sx,sy]=iso(f.x,f.y,f.z); const k=1-f.life/2; ctx.save(); ctx.globalAlpha=Math.min(1,f.life*1.5); ctx.font='700 11px "Chakra Petch",monospace'; ctx.textAlign='center'; ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,.9)'; ctx.strokeText(f.txt,sx,sy-k*22); ctx.fillStyle=f.col; ctx.fillText(f.txt,sx,sy-k*22); ctx.restore(); }
+  const d=darkness(mod);
+  if(d>0.01){ ctx.setTransform(DPR,0,0,DPR,0,0); ctx.fillStyle=`rgba(14,18,48,${d})`; ctx.fillRect(0,0,W,H); ctx.setTransform(DPR*cam.z,0,0,DPR*cam.z,DPR*cam.x,DPR*cam.y); ctx.save(); ctx.globalCompositeOperation='lighter';
+    for(const gl of GLOWS){ const [sx,sy]=iso(gl.x,gl.y,gl.z); const gr=ctx.createRadialGradient(sx,sy,0,sx,sy,gl.r); gr.addColorStop(0,`rgba(${gl.c},${gl.a*d*2})`); gr.addColorStop(1,`rgba(${gl.c},0)`); ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(sx,sy,gl.r,0,Math.PI*2); ctx.fill(); } ctx.restore(); }
+}
+const floats=[]; function floatTxt(x,y,txt,col){ floats.push({x,y,z:1.6,txt,col:col||'#1e9e66',life:2}); }
+
+/* ---------- Entrada ---------- */
+function screenToWorld(mx,my){ const wx=(mx-cam.x)/cam.z, wy=(my-cam.y)/cam.z; return {x:(wx/(TW/2)+wy/(TH/2))/2, y:(wy/(TH/2)-wx/(TW/2))/2}; }
+function screenToTile(mx,my){ const wx=(mx-cam.x)/cam.z, wy=(my-cam.y)/cam.z; const x=(wx/(TW/2)+wy/(TH/2))/2, y=(wy/(TH/2)-wx/(TW/2))/2; return {x:Math.floor(x),y:Math.floor(y)}; }
+function personAtScreen(mx,my){ let best=null,bk=-1e9; for(const p of people){ if(p._sx==null) continue; const sx=cam.x+p._sx*cam.z, sy=cam.y+p._sy*cam.z, hy=cam.y+(p._hy-2)*cam.z; if(mx>sx-11*cam.z&&mx<sx+11*cam.z&&my>hy&&my<sy+3*cam.z){ const k=p.x+p.y+(p.sitting!=null?.5:0); if(k>bk){bk=k;best=p;} } } return best; }
+// Tocar un mueble alto también sirve tocando su parte de arriba
+function objAtScreen(mx,my){ for(let dz=0;dz<=1.6;dz+=.2){ const t=screenToTile(mx,my+dz*TZ*cam.z); const o=inB(t.x,t.y)?objAt(t.x,t.y):null; if(o&&(CAT[o.t].act||o.t==='desk')&&CAT[o.t].h>=dz) return o; } const w=screenToWorld(mx,my); if(w.x<.3&&w.x>-2.4){ const yw=w.y-Math.min(0,w.x); if(yw>=DOOR_Y&&yw<=DOOR_Y+1) return {t:'door'}; } return null; }
+const pointers=new Map(); let drag=null, pinch=null;
+cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId); pointers.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(pointers.size===1) drag={sx:e.clientX,sy:e.clientY,cx:cam.x,cy:cam.y,moved:false}; else if(pointers.size===2){ const [a,b]=[...pointers.values()]; pinch={d:Math.hypot(a.x-b.x,a.y-b.y),z:cam.z,mx:(a.x+b.x)/2,my:(a.y+b.y)/2,cx:cam.x,cy:cam.y}; drag=null; } });
+cv.addEventListener('pointermove',e=>{ const r=cv.getBoundingClientRect(); const mx=e.clientX-r.left,my=e.clientY-r.top; if(pointers.has(e.pointerId)) pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pinch&&pointers.size===2){ const [a,b]=[...pointers.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y); const nz=clamp(pinch.z*d/pinch.d,.35,2.6); cam.x=pinch.mx-(pinch.mx-pinch.cx)*nz/pinch.z; cam.y=pinch.my-(pinch.my-pinch.cy)*nz/pinch.z; cam.z=nz; return; }
+  if(drag){ const dx=e.clientX-drag.sx, dy=e.clientY-drag.sy; if(!drag.moved&&Math.hypot(dx,dy)>6){ drag.moved=true; cv.classList.add('dragging'); } if(drag.moved){ cam.x=drag.cx+dx; cam.y=drag.cy+dy; } }
+  hoverPerson=personAtScreen(mx,my); const o=hoverPerson?null:objAtScreen(mx,my); hover=o&&o.x!=null?{x:o.x,y:o.y}:null; cv.classList.toggle('pointing',!!(hoverPerson||o)); });
+function endPointer(e){ const was=drag; pointers.delete(e.pointerId); if(pointers.size<2) pinch=null; cv.classList.remove('dragging'); if(was&&!was.moved&&pointers.size===0){ const r=cv.getBoundingClientRect(); click(e.clientX-r.left,e.clientY-r.top); } if(pointers.size===0) drag=null; }
+cv.addEventListener('pointerup',endPointer); cv.addEventListener('pointercancel',e=>{pointers.delete(e.pointerId);drag=null;pinch=null;});
+cv.addEventListener('pointerleave',()=>{ if(!pointers.size){ hover=null; hoverPerson=null; } });
+cv.addEventListener('wheel',e=>{ e.preventDefault(); const r=cv.getBoundingClientRect(); const mx=e.clientX-r.left,my=e.clientY-r.top; const nz=clamp(cam.z*Math.exp(-e.deltaY*.0015),.35,2.6); cam.x=mx-(mx-cam.x)*nz/cam.z; cam.y=my-(my-cam.y)*nz/cam.z; cam.z=nz; },{passive:false});
+function click(mx,my){
+  const p=personAtScreen(mx,my); if(p){ openAgent(p.k); return; }
+  const o=objAtScreen(mx,my); if(!o){ closePanel(); return; }
+  if(o.t==='door'){ showHome(); return; }
+  if(o.t==='desk'){ openAgent(o.owner); return; }
+  const a=CAT[o.t].act; if(a) act(a);
+}
+function act(a){
+  if(a==='sync') return doSync();
+  if(a==='juego') return gameOpen();
+  if(a==='cartero') return openAgent('cartero');
+  if(a==='biblio') return openAgent('biblio');
+  openPanel(a);
+}
+
+/* ---------- Panel ---------- */
+const panel=document.getElementById('of-panel');
+let panelKey=null;
+function openAgent(k){
+  const p=personByK(k); if(!p) return; sel={id:p.id};
+  const need=needOf(k); if(need.sig) ack[k]=need.sig; LS.set(kAck(),ack);
+  if(p.atSlot){ p.atSlot=false; p.slot=null; p.bub='ok'; p.bubT=1.5; goHome(p); }
+  openPanel(k);
+}
+function openPanel(k){ panelKey=k; panel.hidden=false; renderPanel(); paintTools(); }
+function closePanel(){ panelKey=null; panel.hidden=true; sel=null; paintTools(); }
+function avatar(k){ const a=AGENTS.find(x=>x.k===k); if(!a) return ''; return `<canvas data-av="${k}" width="120" height="136" aria-hidden="true"></canvas>`; }
+function paintAvatars(){ panel.querySelectorAll('canvas[data-av]').forEach(cn=>{ const a=AGENTS.find(x=>x.k===cn.dataset.av); const c=cn.getContext('2d'); c.clearRect(0,0,120,136); c.save(); c.scale(2,2); c.translate(30,62); drawPerson(c,{id:1,k:a.k,look:a.look,face:0,ph:0},0,0,0,performance.now()/1000,{}); c.restore(); }); }
+function head(k,title,sub,say){ return `<button class="of-close" onclick="Office.closePanel()" aria-label="Cerrar">×</button><div class="of-ph">${avatar(k)}<div><h3>${esc(title)}</h3><div class="sub">${esc(sub)}</div></div></div>${say?`<div class="of-say">${say}</div>`:''}`; }
+function renderPanel(){
+  const k=panelKey; if(!k) return;
+  const f={peche:panelPeche,cartero:panelCartero,corrector:panelCorrector,programa:()=>panelNuevo('programa'),ficha:()=>panelNuevo('ficha'),recepcion:panelRecepcion,biblio:panelBiblio,ajustes:panelAjustes,tomo:panelTomo}[k];
+  if(!f) return; const keepScroll=panel.scrollTop; const vals={}; panel.querySelectorAll('input[id],textarea[id],select[id]').forEach(el=>{ if(el.type==='file') return; vals[el.id]=el.type==='checkbox'?el.checked:el.value; }); const act=document.activeElement&&panel.contains(document.activeElement)?document.activeElement.id:'';
+  panel.innerHTML=f(); Object.entries(vals).forEach(([id,v])=>{ const el=document.getElementById(id); if(!el||!panel.contains(el)) return; if(el.type==='checkbox') el.checked=v; else el.value=v; if(el.dataset.pick) filterPick(el.dataset.pick,el.value); });
+  if(act){ const el=document.getElementById(act); if(el) el.focus(); } panel.scrollTop=keepScroll; paintAvatars(); wireDrops();
+}
+function refresh(){ if(!panel.hidden) renderPanel(); paintHud(); paintTools(); }
+
+/* Selector de cursos */
+const pickCb={};
+function chips(c){ const s=savedForCourse(c); const st=courseStage(s); const v=(()=>{ try{ return localStorage.getItem('dcd_ver_'+c['Código'])||''; }catch(e){ return ''; } })(); return `${st.ficha?'✓ficha':'○ficha'} · ${st.programa?'✓programa':'○programa'}${v?' · '+v:''}`; }
+function picker(id, cb, filter){
+  pickCb[id]=cb; const list=(allCourses||[]).filter(filter||(()=>true));
+  if(!(allCourses||[]).length) return `<div class="of-note">Cargando los cursos de la hoja Base…</div>`;
+  return `<input class="of-in" id="pkq-${id}" data-pick="${id}" placeholder="Buscar por código o nombre" aria-label="Buscar curso" oninput="Office.filterPick('${id}',this.value)"><div class="of-pick" id="pk-${id}">${list.map(c=>`<button data-c="${attr(c['Código'])}" data-s="${attr(normTxt(c['Código']+' '+cName(c)))}" onclick="Office.pick('${id}',this.dataset.c)"><span class="c">${esc(c['Código'])}</span><span class="nm">${esc(cName(c))}</span><span class="ch">${chips(c)}</span></button>`).join('')||'<div class="of-note" style="padding:10px">No hay cursos que mostrar.</div>'}</div>`;
+}
+function filterPick(id,q){ const n=normTxt(q); document.querySelectorAll(`#pk-${id} button`).forEach(b=>{ b.style.display=!n||b.dataset.s.includes(n)?'':'none'; }); }
+function pick(id,code){ const cb=pickCb[id]; if(cb) cb(code); }
+
+/* ---------- Utilidades de Google ---------- */
+function copyText(t){ let ok=false; const ta=document.createElement('textarea'); ta.value=t; ta.setAttribute('readonly',''); ta.style.cssText='position:fixed;left:-9999px;opacity:0'; document.body.appendChild(ta); ta.select(); try{ ok=document.execCommand('copy'); }catch(e){} ta.remove(); if(!ok&&navigator.clipboard){ navigator.clipboard.writeText(t).catch(()=>{}); ok=true; } return ok; }
+function openClaude(){ window.open(getClaudeUrl(),'_blank','noopener'); }
+const DOCX='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+function needGoogle(after){ if(!gAccessToken){ toast('Conectá tu cuenta de Google primero',''); googleSignIn(after); return true; } return false; }
+function ensureDrive(after){ if(needGoogle(after)) return false; if(localStorage.getItem('dcd_drive_ok')!=='1'){ toast('Google pide permiso para tus carpetas de Drive. Aceptá y sigo solo.',''); requestDriveScope(after); return false; } return true; }
+let mailTokenClient=null;
+function requestMail(after){ if(!window.google?.accounts?.oauth2){ toast('Google Identity Services no cargó aún. Intentá de nuevo.','error'); return; }
+  if(!mailTokenClient) mailTokenClient=google.accounts.oauth2.initTokenClient({client_id:GOOGLE_CLIENT_ID, scope:SHEETS_SCOPE+' '+DRIVE_SCOPE+' '+GMAIL_SCOPE+' '+GMAIL_READ_SCOPE, include_granted_scopes:true, callback:onTokenReceived});
+  afterTokenFn=after; mailTokenClient.requestAccessToken(gUserInfo?.email?{prompt:'',hint:gUserInfo.email}:{prompt:''}); }
+const mailReadOk=()=>localStorage.getItem('dcd_gmailr_ok')==='1';
+const mailWriteOk=()=>localStorage.getItem('dcd_gmail_ok')==='1'||mailReadOk();
+async function gmail(path,opts={}){ const r=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/'+path,Object.assign({},opts,{headers:Object.assign({Authorization:'Bearer '+gAccessToken},opts.body?{'Content-Type':'application/json'}:{})}));
+  if(!r.ok){ const e=await r.json().catch(()=>({})); const err=new Error(e.error?.message||('Gmail '+r.status)); err.status=r.status; err.gscope=r.status===403&&/scope|insufficient|permission/i.test(err.message); throw err; } return r.json(); }
+function b64urlBytes(s){ const bin=atob(String(s).replace(/-/g,'+').replace(/_/g,'/')); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
+const b64urlText=s=>new TextDecoder().decode(b64urlBytes(s));
+async function driveBlob(id){ const r=await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&supportsAllDrives=true`,{headers:{Authorization:'Bearer '+gAccessToken}}); if(!r.ok){ const e=await r.json().catch(()=>({})); const err=new Error(e.error?.message||('Drive '+r.status)); err.status=r.status; err.scope=r.status===403&&/scope|insufficient|permission/i.test(err.message); throw err; } return r.blob(); }
+async function driveReplace(id,blob,name){ const bnd='dcd'+Math.random().toString(36).slice(2); const body=new Blob([`--${bnd}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`,JSON.stringify({name}),`\r\n--${bnd}\r\nContent-Type: ${DOCX}\r\n\r\n`,blob,`\r\n--${bnd}--`]);
+  return driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink`,{method:'PATCH',headers:{'Content-Type':`multipart/related; boundary=${bnd}`},body}); }
+async function driveMeta(id){ return driveFetch(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,name,webViewLink&supportsAllDrives=true`); }
+const docLink=(id,link)=>link||`https://docs.google.com/document/d/${id}/edit`;
+function saveBlob(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1500); }
+function folderOf(kind){ const p=P(); return driveFolderId(kind==='ficha'?p.folderFichas:p.folderProgramas); }
+// Corre una tarea con manejo uniforme de permisos vencidos
+async function run(key, fn, retry){
+  if(busy[key]) return; busy[key]=true; refresh();
+  try{ await fn(); }
+  catch(e){ console.error(e);
+    if(e.status===401){ gAccessToken=null; try{ localStorage.removeItem('dcd_gtoken'); }catch(_){} toast('La sesión de Google venció. Volvé a conectar y repetí el paso.','error'); renderNavAuth(); }
+    else if(e.gscope){ try{ localStorage.removeItem('dcd_gmailr_ok'); localStorage.removeItem('dcd_gmail_ok'); }catch(_){} toast('Gmail pide permiso de nuevo. Aceptá y repetí el paso.',''); requestMail(retry||null); }
+    else if(e.scope){ try{ localStorage.removeItem('dcd_drive_ok'); }catch(_){} toast('Drive pide permiso de nuevo. Aceptá y repetí el paso.',''); requestDriveScope(retry||null); }
+    else toast(e.message||String(e),'error'); }
+  busy[key]=false; refresh();
+}
+// Aplica los campos leídos (de un Word o de Claude) y escribe la fila del curso en el Maestro
+function applyItems(items, skip){
+  const sid=P().sheetId, code=currentCourse['Código']; maestroData[sid]=maestroData[sid]||{}; maestroData[sid][code]=maestroData[sid][code]||{};
+  let n=0; items.forEach(it=>{ if(!it.secId||it.value==null||!String(it.value).trim()) return; if(skip&&skip.includes(it.secId)) return; maestroData[sid][code][it.secId]=it.value; n++; });
+  localStorage.setItem('dcd_maestro',JSON.stringify(maestroData)); autoBackup(); return n;
+}
+async function writeMaestro(){ if(!gAccessToken) throw new Error('Conectá Google para escribir en el Maestro'); await writeCourseToMaestro(extractSheetId(P().url), currentCourse['Código'], buildMaestroColMap(currentSaved()), currentCourse); }
+async function syncFromBlob(blob, skip){ const d=parseFichaDocx(await readDocxXml(blob)); const items=fichaDocxToItems(d).filter(i=>i.secId); const n=applyItems(items, skip); await writeMaestro(); return n; }
+function setVersion(v){ try{ const old=courseVersion(); const io=VERSIONES.indexOf(old), iv=VERSIONES.indexOf(v); if(iv>io&&io>=0&&!versionSnap(old)) saveVersionSnap(old,currentSaved()); localStorage.setItem('dcd_ver_'+currentCourse['Código'],v); }catch(e){} }
+function mailCfg(){ const p=P(), pp=(typeof gmPrefs==='function'?gmPrefs():{})||{}, g=(typeof gmGlobal==='function'?gmGlobal():{})||{}; return { prefix:(p.mailPrefix??pp.prefix??p.sigla??'').trim(), prog:(p.mailProg||'Programa de curso').trim(), ficha:(p.mailFicha||'Ficha de curso').trim(), to:(p.mailTo||pp.to||g.to||'').trim(), name:(p.mailName||pp.name||g.name||'Ralph').trim(), cc:(p.mailCc||pp.cc||'').trim() }; }
+function fmtAddr(list){ return String(list||'').split(',').map(a=>a.trim()).filter(Boolean).map(a=>{ const m=a.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/); return m&&m[1].trim()?`${mimeWord(m[1].trim())} <${m[2]}>`:a; }).join(', '); }
+async function makeDraft({to,cc,subject,body,fname,blob,threadId,inReply,refs}){
+  let raw=buildMime({to:fmtAddr(to),cc:fmtAddr(cc),subject,body,fname,fileB64:await blobB64(blob)});
+  if(inReply) raw=raw.replace('MIME-Version: 1.0',`In-Reply-To: ${inReply}\r\nReferences: ${((refs||'')+' '+inReply).trim()}\r\nMIME-Version: 1.0`);
+  const msg={raw:b64url(utf8B64(raw))}; if(threadId) msg.threadId=threadId;
+  const d=await gmail('drafts',{method:'POST',body:JSON.stringify({message:msg})});
+  return `https://mail.google.com/mail/u/0/#drafts?compose=${encodeURIComponent(d.message?.id||'')}`;
+}
+
+/* ---------- Cartero ---------- */
+function codeRe(code){ const parts=(String(code||'').toUpperCase().match(/[A-Z]+|\d+/g)||[]).map(x=>/^\d+$/.test(x)?'0*'+String(parseInt(x,10)):x); return parts.length?new RegExp('(^|[^A-Z0-9])'+parts.join('[\\s_-]*')+'(?![0-9])','i'):null; }
+function findCourseIn(txt){ const T=String(txt||'').toUpperCase(); const hits=(allCourses||[]).filter(c=>{ const re=codeRe(c['Código']); return re&&re.test(T); }); hits.sort((a,b)=>String(b['Código']).length-String(a['Código']).length); return hits[0]||null; }
+function stripQuoted(t){ const L=String(t||'').replace(/\r/g,'').split('\n'); const out=[]; for(const l of L){ if(/^\s*>/.test(l)) continue; if(/^\s*(El|On)\s.+(escribi[oó]|wrote)\s*:?\s*$/i.test(l)) break; if(/^\s*-{2,}\s*(Original|Mensaje original|Forwarded)/i.test(l)) break; if(/^\s*(De|From)\s*:\s.+/i.test(l)&&out.length) break; out.push(l); } return out.join('\n').trim(); }
+function mailQuery(){ const m=mailCfg(); const labs=[m.prog,m.ficha].filter(Boolean).map(l=>`subject:("${l}")`).join(' '); return `is:unread has:attachment ${m.prefix?`subject:("${m.prefix}") `:''}{${labs}}`; }
+function parseMail(full){
+  const H=n=>((full.payload?.headers)||[]).find(h=>h.name.toLowerCase()===n)?.value||'';
+  const subject=H('subject'), from=H('from'), rfc=H('message-id'), refs=H('references');
+  let text='', html=''; const atts=[];
+  (function walkP(p){ if(!p) return; if(p.filename&&p.body?.attachmentId){ if(/\.docx$/i.test(p.filename)) atts.push({id:p.body.attachmentId,filename:p.filename,size:p.body.size||0}); }
+    else if(p.mimeType==='text/plain'&&p.body?.data&&!text) text=b64urlText(p.body.data); else if(p.mimeType==='text/html'&&p.body?.data&&!html) html=b64urlText(p.body.data); (p.parts||[]).forEach(walkP); })(full.payload);
+  if(!text&&html) text=html.replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div)>/gi,'\n').replace(/<blockquote[\s\S]*$/i,'').replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&');
+  if(!atts.length) return null;
+  const m=mailCfg(); const att=atts[0];
+  const kind=(normTxt(subject).includes(normTxt(m.ficha))||/\bficha\b/i.test(att.filename))?'ficha':'programa';
+  const c=findCourseIn(subject)||findCourseIn(att.filename);
+  const body=stripQuoted(text); const nb=normTxt(body);
+  const final=/\bfinal\b/.test(nb);
+  const ram=parseInt((att.filename.match(/RAM\s*[-_ ]?(\d)/i)||[])[1]||'0',10)||0;
+  const next=final?'Final':('PRL'+Math.min(3,Math.max(2,(ram||1)+1)));
+  return {id:full.id, threadId:full.threadId, subject, from, rfc, refs, date:parseInt(full.internalDate||Date.now(),10), kind, code:c?c['Código']:'', att, final, ram, next, snippet:(body||full.snippet||'').slice(0,260), status:'nuevo'};
+}
+async function checkMail(silent){
+  if(!P()) return; if(!gAccessToken){ if(!silent) needGoogle(()=>checkMail()); return; }
+  if(!mailReadOk()){ mailNeedPerm=true; if(!silent){ requestMail(()=>checkMail()); } refresh(); return; }
+  if(mailBusy) return; mailBusy=true; mailNeedPerm=false; refresh();
+  try{
+    const list=await gmail('messages?maxResults=25&q='+encodeURIComponent(mailQuery()));
+    const I=inbox(); let nuevos=0;
+    for(const m of (list.messages||[])){ if(I.some(x=>x.id===m.id)) continue; const full=await gmail(`messages/${m.id}?format=full`); const it=parseMail(full); if(it){ I.push(it); nuevos++; } }
+    saveInbox(I); mailLast=Date.now();
+    if(!silent) toast(nuevos?`El Cartero trajo ${nuevos} correo${nuevos>1?'s':''} nuevo${nuevos>1?'s':''}`:'No hay correos nuevos del revisor', nuevos?'success':'');
+    const ca=personByK('cartero'); if(ca&&nuevos){ ca.bub='ok'; ca.bubT=2; }
+  }catch(e){ if(e.gscope){ mailNeedPerm=true; try{ localStorage.removeItem('dcd_gmailr_ok'); }catch(_){} } else if(!silent) toast('No pude revisar el correo: '+e.message,'error'); }
+  mailBusy=false; refresh();
+}
+function processMail(id){ return run('mail:'+id, async()=>{
+  const I=inbox(); const it=I.find(x=>x.id===id); if(!it) return;
+  if(!it.code) throw new Error('No encontré el código del curso en el asunto ni en el adjunto. Elegilo en la lista del correo.');
+  if(!ensureDrive(()=>processMail(id))) return;
+  const folder=folderOf(it.kind); if(!folder) throw new Error(`El proyecto no tiene la carpeta de ${it.kind==='ficha'?'fichas':'programas'} en Drive. Agregala en la pizarra (Ajustes).`);
+  setCourse(it.code);
+  const att=await gmail(`messages/${it.id}/attachments/${it.att.id}`); const blob=new Blob([b64urlBytes(att.data)],{type:DOCX});
+  const r=await driveUploadDocx(blob, it.att.filename, folder, it.kind);
+  await gmail(`messages/${it.id}/modify`,{method:'POST',body:JSON.stringify({removeLabelIds:['UNREAD']})});
+  if(it.kind==='programa') setVersion(it.next);
+  const F=flows(); const base={id:'f'+Date.now().toString(36), kind:it.kind, code:it.code, ram:it.ram, next:it.next, msgId:it.id, threadId:it.threadId, rfc:it.rfc, refs:it.refs, subject:it.subject, from:it.from, fileId:r.file.id, fileName:r.file.name, link:r.file.webViewLink||'', created:Date.now()};
+  if(it.final){ const n=await syncFromBlob(blob); F.push(Object.assign(base,{stage:'final', learned:true})); toast(`✓ ${it.code} quedó en versión Final: subido a Drive y ${n} campos al Maestro`,'success'); floatTxt(7.5,.5,'+1 Final','#c9a000'); }
+  else { F.push(Object.assign(base,{stage:'comentado'})); toast(`✓ ${it.code}: el documento con comentarios ya está en Drive. El Corrector te espera.`,'success'); }
+  saveFlows(F); it.status='subido'; it.flow=base.id; saveInbox(I);
+  const ca=personByK('cartero'); if(ca){ ca.bub='ok'; ca.bubT=2; }
+}, ()=>processMail(id)); }
+async function processAll(){ for(const m of inbox().filter(x=>x.status==='nuevo'&&x.code)) await processMail(m.id); }
+function setMailCourse(id,code){ const I=inbox(); const it=I.find(x=>x.id===id); if(it){ it.code=code; saveInbox(I); refresh(); } }
+function setMailKind(id,v){ const I=inbox(); const it=I.find(x=>x.id===id); if(!it) return; if(v==='final'){ it.final=true; it.next='Final'; } else { it.final=false; it.next='PRL'+Math.min(3,Math.max(2,(it.ram||1)+1)); if(/^PRL[23]$/.test(v)) it.next=v; } saveInbox(I); refresh(); }
+function dismissMail(id){ const I=inbox(); const it=I.find(x=>x.id===id); if(it){ it.status='ignorado'; saveInbox(I); refresh(); } }
+function panelCartero(){
+  const I=inbox(); const nuevos=I.filter(m=>m.status==='nuevo'); const hist=I.filter(m=>m.status!=='nuevo').slice(-4).reverse(); const m=mailCfg();
+  let say;
+  if(!gAccessToken) say='Conectá tu cuenta de Google y me pongo a revisar el correo.';
+  else if(!mailReadOk()) say='Para leer los correos del revisor necesito un permiso nuevo de Gmail: leer y marcar como leído. Solo busco los correos del proyecto.';
+  else if(mailBusy) say='Estoy revisando el correo…';
+  else if(nuevos.length) say=`Traigo ${nuevos.length} correo${nuevos.length>1?'s':''}. Ya leí el texto y decidí si es revisión o versión final. Confirmá y lo subo a Drive tal cual viene.`;
+  else say=`No hay correos nuevos. Busco los no leídos con adjunto y con «${esc(m.prefix||'—')}» y «${esc(m.prog)}» o «${esc(m.ficha)}» en el asunto.`;
+  const opts=(it)=>`<select class="of-in" style="width:auto;padding:4px 8px;font-size:12px" onchange="Office.setMailKind('${it.id}',this.value)" aria-label="Qué hacer con el correo"><option value="PRL2"${!it.final&&it.next==='PRL2'?' selected':''}>Revisión → PRL2</option><option value="PRL3"${!it.final&&it.next==='PRL3'?' selected':''}>Revisión → PRL3</option><option value="final"${it.final?' selected':''}>Versión final</option></select>`;
+  const card=it=>{ const c=courseBy(it.code); const b=busy['mail:'+it.id];
+    return `<div class="of-item"><div class="t">${it.final?'<span class="of-tag fin">FINAL</span>':`<span class="of-tag rev">REVISIÓN${it.ram?' · RAM'+it.ram:''}</span>`}<span class="of-tag">${it.kind==='ficha'?'Ficha':'Programa'}</span> ${esc(it.code||'¿curso?')} ${esc(cName(c))}</div>
+      <div class="m">${esc(it.subject)}<br>📎 ${esc(it.att.filename)}</div>
+      ${it.snippet?`<div class="m" style="font-style:italic">«${esc(it.snippet.slice(0,160))}${it.snippet.length>160?'…':''}»</div>`:''}
+      ${it.code?'':`<div class="of-warn">No reconocí el curso. Elegilo:</div><select class="of-in" onchange="Office.setMailCourse('${it.id}',this.value)"><option value="">Elegir curso…</option>${(allCourses||[]).map(x=>`<option value="${attr(x['Código'])}">${esc(x['Código'])} ${esc(cName(x))}</option>`).join('')}</select>`}
+      <div class="of-row">${opts(it)}<button class="of-btn pri sm" ${b||!it.code?'disabled':''} onclick="Office.processMail('${it.id}')">${b?'Subiendo…':it.final?'Subir y cerrar como Final':'Subir a Drive'}</button><button class="of-btn sm" onclick="Office.dismissMail('${it.id}')" title="No es de este proyecto">Ignorar</button></div></div>`; };
+  return head('cartero','Cartero','Correo del proyecto', say)
+    + `<div class="of-row">${!gAccessToken?`<button class="of-btn pri" onclick="googleSignIn(()=>Office.checkMail())">Conectar Google</button>`:!mailReadOk()?`<button class="of-btn pri" onclick="Office.requestMail(()=>Office.checkMail())">Dar permiso de Gmail</button>`:`<button class="of-btn ink" ${mailBusy?'disabled':''} onclick="Office.checkMail()">Revisar el correo ahora</button>`}${nuevos.filter(x=>x.code).length>1?`<button class="of-btn pri" onclick="Office.processAll()">Subir todos</button>`:''}</div>`
+    + (nuevos.length?`<div class="of-sec"><h4>Correos nuevos</h4>${nuevos.map(card).join('')}</div>`:'')
+    + `<div class="of-note">Reglas: si el texto del correo dice «final», el documento sube como versión Final y actualiza el Maestro. Si no, es una revisión: un adjunto RAM1 lleva a PRL2 y uno RAM2 a PRL3. ${mailLast?'Última revisión: '+new Date(mailLast).toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit'})+'.':''}</div>`
+    + (hist.length?`<div class="of-sec"><h4>Ya atendidos</h4>${hist.map(it=>`<div class="of-item"><div class="t">${esc(it.code)} · ${it.status==='ignorado'?'ignorado':it.final?'Final':it.next}</div><div class="m">${esc(it.att.filename)}</div></div>`).join('')}</div>`:'');
+}
+
+/* ---------- Corrector ---------- */
+const FIX_PROMPT=f=>`Te adjunto el ${f.kind==='ficha'?'documento de la ficha':'programa'} de curso ${f.code} con los comentarios del revisor.
+
+1. Leé cada comentario del documento.
+2. Corregí exactamente lo que pide cada comentario, sin cambiar lo que no se pidió y siguiendo las reglas de las skills pc-* de CENFOTEC.
+3. Resaltá en amarillo todo texto que cambies.
+4. No borres los comentarios del revisor: dejalos en su lugar.
+
+Devolveme el .docx corregido con el mismo formato de la plantilla.`;
+const LEARN_PROMPT=f=>`Revisá las correcciones que hicimos en el ${f.kind==='ficha'?'documento de la ficha':'programa'} de curso ${f.code}: los comentarios del revisor y lo que cambiamos (resaltado en amarillo).
+
+Decime qué aprendiste de estas correcciones: los patrones que se repiten, no los casos sueltos. Después proponé cómo mejorar las skills pc-* (la ficha, el programa completo y la sección que corresponda) para no repetir estos errores, con el texto exacto de cada regla nueva o cambiada listo para pegar en la skill.`;
+function fixCopy(id){ const f=flows().find(x=>x.id===id); if(!f) return; const ok=copyText(FIX_PROMPT(f)); openClaude(); toast(ok?'✓ Instrucciones copiadas. Pegalas en Claude y adjuntá el documento que se está descargando.':'No pude copiar; abrí el panel y copiá el texto a mano', ok?'success':'error');
+  run('dl:'+id, async()=>{ if(!ensureDrive(null)) return; const blob=await driveBlob(f.fileId); saveBlob(blob, f.fileName||(f.code+'.docx')); const F=flows(); const x=F.find(y=>y.id===id); if(x){ x.copied=true; saveFlows(F); } }); }
+function fixDownload(id){ const f=flows().find(x=>x.id===id); if(!f) return; run('dl:'+id, async()=>{ if(!ensureDrive(()=>fixDownload(id))) return; saveBlob(await driveBlob(f.fileId), f.fileName||(f.code+'.docx')); }, ()=>fixDownload(id)); }
+function fixUpload(id,file){ if(!file) return; run('up:'+id, async()=>{
+  if(!/\.docx$/i.test(file.name)) throw new Error('Subí el Word (.docx) corregido');
+  if(!ensureDrive(null)) return;
+  const F=flows(); const f=F.find(x=>x.id===id); setCourse(f.code);
+  const name=wordFileName(f.kind, f.next);
+  const r=await driveReplace(f.fileId, file, name);
+  f.fileName=r.name; f.link=r.webViewLink||f.link; f.stage='corregido'; f.fixedAt=Date.now(); saveFlows(F);
+  toast(`✓ ${f.code}: el documento corregido reemplazó al de Drive (${r.name})`,'success');
+}); }
+function fixReview(id){ const f=flows().find(x=>x.id===id); if(!f) return; window.open(docLink(f.fileId,f.link),'_blank','noopener'); const F=flows(); const x=F.find(y=>y.id===id); if(x&&!x.opened){ x.opened=true; saveFlows(F); refresh(); } }
+function fixDone(id){ run('done:'+id, async()=>{
+  if(!ensureDrive(()=>fixDone(id))) return;
+  if(!mailWriteOk()){ toast('Gmail pide permiso para crear el borrador. Aceptá y sigo solo.',''); requestMail(()=>fixDone(id)); return; }
+  const F=flows(); const f=F.find(x=>x.id===id); setCourse(f.code);
+  const meta=await driveMeta(f.fileId); const blob=await driveBlob(f.fileId);
+  const n=await syncFromBlob(blob);
+  const m=mailCfg(); const quien=m.name||'Ralph';
+  const docTxt=f.kind==='ficha'?'la ficha de curso corregida':'el programa de curso corregido';
+  const body=`Buen día, ${quien}. Muchísimas gracias. Le comparto ${docTxt} para su revisión, quedo atento a sus comentarios.\nSaludos cordiales,`;
+  const subject=/^re:/i.test(f.subject)?f.subject:'Re: '+f.subject;
+  const link=await makeDraft({to:f.from, cc:m.cc, subject, body, fname:meta.name, blob, threadId:f.threadId, inReply:f.rfc, refs:f.refs});
+  f.stage='enviado'; f.draft=link; f.sentAt=Date.now(); f.fileName=meta.name; saveFlows(F);
+  toast(`✓ Maestro actualizado (${n} campos) y respuesta lista en Gmail`,'success'); floatTxt(9.5,.5,'Maestro ✓');
+  window.open(link,'_blank','noopener');
+}, ()=>fixDone(id)); }
+function learnCopy(id){ const F=flows(); const f=F.find(x=>x.id===id); if(!f) return; const ok=copyText(LEARN_PROMPT(f)); openClaude(); f.learned=true; saveFlows(F); toast(ok?'✓ Prompt de aprendizaje copiado. Pegalo en la misma conversación de Claude.':'No pude copiar el texto', ok?'success':'error'); refresh(); }
+function flowArchive(id){ const F=flows(); const f=F.find(x=>x.id===id); if(f){ f.stage=f.stage==='enviado'||f.stage==='final'?f.stage:'archivado'; f.archived=true; f.learned=true; saveFlows(F); refresh(); } }
+function panelCorrector(){
+  const F=flows().filter(f=>!f.archived&&f.stage!=='final'); const act=F.filter(f=>f.stage!=='enviado'); const sent=F.filter(f=>f.stage==='enviado');
+  const say=act.length?`Tengo ${act.length===1?'un documento':act.length+' documentos'} con comentarios del revisor. Te guío paso a paso.`:sent.some(f=>!f.learned)?'Ya respondimos al revisor. Si querés, le pedimos a Claude que resuma lo aprendido para mejorar las skills.':'Sin correcciones pendientes. Cuando el Cartero suba un documento con comentarios, te aviso.';
+  const card=f=>{ const c=courseBy(f.code); const st=['comentado','corregido','enviado'].indexOf(f.stage); const B=k=>busy[k+':'+f.id];
+    const dn=[!!f.copied||st>=1, st>=1, st>=1&&!!f.opened, st>=2]; const now=dn.indexOf(false);
+    const li=(i,lbl,sm,btns)=>`<li class="${dn[i]?'done':now===i?'now':''}"><span class="n">${i+1}</span><div class="lbl">${lbl}${sm?`<small>${sm}</small>`:''}${btns?`<div class="of-row">${btns}</div>`:''}</div></li>`;
+    return `<div class="of-item"><div class="t"><span class="of-tag rev">${esc(f.next)}</span><span class="of-tag">${f.kind==='ficha'?'Ficha':'Programa'}</span> ${esc(f.code)} ${esc(cName(c))}</div><div class="m">📄 ${esc(f.fileName||'')}</div>
+      <ol class="of-steps">
+        ${li(0,'Corregir con Claude','Copio las instrucciones, abro Claude y descargo el documento con los comentarios para que lo adjuntés.',`<button class="of-btn pri sm" onclick="Office.fixCopy('${f.id}')">Copiar instrucciones y abrir Claude</button><button class="of-btn sm" ${B('dl')?'disabled':''} onclick="Office.fixDownload('${f.id}')">Solo descargar</button>`)}
+        ${li(1,'Subir el Word corregido',st>=1?'Listo: ya reemplazó al de Drive. Podés subir otro si Claude lo vuelve a corregir.':'Lo subo a Drive en el mismo archivo, con el nombre de la versión '+f.next+'.',`<label class="of-drop" data-drop="${f.id}">${B('up')?'Subiendo…':'Soltá aquí el .docx o tocá para elegirlo'}<input type="file" accept=".docx" onchange="Office.fixUpload('${f.id}',this.files[0]);this.value=''"></label>`)}
+        ${li(2,'Revisar en Google Docs','Corregí ahí lo que haga falta. La app ya no edita el texto.',st>=1?`<button class="of-btn sm ink" onclick="Office.fixReview('${f.id}')">Abrir en Drive</button>`:'')}
+        ${li(3,'Está revisado','Actualizo el Maestro con el documento de Drive y dejo en Gmail la respuesta al revisor con el documento adjunto.',st>=1?`<button class="of-btn pri sm" ${B('done')?'disabled':''} onclick="Office.fixDone('${f.id}')">${B('done')?'Trabajando…':'Está revisado'}</button>`:'')}
+      </ol><div class="of-row" style="justify-content:flex-end"><button class="of-btn sm" onclick="Office.flowArchive('${f.id}')">Archivar</button></div></div>`; };
+  return head('corrector','Corrector','Comentarios del revisor', say)
+    + (act.length?`<div class="of-sec"><h4>En corrección</h4>${act.map(card).join('')}</div>`:'')
+    + (sent.length?`<div class="of-sec"><h4>Respondidos</h4>${sent.slice(-5).reverse().map(f=>`<div class="of-item"><div class="t">${esc(f.code)} · ${esc(f.next)} <span class="of-tag fin">respuesta en Gmail</span></div><div class="m">${f.draft?`<a href="${attr(f.draft)}" target="_blank" rel="noopener">Abrir el borrador</a> · `:''}<a href="${attr(docLink(f.fileId,f.link))}" target="_blank" rel="noopener">Ver en Drive</a></div><div class="of-row"><button class="of-btn sm ${f.learned?'':'pri'}" onclick="Office.learnCopy('${f.id}')">${f.learned?'Copiar de nuevo lo aprendido':'¿Qué aprendimos? Copiar prompt'}</button><button class="of-btn sm" onclick="Office.flowArchive('${f.id}')">Archivar</button></div></div>`).join('')}</div>`:'');
+}
+function wireDrops(){ panel.querySelectorAll('[data-drop]').forEach(el=>{ const id=el.dataset.drop; el.ondragover=e=>{ e.preventDefault(); el.classList.add('over'); }; el.ondragleave=()=>el.classList.remove('over'); el.ondrop=e=>{ e.preventDefault(); el.classList.remove('over'); const f=e.dataTransfer.files[0]; if(el.dataset.kind) nuevoFile(el.dataset.kind,f); else fixUpload(id,f); }; }); }
+
+/* ---------- Programadora y Fichero ---------- */
+function nuevoPick(kind,code){ panel.innerHTML=''; const J=jobs(); J[kind]={code,stage:'prompt',t:Date.now()}; saveJobs(J); refresh(); }
+function nuevoPrompt(kind){ const j=jobs()[kind]; if(!j) return; try{ setCourse(j.code); }catch(e){ toast(e.message,'error'); return; } const txt=kind==='programa'?buildProgramaPrompt():buildFichaPrompt(); const ok=copyText(txt); openClaude(); toast(ok?'✓ Prompt copiado. Pegalo en Claude y traé el JSON que te devuelva.':'No pude copiar el prompt', ok?'success':'error'); const J=jobs(); J[kind].copied=true; saveJobs(J); refresh(); }
+function nuevoImport(kind){ const ta=document.getElementById('of-json-'+kind); const text=(ta?.value||pendingJSON[kind]||'').trim(); pendingJSON[kind]=text; run('imp:'+kind, async()=>{
+  if(!text) throw new Error('Pegá la respuesta de Claude primero');
+  if(!ensureDrive(()=>nuevoImport(kind))) { pendingJSON[kind]=text; return; }
+  const J=jobs(); const j=J[kind]; setCourse(j.code);
+  const data=extractJSONBlock(text);
+  if(data.codigo&&normCode(data.codigo)!==normCode(j.code)) throw new Error(`La respuesta es de ${data.codigo}, no de ${j.code}`);
+  const items=kind==='ficha'?fichaToItems(data):programaToItems(data);
+  if(!items.filter(i=>i.secId).length) throw new Error('El bloque no trae campos para importar');
+  const n=applyItems(items); await writeMaestro();
+  if(kind==='programa'&&!localStorage.getItem('dcd_ver_'+j.code)) setVersion('PRL1');
+  const r=await uploadKind(kind);
+  j.stage='subido'; j.fileId=r.file.id; j.link=r.file.webViewLink||''; j.t=Date.now(); j.fields=n; saveJobs(J); pendingJSON[kind]='';
+  toast(`✓ ${j.code}: ${n} campos al Maestro y ${kind==='ficha'?'la ficha':'el programa'} en Drive`,'success'); floatTxt(9.5,.5,'Maestro ✓');
+}, ()=>nuevoImport(kind)); }
+const pendingJSON={};
+async function nuevoFile(kind,file){ if(!file) return; const t=await file.text().catch(()=>''); const ta=document.getElementById('of-json-'+kind); if(ta){ ta.value=t; pendingJSON[kind]=t; } }
+async function uploadKind(kind){
+  const folder=folderOf(kind); if(!folder) throw new Error(`El proyecto no tiene la carpeta de ${kind==='ficha'?'fichas':'programas'} en Drive. Agregala en la pizarra (Ajustes).`);
+  const o=headlessWordOpts();
+  try{ const fromM=await savedFromMaestroRow(); if(fromM){ const m=Object.assign({},o.saved); Object.entries(fromM).forEach(([k,v])=>{ if(String(v||'').trim()&&!String(m[k]||'').trim()) m[k]=v; }); o.saved=m; } }catch(e){}
+  const blob=await buildDocx(kind,{escuela:o.escuela,carrera:o.carrera,carrera2:o.carrera2,saved:o.saved,highlight:o.highlight});
+  return driveUploadDocx(blob, wordFileName(kind,o.ver), folder, kind);
+}
+function nuevoOpen(kind){ const j=jobs()[kind]; if(j?.fileId) window.open(docLink(j.fileId,j.link),'_blank','noopener'); const J=jobs(); if(J[kind]){ J[kind].opened=true; saveJobs(J); refresh(); } }
+function nuevoMail(kind){ run('mail:'+kind, async()=>{
+  if(!ensureDrive(()=>nuevoMail(kind))) return;
+  if(!mailWriteOk()){ toast('Gmail pide permiso para crear el borrador. Aceptá y sigo solo.',''); requestMail(()=>nuevoMail(kind)); return; }
+  const J=jobs(); const j=J[kind]; const c=setCourse(j.code); const m=mailCfg();
+  const toEl=document.getElementById('of-to-'+kind); const to=(toEl?.value||m.to).trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to.split(',')[0].trim())) throw new Error('Escribí el correo del revisor');
+  if(to!==P().mailTo){ P().mailTo=to; saveProjects(); }
+  const meta=await driveMeta(j.fileId); const blob=await driveBlob(j.fileId);
+  const n=await syncFromBlob(blob);
+  let body=gmBodyText(m.name); if(kind==='ficha') body=body.replace('el programa de curso en mención','la ficha de curso en mención');
+  const subject=`${m.prefix?m.prefix+' | ':''}${kind==='ficha'?m.ficha:m.prog} ${j.code} ${cName(c)}`.trim();
+  const link=await makeDraft({to, cc:m.cc, subject, body, fname:meta.name, blob});
+  gmRot++; try{ localStorage.setItem('dcd_mail_rot',String(gmRot)); }catch(e){}
+  j.stage='enviado'; j.draft=link; saveJobs(J);
+  toast(`✓ Maestro al día (${n} campos) y correo nuevo listo en Gmail`,'success'); window.open(link,'_blank','noopener');
+}, ()=>nuevoMail(kind)); }
+function nuevoReset(kind){ panel.innerHTML=''; const J=jobs(); delete J[kind]; saveJobs(J); pendingJSON[kind]=''; refresh(); }
+function panelNuevo(kind){
+  const isP=kind==='programa'; const j=jobs()[kind]; const who=isP?'Programadora':'Fichero'; const B=k=>busy[k+':'+kind];
+  if(!j) return head(kind,who,isP?'Programas de curso nuevos':'Fichas de curso nuevas', isP?'Elegí el curso y te doy el prompt del programa completo. Conviene que la ficha ya esté aprobada.':'Elegí el curso y te doy el prompt de la ficha. Antes, la Recepcionista tiene que recibir el esbozo del experto (XLSX).')
+    + `<div class="of-sec"><h4>Elegí un curso</h4>${picker('nv-'+kind, code=>nuevoPick(kind,code), c=>{ const st=courseStage(savedForCourse(c)); return isP?!st.programa:!st.ficha; })}<div class="of-note">Se muestran los cursos que todavía no tienen ${isP?'programa':'ficha'}. <a href="#" onclick="Office.showAllPick('${kind}');return false">Ver todos</a></div></div>`;
+  const c=courseBy(j.code); const s=c?savedForCourse(c):{}; const st=['prompt','subido','enviado'].indexOf(j.stage);
+  let warn='';
+  if(isP){ try{ const miss=fichaMissing(s); if(miss.length) warn=`La ficha todavía no tiene: ${esc(miss.join(', '))}. Claude trabajará con lo que haya.`; }catch(e){} }
+  else if(!s._esbozo) warn='Este curso todavía no tiene el esbozo del experto. Pasá primero por la Recepcionista para subir el XLSX.';
+  const dn=[!!j.copied||st>=1, st>=1, st>=1&&!!j.opened, st>=2]; const now=dn.indexOf(false);
+  const li=(i,lbl,sm,body)=>`<li class="${dn[i]?'done':now===i?'now':''}"><span class="n">${i+1}</span><div class="lbl">${lbl}${sm?`<small>${sm}</small>`:''}${body?`<div>${body}</div>`:''}</div></li>`;
+  return head(kind,who,isP?'Programa nuevo':'Ficha nueva', j.stage==='subido'?`${esc(j.code)} ya está en Drive. Revisalo en Google Docs y avisame cuando esté listo para enviarlo.`:j.stage==='enviado'?'Listo. El correo para el revisor quedó en tus borradores de Gmail.':`Trabajemos ${isP?'el programa':'la ficha'} de ${esc(j.code)}.`)
+    + `<div class="of-item"><div class="t">${esc(j.code)} ${esc(cName(c))}</div><div class="m">${c?chips(c):''}</div>${warn?`<div class="of-warn">${warn}${!isP&&!s._esbozo?` <a href="#" onclick="Office.openPanel('recepcion');return false">Ir a la Recepcionista</a>`:''}</div>`:''}
+      <ol class="of-steps">
+        ${li(0,'Copiar el prompt y abrir Claude','',`<div class="of-row"><button class="of-btn pri sm" onclick="Office.nuevoPrompt('${kind}')">${j.copied?'Copiar de nuevo':'Copiar prompt y abrir Claude'}</button></div>`)}
+        ${li(1,'Pegar la respuesta de Claude','Pegá el bloque JSON. Lo guardo en el Maestro y genero el Word en Drive.',st===0?`<textarea class="of-ta" id="of-json-${kind}" placeholder="Pegá aquí la respuesta completa o solo el bloque JSON">${esc(pendingJSON[kind]||'')}</textarea><label class="of-drop" data-drop="x" data-kind="${kind}" style="padding:8px">o soltá un archivo .json o .txt<input type="file" accept=".json,.txt,.md" onchange="Office.nuevoFile('${kind}',this.files[0]);this.value=''"></label><div class="of-row"><button class="of-btn ink sm" ${B('imp')?'disabled':''} onclick="Office.nuevoImport('${kind}')">${B('imp')?'Guardando y subiendo…':'Guardar en el Maestro y subir a Drive'}</button></div>`:'')}
+        ${li(2,'Revisar en Google Docs','La app ya no edita el texto: corregí en Drive.',st>=1?`<div class="of-row"><button class="of-btn ink sm" onclick="Office.nuevoOpen('${kind}')">Abrir en Drive</button></div>`:'')}
+        ${li(3,'Todo listo','Actualizo el Maestro con lo que corregiste en Drive y preparo un correo nuevo para el revisor.',st===1?`<label class="of-lb" for="of-to-${kind}">Para</label><input class="of-in" id="of-to-${kind}" value="${attr(mailCfg().to)}" placeholder="correo del revisor"><div class="of-row"><button class="of-btn pri sm" ${B('mail')?'disabled':''} onclick="Office.nuevoMail('${kind}')">${B('mail')?'Trabajando…':'Está revisado, preparar correo'}</button></div>`:st===2&&j.draft?`<div class="of-row"><a class="of-btn sm" href="${attr(j.draft)}" target="_blank" rel="noopener">Abrir el borrador</a></div>`:'')}
+      </ol></div>
+      <div class="of-row"><button class="of-btn sm" onclick="Office.nuevoReset('${kind}')">${j.stage==='enviado'?'Terminar y elegir otro curso':'Cambiar de curso'}</button></div>`;
+}
+function showAllPick(kind){ const el=panel.querySelector('.of-sec'); if(!el) return; el.innerHTML=`<h4>Todos los cursos</h4>${picker('nva-'+kind, code=>nuevoPick(kind,code))}`; }
+
+/* ---------- Recepcionista ---------- */
+function recepPick(code){ try{ setCourse(code); }catch(e){ toast(e.message,'error'); return; }
+  window.__ofHook=(items)=>{ run('esb', async()=>{ const n=applyItems(items); toast(`✓ Esbozo de ${currentCourse['Código']} guardado (${n} campos)`,'success'); if(gAccessToken){ await writeMaestro(); toast('✓ Esbozo también en el Maestro','success'); } const r=personByK('recepcion'); if(r){ r.bub='ok'; r.bubT=2; } }); };
+  openEsbozo(); }
+function panelRecepcion(){
+  const list=(allCourses||[]); const con=list.filter(c=>savedForCourse(c)._esbozo).length;
+  return head('recepcion','Recepcionista','Esbozos del experto', `Traeme el Excel del experto (una hoja por curso). Elegí el curso, cargo el XLSX, busco su hoja y guardo temario, evaluación, bibliografía e insumos en el Maestro. Así el Fichero ya puede hacer la ficha.`)
+    + `<div class="of-note">${con} de ${list.length} cursos ya tienen esbozo. ${esbozoWB?`Tengo cargado <strong>${esc(esbozoFileName)}</strong>: para otro curso del mismo Excel no hace falta subirlo de nuevo.`:''}</div>`
+    + `<div class="of-sec"><h4>Elegí el curso</h4>${picker('rc', recepPick)}</div>`;
+}
+
+/* ---------- Bibliotecaria ---------- */
+let biblioCode='';
+function biblioPick(code){ biblioCode=code; panel.innerHTML=''; refresh(); }
+function biblioSave(){ const ob=document.getElementById('of-bob').value.trim(), co=document.getElementById('of-bco').value.trim(), upd=document.getElementById('of-bdrv').checked; run('bib', async()=>{
+  setCourse(biblioCode); if(needGoogle(null)) return;
+  if(upd&&!ensureDrive(null)) return;
+  const sid=P().sheetId, code=biblioCode; maestroData[sid]=maestroData[sid]||{}; const s=maestroData[sid][code]=maestroData[sid][code]||{};
+  let fileId=''; try{ fileId=localStorage.getItem(driveFileKey('programa'))||''; }catch(e){}
+  if(upd&&folderOf('programa')){ const f=await driveFindCourseFile(folderOf('programa'),'programa'); if(f){ fileId=f.id; await syncFromBlob(await driveBlob(f.id),['biblio_ob','biblio_co']); } }
+  s.biblio_ob=ob; s.biblio_co=co; localStorage.setItem('dcd_maestro',JSON.stringify(maestroData)); autoBackup();
+  await writeMaestro();
+  if(upd&&fileId&&hasProgramSection(currentSaved())){ await uploadKind('programa'); toast(`✓ Bibliografía de ${code} en el Maestro y en el programa de Drive`,'success'); }
+  else toast(`✓ Bibliografía de ${code} guardada en el Maestro`,'success');
+  const b=personByK('biblio'); if(b){ b.bub='ok'; b.bubT=2; }
+}); }
+function panelBiblio(){
+  if(!biblioCode) return head('biblio','Bibliotecaria','Bibliografía de los cursos','Elegí un curso y pegá sus referencias. Una por línea, en APA.')+`<div class="of-sec"><h4>Elegí el curso</h4>${picker('bb', biblioPick)}</div>`;
+  const c=courseBy(biblioCode); const s=c?savedForCourse(c):{};
+  return head('biblio','Bibliotecaria','Bibliografía', `Referencias de <strong>${esc(biblioCode)}</strong> ${esc(cName(c))}. Una por línea.`)
+    + `<label class="of-lb" for="of-bob">Bibliografía obligatoria</label><textarea class="of-ta" id="of-bob" style="font-family:inherit">${esc(s.biblio_ob||'')}</textarea>
+       <label class="of-lb" for="of-bco">Bibliografía complementaria</label><textarea class="of-ta" id="of-bco" style="font-family:inherit">${esc(s.biblio_co||'')}</textarea>
+       <label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;margin-top:10px"><input type="checkbox" id="of-bdrv" checked> <span>Actualizar también el programa en Drive. Antes leo el documento de Drive para no perder lo que corregiste ahí.</span></label>
+       <div class="of-row"><button class="of-btn pri" ${busy.bib?'disabled':''} onclick="Office.biblioSave()">${busy.bib?'Guardando…':'Guardar en el Maestro'}</button><button class="of-btn" onclick="Office.biblioPick('')">Otro curso</button></div>`;
+}
+
+/* ---------- Peche, Ajustes y Tomo ---------- */
+function todoList(){
+  const L=[]; const nI=inbox().filter(m=>m.status==='nuevo').length; if(nI) L.push(['cartero',`${nI} correo${nI>1?'s':''} del revisor por subir`]);
+  flows().filter(f=>!f.archived&&(f.stage==='comentado'||f.stage==='corregido')).forEach(f=>L.push(['corrector',`${f.code}: ${f.stage==='comentado'?'corregir los comentarios':'revisar en Drive y responder'}`]));
+  const J=jobs(); ['programa','ficha'].forEach(k=>{ if(J[k]&&J[k].stage!=='enviado') L.push([k,`${J[k].code}: ${k==='programa'?'programa':'ficha'} ${J[k].stage==='subido'?'en Drive, por revisar':'esperando la respuesta de Claude'}`]); });
+  if(!gAccessToken) L.unshift(['peche','Conectar tu cuenta de Google']);
+  return L;
+}
+let classicPick='';
+function panelPeche(){
+  const L=todoList();
+  return head('peche','Peche','Tu escritorio', L.length?'Esto es lo que tenés pendiente:':'Todo al día. Los agentes te avisan cuando haya algo.')
+    + (L.length?`<div>${L.map(([k,t])=>`<div class="of-item" style="cursor:pointer" onclick="Office.openPanel('${k}')"><div class="t">${esc(t)}</div><div class="m">${esc(AGENTS.find(a=>a.k===k)?.n||'')} →</div></div>`).join('')}</div>`:'')
+    + `<div class="of-sec"><h4>Otras herramientas</h4><div class="of-row"><button class="of-btn sm" onclick="document.getElementById('bulk-file-input').click()">Importar varias fichas (.docx)</button><button class="of-btn sm" onclick="Office.openPanel('tomo')">Tomo II</button><button class="of-btn sm" onclick="Office.doSync()">Sincronizar Maestro</button></div></div>`
+    + `<div class="of-sec"><h4>Abrir un curso en la vista clásica</h4><div class="of-note" style="margin-top:0">Para descargar el Word, ver el cronograma o cualquier otra opción de la vista de siempre.</div>${picker('cl', code=>{ const c=courseBy(code); if(c){ closePanel(); showCourseWork(c); } })}</div>`;
+}
+function saveProjects(){ localStorage.setItem('dcd_projects',JSON.stringify(projects)); autoBackup(); }
+function ajustesSave(){ const p=P(); const g=id=>document.getElementById(id).value.trim(); p.mailPrefix=g('of-mp'); p.mailProg=g('of-mprog')||'Programa de curso'; p.mailFicha=g('of-mfi')||'Ficha de curso'; p.mailTo=g('of-mto'); p.mailName=g('of-mna')||'Ralph'; p.mailCc=g('of-mcc'); saveProjects(); toast('✓ Ajustes del correo guardados','success'); refresh(); }
+function panelAjustes(){
+  const m=mailCfg(); const ex=`${m.prefix?m.prefix+' | ':''}${m.prog} SOFT-201 Nombre del curso`;
+  return `<button class="of-close" onclick="Office.closePanel()" aria-label="Cerrar">×</button><div class="of-ph"><div><h3>Ajustes del proyecto</h3><div class="sub">${esc(P()?.name||'')}</div></div></div>
+    <div class="of-sec"><h4>Encabezados de los correos</h4>
+      <label class="of-lb" for="of-mp">Siglas del asunto</label><input class="of-in" id="of-mp" value="${attr(m.prefix)}" placeholder="Por ejemplo: BISOFT">
+      <label class="of-lb" for="of-mprog">Texto de los programas</label><input class="of-in" id="of-mprog" value="${attr(m.prog)}">
+      <label class="of-lb" for="of-mfi">Texto de las fichas</label><input class="of-in" id="of-mfi" value="${attr(m.ficha)}">
+      <div class="of-note">Asunto de ejemplo: <strong>${esc(ex)}</strong></div>
+      <label class="of-lb" for="of-mto">Correo del revisor</label><input class="of-in" id="of-mto" value="${attr(m.to)}" placeholder="revisor@ucenfotec.ac.cr">
+      <label class="of-lb" for="of-mna">Nombre en el saludo</label><input class="of-in" id="of-mna" value="${attr(m.name)}">
+      <label class="of-lb" for="of-mcc">Con copia (opcional)</label><input class="of-in" id="of-mcc" value="${attr(m.cc)}">
+      <div class="of-row"><button class="of-btn pri" onclick="Office.ajustesSave()">Guardar</button></div></div>
+    <div class="of-sec"><h4>Proyecto</h4><div class="of-note" style="margin-top:0">Carpetas de Drive: ${P()?.folderFichas?'fichas ✓':'fichas ✗'} · ${P()?.folderProgramas?'programas ✓':'programas ✗'}</div>
+      <div class="of-row"><button class="of-btn sm" onclick="openProjectModal(currentProject.id)">Editar proyecto y carpetas</button><button class="of-btn sm" onclick="Office.classic()">Vista clásica</button></div></div>`;
+}
+function panelTomo(){
+  const all=allCourses||[]; const fin=all.filter(isFinalCourse); const np=all.filter(c=>courseStage(savedForCourse(c)).programa).length;
+  const pct=all.length?Math.round(fin.length/all.length*100):0;
+  return `<button class="of-close" onclick="Office.closePanel()" aria-label="Cerrar">×</button><div class="of-ph"><div><h3>Tomo II</h3><div class="sub">El trofeo del proyecto</div></div></div>
+    <div class="of-say">${fin.length===all.length&&all.length?'¡Todos los programas están en versión Final! El trofeo es de oro.':`${fin.length} de ${all.length} programas en versión Final (${pct} %). El trofeo pasa a plata a la mitad y a oro con todos.`}</div>
+    <div class="of-note">${np} programas con contenido. El Tomo II junta todos los programas en un Word, ordenados por cuatrimestre.</div>
+    <div class="of-row"><button class="of-btn pri" onclick="openTomoExport()">Descargar el Tomo II</button></div>
+    ${fin.length?`<div class="of-sec"><h4>En versión Final</h4>${fin.map(c=>`<div class="of-item"><div class="t">🏆 ${esc(c['Código'])} ${esc(cName(c))}</div></div>`).join('')}</div>`:''}`;
+}
+async function doSync(){ if(needGoogle(()=>doSync())) return; syncing=true; floatTxt(9.5,.5,'Sincronizando…','#2f6fb5'); try{ await syncSheets(); floatTxt(9.5,.5,'Maestro ✓'); }catch(e){} syncing=false; refresh(); }
+
+/* ---------- HUD ---------- */
+const tools=document.getElementById('of-tools');
+function paintTools(){
+  const badge=k=>{ const n=needOf(k); return n.alert?'<span class="bdg">!</span>':''; };
+  tools.innerHTML=AGENTS.map(a=>`<button class="of-tool${panelKey===a.k?' on':''}" onclick="Office.openAgent('${a.k}')" title="${attr(a.n+' · '+a.role)}"><span class="dot" style="background:${a.col}"></span><span class="l">${a.n}</span>${a.k==='peche'?'':badge(a.k)}</button>`).join('')
+    +`<span class="of-sep"></span>
+    <button class="of-tool${panelKey==='tomo'?' on':''}" onclick="Office.openPanel('tomo')" title="Tomo II"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v4a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/></svg><span class="l">Tomo II</span></button>
+    <button class="of-tool" onclick="Office.gameOpen()" title="Minijuego"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="7" width="18" height="11" rx="4"/><path d="M8 10.5v4M6 12.5h4M15.5 11.5h.01M17.5 13.5h.01"/></svg><span class="l">Jugar</span></button>
+    <button class="of-tool${panelKey==='ajustes'?' on':''}" onclick="Office.openPanel('ajustes')" title="Ajustes del proyecto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span class="l">Ajustes</span></button>
+    <button class="of-tool" onclick="Office.classic()" title="Vista clásica de la app"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 10h16M10 10v9"/></svg><span class="l">Clásica</span></button>
+    <button class="of-tool" onclick="showHome()" title="Volver a los proyectos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"/></svg><span class="l">Salir</span></button>`;
+}
+function paintHud(){
+  const p=P(); if(!p) return; document.getElementById('of-title').textContent=p.name||'Oficina';
+  const s=document.getElementById('of-estado'); const e=estadoOf(p); s.innerHTML=ESTADOS.map(x=>`<option${x.v===e.v?' selected':''}>${x.v}</option>`).join(''); s.className='est-pill '+e.c;
+  const all=allCourses||[]; const nf=all.filter(c=>courseStage(savedForCourse(c)).ficha).length, np=all.filter(c=>courseStage(savedForCourse(c)).programa).length, fin=all.filter(isFinalCourse).length;
+  finalsRatio=all.length?fin/all.length:0; unreadN=inbox().filter(m=>m.status==='nuevo').length;
+  document.getElementById('of-sf').textContent=all.length?`${nf}/${all.length}`:'—'; document.getElementById('of-sp').textContent=all.length?`${np}/${all.length}`:'—'; document.getElementById('of-sfin').textContent=all.length?String(fin):'—'; document.getElementById('of-smail').textContent=String(unreadN);
+  document.getElementById('of-auth').innerHTML=gAccessToken?`<span class="of-pill" title="${attr(gUserInfo?.email||'')}"><i></i>${esc((gUserInfo?.name||gUserInfo?.email||'Google').split(' ')[0])}</span>`:`<button class="of-btn pri sm" onclick="googleSignIn(()=>Office.enter(true))">Conectar Google</button>`;
+}
+function tickClock(){ const d=new Date(); document.getElementById('of-clock').textContent=d.toLocaleDateString('es-CR',{weekday:'long',day:'numeric',month:'long'})+' · '+d.toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit'}); }
+
+/* ---------- Bucle ---------- */
+let running=false, last=0, hudT=0;
+function frame(ts){ if(!running) return; const t=ts/1000; const dt=Math.min(.1,last?t-last:0); last=t; tick(dt); for(let i=floats.length-1;i>=0;i--){ floats[i].life-=dt; if(floats[i].life<=0) floats.splice(i,1); } hudT-=dt; if(hudT<=0){ hudT=1; tickClock(); paintHud(); paintTools(); if(!panel.hidden&&['peche','tomo'].includes(panelKey)&&!panel.contains(document.activeElement)) renderPanel(); }
+  if(Date.now()-mailLast>5*60*1000&&!mailBusy&&gAccessToken&&mailReadOk()&&(allCourses||[]).length){ mailLast=Date.now(); checkMail(true); }
+  render(t); requestAnimationFrame(frame); }
+let scenePid=null;
+async function enter(force){
+  if(!P()) return;
+  document.body.classList.add('office-on');
+  if(scenePid!==P().id||force){ scenePid=P().id; buildScene(); ack=LS.get(kAck(),{}); mailLast=0; biblioCode=''; closePanel(); }
+  resize(); fitCam(); paintHud(); paintTools(); tickClock();
+  if(!running){ running=true; last=0; requestAnimationFrame(frame); }
+  // Espera los cursos y revisa el correo una vez
+  for(let i=0;i<60&&!(allCourses||[]).length;i++) await new Promise(r=>setTimeout(r,500));
+  refresh(); if(gAccessToken&&mailReadOk()) checkMail(true); else if(gAccessToken) { mailNeedPerm=true; refresh(); }
+}
+function leave(){ running=false; document.body.classList.remove('office-on'); window.__ofHook=null; }
+function classic(){ try{ localStorage.setItem('dcd_view','classic'); }catch(e){} leave(); showScreen('project'); }
+window.addEventListener('resize',()=>{ if(running){ resize(); fitCam(); } });
+
+/* ---------- Minijuego ---------- */
+const G={on:false};
+function gameOpen(){ document.getElementById('of-game').classList.add('on'); gameStart(); }
+function gameClose(){ document.getElementById('of-game').classList.remove('on'); G.on=false; }
+function gameStart(){ const cvg=document.getElementById('of-gcv'); Object.assign(G,{on:true,cv:cvg,c:cvg.getContext('2d'),x:180,items:[],score:0,lives:3,t:0,spawn:0,last:0,keys:{}}); G.best=parseInt(localStorage.getItem('dcd_game_best')||'0',10)||0; document.getElementById('of-gbest').textContent='Récord '+G.best; requestAnimationFrame(gameFrame); }
+function gameFrame(ts){ if(!G.on) return; const t=ts/1000; const dt=Math.min(.05,G.last?t-G.last:0); G.last=t; G.t+=dt; const c=G.c, Wg=360, Hg=480;
+  if(G.keys.ArrowLeft) G.x-=320*dt; if(G.keys.ArrowRight) G.x+=320*dt; G.x=clamp(G.x,30,Wg-30);
+  G.spawn-=dt; const speed=1+G.t/40; if(G.spawn<=0){ G.spawn=Math.max(.28,.9-G.t/80); const r=Math.random(); G.items.push({x:rnd(20,Wg-20),y:-20,k:r<.5?'cafe':r<.75?'doc':'bug',v:rnd(110,170)*speed}); }
+  for(const it of G.items){ it.y+=it.v*dt; if(it.y>Hg-62&&it.y<Hg-30&&Math.abs(it.x-G.x)<34&&!it.hit){ it.hit=true; if(it.k==='bug'){ G.lives--; } else G.score+=it.k==='doc'?3:1; } }
+  G.items=G.items.filter(it=>!it.hit&&it.y<Hg+20);
+  const g=c.createLinearGradient(0,0,0,Hg); g.addColorStop(0,'#1d2550'); g.addColorStop(1,'#3b3a72'); c.fillStyle=g; c.fillRect(0,0,Wg,Hg);
+  c.fillStyle='rgba(255,255,255,.6)'; for(let i=0;i<30;i++){ c.fillRect((i*97)%Wg,(i*53+G.t*10*(i%3+1))%Hg,1.5,1.5); }
+  for(const it of G.items){ c.save(); c.translate(it.x,it.y);
+    if(it.k==='cafe'){ c.fillStyle='#fffdf8'; rr(c,-10,-10,20,20,4); c.fill(); c.fillStyle='#8a5a3c'; c.fillRect(-8,-7,16,4); c.strokeStyle='#fffdf8'; c.lineWidth=3; c.beginPath(); c.arc(11,0,5,-Math.PI/2,Math.PI/2); c.stroke(); }
+    else if(it.k==='doc'){ c.fillStyle='#ffffff'; c.fillRect(-10,-13,20,26); c.fillStyle='#ffd23f'; c.fillRect(-7,-8,14,3); c.fillRect(-7,-2,10,3); c.strokeStyle='#1e9e66'; c.lineWidth=3; c.beginPath(); c.moveTo(-5,6); c.lineTo(-1,10); c.lineTo(7,2); c.stroke(); }
+    else { c.fillStyle='#d6424a'; rr(c,-13,-10,26,18,6); c.fill(); c.beginPath(); c.moveTo(-4,8); c.lineTo(0,14); c.lineTo(4,8); c.fill(); c.fillStyle='#fff'; c.font='900 13px "Nunito Sans",sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('!',0,-1); }
+    c.restore(); }
+  c.fillStyle='#ff6a3d'; rr(c,G.x-30,Hg-46,60,14,7); c.fill(); c.fillStyle='#c9482a'; c.fillRect(G.x-24,Hg-32,48,6);
+  c.fillStyle='#fff'; c.font='700 14px "Chakra Petch",monospace'; c.textAlign='left'; c.fillText('♥'.repeat(Math.max(0,G.lives)),12,24);
+  document.getElementById('of-gscore').textContent=G.score+' puntos';
+  if(G.lives<=0){ G.on=false; if(G.score>G.best){ G.best=G.score; try{ localStorage.setItem('dcd_game_best',String(G.best)); }catch(e){} } document.getElementById('of-gbest').textContent='Récord '+G.best;
+    c.fillStyle='rgba(0,0,0,.55)'; c.fillRect(0,0,Wg,Hg); c.fillStyle='#fff'; c.textAlign='center'; c.font='800 26px "Bricolage Grotesque",sans-serif'; c.fillText('¡Fin del turno!',Wg/2,Hg/2-10); c.font='600 15px "Nunito Sans",sans-serif'; c.fillText(`${G.score} puntos · récord ${G.best}`,Wg/2,Hg/2+18); return; }
+  requestAnimationFrame(gameFrame); }
+(function(){ const cvg=document.getElementById('of-gcv'); const mv=e=>{ const r=cvg.getBoundingClientRect(); G.x=clamp((e.clientX-r.left)/r.width*360,30,330); }; cvg.addEventListener('pointermove',mv); cvg.addEventListener('pointerdown',mv);
+  window.addEventListener('keydown',e=>{ if(!G.on) return; if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ G.keys[e.key]=true; e.preventDefault(); } if(e.key==='Escape') gameClose(); });
+  window.addEventListener('keyup',e=>{ G.keys[e.key]=false; });
+  document.getElementById('of-game').addEventListener('click',e=>{ if(e.target===e.currentTarget) gameClose(); });
+  window.addEventListener('keydown',e=>{ if(e.key==='Escape'&&running&&!panel.hidden&&!document.querySelector('.overlay.active')&&!G.on) closePanel(); });
+})();
+
+return {enter,leave,classic,openAgent,openPanel,closePanel,paintHud,refresh,filterPick,pick,showAllPick,checkMail,requestMail,processMail,processAll,setMailCourse,setMailKind,dismissMail,
+  fixCopy,fixDownload,fixUpload,fixReview,fixDone,learnCopy,flowArchive,nuevoPrompt,nuevoImport,nuevoFile,nuevoOpen,nuevoMail,nuevoReset,biblioPick,biblioSave,ajustesSave,doSync,gameOpen,gameClose,gameStart,
+  _t:{parseMail,stripQuoted,findCourseIn,needOf,people:()=>people,inbox,flows,jobs}};
+})();
+// Los flujos de la oficina reciben los campos que antes iban al panel de revisión
+(function(){ const orig=renderReviewItems; renderReviewItems=function(items,title){ if(window.__ofHook){ const h=window.__ofHook; window.__ofHook=null; return h(items,title); } return orig(items,title); }; })();
+</script>
+
 </body>
 </html>
