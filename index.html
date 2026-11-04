@@ -2604,7 +2604,9 @@ function saveProjectModal(){
 }
 function createProject(){ editingProjectId=null; saveProjectModal(); }
 /* ── Hoja Base: versión del programa y carrera de cada curso ── */
-const BASE_VER_HEADER='Versión';
+const BASE_VER_HEADER='Estado';
+const BASE_VER_ALIASES=['estado','version'];   // la versión del programa va en la columna «Estado» de Base (M)
+const baseVerOf=c=>String(c?.['Estado']??c?.['Versión']??c?.['Version']??'').trim();
 const normH=h=>String(h||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
 function projectSiglas(p=currentProject){ return [p?.sigla1, p?.sigla2].map(x=>String(x||'').trim()); }
 function careerCodeOf(code){ const cars=projectCareers(); let com=null; try{ com=JSON.parse(localStorage.getItem('dcd_comun_'+code)||'null'); }catch(e){} if(!com||cars.length<2) return ''; if(com.on) return 'both'; if(com.carrera1===cars[1]) return 'c2'; if(com.carrera1===cars[0]) return 'c1'; return ''; }
@@ -2625,28 +2627,30 @@ async function baseFlush(){
     try{
       const vals=(await sheetsReq(`/${sid}/values/Base`)).values||[]; if(!vals.length) continue;
       const hdr=vals[0].slice(); const ci=hdr.findIndex(h=>normH(h)==='codigo'); if(ci<0) continue;
-      const data=[];
+      const data=[]; const missing=new Set();
       ups.forEach(u=>{
-        let col=hdr.findIndex(h=>normH(h)===normH(u.header));
-        if(col<0){ col=hdr.length; while(col>0&&!String(hdr[col-1]||'').trim()) col--; hdr[col]=u.header; data.push({range:`Base!${colLetter(col)}1`, values:[[u.header]]}); }
+        const want=u.header===BASE_VER_HEADER?BASE_VER_ALIASES:[normH(u.header)];
+        let col=-1; for(const w of want){ col=hdr.findIndex(h=>normH(h)===w); if(col>=0) break; }
+        if(col<0){ missing.add(u.header); return; }
         const ri=vals.findIndex((r,i)=>i>0&&String(r[ci]||'').trim()===u.code); if(ri<0) return;
         data.push({range:`Base!${colLetter(col)}${ri+1}`, values:[[u.value]]});
       });
-      if(data.length) await sheetsReq(`/${sid}/values:batchUpdate`,'POST',{valueInputOption:'RAW', data});
+      if(missing.size) toast(`La hoja Base no tiene la columna «${[...missing].join('», «')}». Agregala y lo vuelvo a escribir.`,'error');
+      if(data.length){ await sheetsReq(`/${sid}/values:batchUpdate`,'POST',{valueInputOption:'RAW', data}); const lbl=document.getElementById('save-lbl'); if(lbl){ lbl.textContent='✓ Base actualizada'; lbl.classList.add('show'); setTimeout(()=>lbl.classList.remove('show'),1800); } }
     }catch(e){ console.warn('Base:',e); baseQueue=baseQueue.concat(ups); toast('No pude escribir en la hoja Base: '+e.message,'error'); }
   }
 }
 function colLetter(i){ let s=''; i++; while(i>0){ const m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-1)/26); } return s; }
 // Guarda la versión del curso aquí y en la última columna de Base
 function rememberVersion(code, v){ v=String(v||'').trim(); if(!code||!v) return; let old=''; try{ old=localStorage.getItem('dcd_ver_'+code)||''; localStorage.setItem('dcd_ver_'+code, v); }catch(e){}
-  const c=(allCourses||[]).find(x=>x['Código']===code); if(old!==v || (c && String(c[BASE_VER_HEADER]||'').trim()!==v)) baseEnqueue(code, BASE_VER_HEADER, v); try{ autoBackup(); }catch(e){} }
+  const c=(allCourses||[]).find(x=>x['Código']===code); if(old!==v || (c && baseVerOf(c)!==v)) baseEnqueue(code, BASE_VER_HEADER, v); try{ autoBackup(); }catch(e){} }
 function rememberCareer(code){ const v=careerToBase(code); if(v===null) return; const c=(allCourses||[]).find(x=>x['Código']===code); if(c && String(c['Carrera']||'').trim()===v) return; baseEnqueue(code,'Carrera',v); }
 // Al cargar Base: lo que dice la hoja manda; lo que solo está aquí se sube a la hoja
 function syncBaseMeta(){
   const cars=projectCareers(); const sg=projectSiglas();
   (allCourses||[]).forEach(c=>{
     const code=c['Código']; if(!code) return;
-    const bv=String(c[BASE_VER_HEADER]||c['Version']||'').trim(); let lv=''; try{ lv=localStorage.getItem('dcd_ver_'+code)||''; }catch(e){}
+    const bv=baseVerOf(c); let lv=''; try{ lv=localStorage.getItem('dcd_ver_'+code)||''; }catch(e){}
     if(bv){ if(bv!==lv) try{ localStorage.setItem('dcd_ver_'+code, bv); }catch(e){} } else if(lv) baseEnqueue(code, BASE_VER_HEADER, lv);
     if(cars.length>=2 && sg[0] && sg[1]){
       const bc=careerFromBase(c['Carrera']);
