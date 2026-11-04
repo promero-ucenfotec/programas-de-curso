@@ -1891,6 +1891,7 @@ function maestroRowToSaved(headers, row){
   const eN=gN('Eje Curricular'), eC=gN('Competencia_Eje_Curricular');
   const tN=gN('Eje Transversal'), tC=gN('Competencia_Transversal');
   if (aN||aC) o._comp_general = pairs(aN, aC);
+  if (aN) o._area = aN.split('|')[0].replace(/[.\s]+$/,'').trim();   // para pintar la malla por área
   if (eN||eC) o._comp_curricular = pairs(eN, eC);
   if (tN||tC) o._comp_transversal = pairs(tN, tC);
   // Rasgos del perfil (columnas del Maestro; se crean aparte, en la hoja "Rasgos de Perfil")
@@ -1928,7 +1929,7 @@ async function importFromMaestro(sheetId) {
     if (local.modulos && !/m[oó]dulo\s+2/i.test(local.modulos) && /m[oó]dulo\s+2/i.test(conv.modulos||'')) local.modulos = '';
     Object.entries(conv).forEach(([k,v]) => {
       if (!v) return;
-      if (/^_comp_/.test(k) || k==='_rasgos_m' || (k==='descripcion_rasgos' && conv._rasgos_m)) { if (local[k]!==v){ local[k]=v; imported++; } return; }   // lo define el Maestro
+      if (/^_comp_/.test(k) || k==='_rasgos_m' || k==='_area' || (k==='descripcion_rasgos' && conv._rasgos_m)) { if (local[k]!==v){ local[k]=v; imported++; } return; }   // lo define el Maestro
       if (!String(local[k]||'').trim()) { local[k] = v; imported++; }
     });
   });
@@ -6909,6 +6910,7 @@ const AGENTS=[
   {k:'ficha', n:'Fichero', role:'Fichas de curso nuevas', desk:[6,4,2], col:'#23a596', look:{skin:'#e2ae86',hair:'#7d808c',hs:3,shirt:'#23a596',pants:'#3f3f46'}},
   {k:'recepcion', n:'Recepcionista', role:'Recibe el esbozo del experto (XLSX)', desk:[3,10,2], col:'#f2a541', look:{skin:'#f6dccb',hair:'#a8642c',hs:1,shirt:'#f2a541',pants:'#34466b'}},
   {k:'carreras', n:'Registrador', role:'Asigna cada curso a su carrera', desk:[7,4,2], col:'#3fa66f', look:{skin:'#c98c62',hair:'#4a2f22',hs:0,shirt:'#3fa66f',pants:'#34466b'}},
+  {k:'disenador', n:'Diseñador', role:'Dibuja la malla curricular en draw.io', desk:[2,7,3], col:'#3a3a46', look:{skin:'#e7b896',hair:'#d9d2c3',hs:3,shirt:'#2b2b33',pants:'#6a5a48'}},
   {k:'biblio', n:'Bibliotecaria', role:'Bibliografía de los cursos', desk:[2,3,3], col:'#e86a92', look:{skin:'#76503a',hair:'#161616',hs:2,shirt:'#e86a92',pants:'#2f3542'}},
 ];
 let SLOTS=[];
@@ -7275,7 +7277,7 @@ function paintAvatars(){ panel.querySelectorAll('canvas[data-av]').forEach(cn=>{
 function head(k,title,sub,say){ return `<button class="of-close" onclick="Office.closePanel()" aria-label="Cerrar">×</button><div class="of-ph">${avatar(k)}<div><h3>${esc(title)}</h3><div class="sub">${esc(sub)}</div></div></div>${say?`<div class="of-say">${say}</div>`:''}`; }
 function renderPanel(){
   const k=panelKey; if(!k) return;
-  const f={decorar:panelDecorar,rocola:panelRocola,carreras:panelCarreras,peche:panelPeche,cartero:panelCartero,corrector:panelCorrector,programa:()=>panelNuevo('programa'),ficha:()=>panelNuevo('ficha'),recepcion:panelRecepcion,biblio:panelBiblio,ajustes:panelAjustes,tomo:panelTomo}[k];
+  const f={decorar:panelDecorar,rocola:panelRocola,carreras:panelCarreras,disenador:panelDisenador,peche:panelPeche,cartero:panelCartero,corrector:panelCorrector,programa:()=>panelNuevo('programa'),ficha:()=>panelNuevo('ficha'),recepcion:panelRecepcion,biblio:panelBiblio,ajustes:panelAjustes,tomo:panelTomo}[k];
   if(!f) return; const keepScroll=panel.scrollTop; const vals={}; panel.querySelectorAll('input[id],textarea[id],select[id]').forEach(el=>{ if(el.type==='file') return; vals[el.id]=el.type==='checkbox'?el.checked:el.value; }); const act=document.activeElement&&panel.contains(document.activeElement)?document.activeElement.id:'';
   panel.innerHTML=f(); Object.entries(vals).forEach(([id,v])=>{ const el=document.getElementById(id); if(!el||!panel.contains(el)) return; if(el.type==='checkbox') el.checked=v; else el.value=v; if(el.dataset.pick) filterPick(el.dataset.pick,el.value); });
   if(act){ const el=document.getElementById(act); if(el) el.focus(); } panel.scrollTop=keepScroll; paintAvatars(); paintDecorPreviews(); wireDrops();
@@ -7614,6 +7616,163 @@ function panelBiblio(){
        <label class="of-lb" for="of-bco">Bibliografía complementaria</label><textarea class="of-ta" id="of-bco" style="font-family:inherit">${esc(s.biblio_co||'')}</textarea>
        <label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;margin-top:10px"><input type="checkbox" id="of-bdrv" checked> <span>Actualizar también el programa en Drive. Antes leo el documento de Drive para no perder lo que corregiste ahí.</span></label>
        <div class="of-row"><button class="of-btn pri" ${busy.bib?'disabled':''} onclick="Office.biblioSave()">${busy.bib?'Guardando…':'Guardar en el Maestro'}</button><button class="of-btn" onclick="Office.biblioPick('')">Otro curso</button></div>`;
+}
+
+/* ---------- Diseñador: malla curricular en draw.io ---------- */
+// Motor: columnas por cuatrimestre, flechas por los pasillos (nunca sobre una cajita) y un carril propio para cada flecha
+const MALLA_FILL=[['#e8f1fd','#6c8ebf'],['#e7f5ea','#5d9b6a'],['#f3ecfa','#8f6db5'],['#fff4d6','#c9a227'],['#fde9e4','#c66b55'],['#e3f4f3','#3f9a92'],['#fbe9f1','#c0628a'],['#eef0f3','#7b8594'],['#f1f6dc','#8aa23a'],['#e6eefc','#4e6fc7']];
+const MALLA_EDGE=['#2f6fd0','#d0532f','#2e9c6a','#8a4fc0','#c99512','#13958c','#c33f7a','#5b6b80','#7c9a18','#b8562b','#3d4fb8','#a0306f'];
+function mallaCfg(){ try{ return Object.assign({car:'',orient:'LR',color:'area',edges:'color',cred:true}, JSON.parse(localStorage.getItem('dcd_malla')||'{}')); }catch(e){ return {car:'',orient:'LR',color:'area',edges:'color',cred:true}; } }
+function mallaSave(c){ try{ localStorage.setItem('dcd_malla',JSON.stringify(c)); }catch(e){} }
+const mTok=t=>String(t||'').toUpperCase().split(/[,;\/]|\sY\s/).map(x=>x.trim()).filter(Boolean);
+function mallaSiglas(){ const s=new Set(); (allCourses||[]).forEach(c=>mTok(c['Carrera']).forEach(x=>s.add(x))); return [...s].sort(); }
+function mallaCourses(car){
+  const all=(allCourses||[]).filter(c=>String(c['Código']||'').trim());
+  const pick=all.filter(c=>{ if(!car) return true; const t=mTok(c['Carrera']); return !t.length || t.includes(car); });
+  const codes=pick.map(c=>String(c['Código']).trim()); const allCodes=all.map(c=>String(c['Código']).trim());
+  const rx=code=>new RegExp('(^|[^A-Z0-9-])'+code.toUpperCase().replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?![0-9A-Z])');
+  let fuera=0;
+  const list=pick.map(c=>{ const req=String(c['Requisitos']||'').toUpperCase(); const lv=coursePeriod(c, savedForCourse(c));
+    const pre=codes.filter(k=>k!==c['Código'] && rx(k).test(req));
+    fuera+=allCodes.filter(k=>!codes.includes(k) && rx(k).test(req)).length;
+    return {id:String(c['Código']).trim(), name:cName(c), level:lv==null?98:lv, credits:String(c['Créditos']||'').trim(), pre, area:String(savedForCourse(c)._area||'').trim()}; });
+  return {list, fuera};
+}
+function mallaLayout(courses, o){
+  const LR=o.orient!=='TB';
+  const BA=LR?190:96, BC=LR?84:170;          // tamaño de la caja: a lo largo de los cuatrimestres y a lo ancho
+  const byL={}; courses.forEach(c=>(byL[c.level]=byL[c.level]||[]).push(c));
+  const levels=Object.keys(byL).map(Number).sort((a,b)=>a-b); const colOf={}, rowOf={};
+  levels.forEach((lv,k)=>{ byL[lv].sort((a,b)=>a.id.localeCompare(b.id,'es',{numeric:true})); byL[lv].forEach((c,i)=>{ colOf[c.id]=k; rowOf[c.id]=i; }); });
+  // Orden de cada columna por baricentro (menos cruces)
+  const succ={}; courses.forEach(c=>c.pre.forEach(p=>(succ[p]=succ[p]||[]).push(c.id)));
+  for(let it=0;it<4;it++){
+    const seq=it%2?levels.slice().reverse():levels;
+    seq.forEach(lv=>{ const L=byL[lv]; const nb=c=>{ const ns=(it%2?(succ[c.id]||[]):c.pre).filter(x=>rowOf[x]!=null); return ns.length?ns.reduce((s,x)=>s+rowOf[x],0)/ns.length:rowOf[c.id]; };
+      const key=new Map(L.map(c=>[c.id,nb(c)])); L.sort((a,b)=>key.get(a.id)-key.get(b.id)||rowOf[a.id]-rowOf[b.id]); L.forEach((c,i)=>rowOf[c.id]=i); });
+  }
+  const nCols=levels.length, nRows=Math.max(1,...levels.map(l=>byL[l].length));
+  // Aristas válidas
+  const E=[]; courses.forEach(t=>t.pre.forEach(s=>{ if(colOf[s]!=null) E.push({s, t:t.id}); }));
+  // Puertos: salidas por la derecha (o abajo) y entradas por la izquierda (o arriba), repartidos
+  const outs={}, ins={}; E.forEach(e=>{ (outs[e.s]=outs[e.s]||[]).push(e); (ins[e.t]=ins[e.t]||[]).push(e); });
+  Object.values(outs).forEach(a=>{ a.sort((x,y)=>(colOf[x.t]-colOf[y.t])*0 + (rowOf[x.t]-rowOf[y.t]) || colOf[x.t]-colOf[y.t]); a.forEach((e,i)=>e.fs=(i+1)/(a.length+1)); });
+  Object.values(ins).forEach(a=>{ a.sort((x,y)=>(rowOf[x.s]-rowOf[y.s]) || colOf[y.s]-colOf[x.s]); a.forEach((e,i)=>e.ft=(i+1)/(a.length+1)); });
+  // Una entrada no puede quedar a la misma altura que una salida de la cajita de enfrente (los tramos se encimarían)
+  const boxAt={}; courses.forEach(c=>boxAt[colOf[c.id]+':'+rowOf[c.id]]=c.id);
+  Object.entries(ins).forEach(([t,a])=>{ const facing=boxAt[(colOf[t]-1)+':'+rowOf[t]]; const S=(outs[facing]||[]).map(e=>e.fs); if(!S.length) return;
+    const used=[]; a.forEach(e=>{ let best=e.ft, bd=1e9; for(let f=0.12; f<=0.881; f+=0.02){ if(S.some(x=>Math.abs(x-f)<0.09)||used.some(x=>Math.abs(x-f)<0.09)) continue; const d=Math.abs(f-e.ft); if(d<bd){ bd=d; best=f; } } e.ft=best; used.push(best); }); });
+  // Topología en unidades abstractas: fila r ocupa [r, r+.6], pasillo r (entre r y r+1) en r+.8
+  const rowU=(r,f)=>r+0.6*f, corU=r=>r+0.8, chU=k=>k+0.8;
+  const chSeg={}, coSeg={};
+  E.forEach(e=>{ const a=colOf[e.s], b=colOf[e.t], i=rowOf[e.s], j=rowOf[e.t]; const sy=rowU(i,e.fs), ty=rowU(j,e.ft);
+    e.ca=a; e.cb=b-1;
+    if(e.cb===a){ e.direct=true; (chSeg[a]=chSeg[a]||[]).push({e, lo:Math.min(sy,ty), hi:Math.max(sy,ty), key:'a'}); }
+    else { const r=j>=i?i:i-1; e.cor=r; const cy=corU(r);
+      (chSeg[a]=chSeg[a]||[]).push({e, lo:Math.min(sy,cy), hi:Math.max(sy,cy), key:'a'});
+      (chSeg[e.cb]=chSeg[e.cb]||[]).push({e, lo:Math.min(cy,ty), hi:Math.max(cy,ty), key:'b'});
+      const x1=chU(a), x2=chU(e.cb); (coSeg[r]=coSeg[r]||[]).push({e, lo:Math.min(x1,x2), hi:Math.max(x1,x2), key:'c'}); } });
+  // Carriles: coloreo de intervalos (dos segmentos que se traslapan nunca comparten carril)
+  const lanes=(segs)=>{ segs.sort((p,q)=>p.lo-q.lo||q.hi-p.hi); const ends=[]; segs.forEach(s=>{ let l=ends.findIndex(x=>x<s.lo-0.02); if(l<0){ l=ends.length; ends.push(0); } ends[l]=s.hi; s.lane=l; }); return ends.length; };
+  const chN={}, coN={}; Object.entries(chSeg).forEach(([k,s])=>chN[k]=lanes(s)); Object.entries(coSeg).forEach(([k,s])=>coN[k]=lanes(s));
+  const STEP=11;
+  const chW=k=>Math.max(LR?70:56, 34+((chN[k]||0)-1)*STEP), coW=r=>Math.max(LR?26:40, 22+((coN[r]||0)-1)*STEP);
+  // Coordenadas reales
+  const M=40, HEAD=LR?44:0, HEADC=LR?0:150;
+  const colStart=[]; let u=M+(LR?0:HEADC)+chW(-1); for(let k=0;k<nCols;k++){ colStart[k]=u; u+=BA+chW(k); } const totalA=u+M;
+  const rowStart=[]; let v=M+HEAD+coW(-1); for(let r=0;r<nRows;r++){ rowStart[r]=v; v+=BC+coW(r); } const totalC=v+M;
+  const chX=(k,l)=>{ const base=k<0?colStart[0]-chW(-1):colStart[k]+BA; const n=chN[k]||1; return base+(chW(k)-(n-1)*STEP)/2+l*STEP; };
+  const coY=(r,l)=>{ const base=r<0?rowStart[0]-coW(-1):rowStart[r]+BC; const n=coN[r]||1; return base+(coW(r)-(n-1)*STEP)/2+l*STEP; };
+  const P=(a,c)=>LR?{x:a,y:c}:{x:c,y:a};
+  const nodes=courses.map(c=>{ const k=colOf[c.id], r=rowOf[c.id]; const p=P(colStart[k], rowStart[r]); return Object.assign({}, c, {x:p.x,y:p.y,w:LR?BA:BC,h:LR?BC:BA,k}); });
+  const nodeBy=Object.fromEntries(nodes.map(n=>[n.id,n]));
+  const laneOf=(e,key,segs)=>segs.find(s=>s.e===e&&s.key===key).lane;
+  const srcIdx={}; let si=0; nodes.forEach(n=>{ if(outs[n.id]) srcIdx[n.id]=si++; });
+  const edges=E.map(e=>{ const a=e.ca, sa=colStart[colOf[e.s]]+BA, ta=colStart[colOf[e.t]];
+    const sc=rowStart[rowOf[e.s]]+BC*e.fs, tc=rowStart[rowOf[e.t]]+BC*e.ft;
+    const xa=chX(a, laneOf(e,'a',chSeg[a]));
+    let pts;
+    if(e.direct) pts=[[xa,sc],[xa,tc]];
+    else { const yc=coY(e.cor, laneOf(e,'c',coSeg[e.cor])); const xb=chX(e.cb, laneOf(e,'b',chSeg[e.cb])); pts=[[xa,sc],[xa,yc],[xb,yc],[xb,tc]]; }
+    return {s:e.s, t:e.t, fs:e.fs, ft:e.ft, start:P(sa,sc), end:P(ta,tc), pts:pts.map(([aa,cc])=>P(aa,cc)), col:MALLA_EDGE[srcIdx[e.s]%MALLA_EDGE.length]}; });
+  const heads=levels.map((lv,k)=>{ const p=LR?{x:colStart[k], y:M, w:BA, h:30}:{x:M, y:colStart[k]+BA/2-15, w:HEADC-20, h:30}; return Object.assign(p,{label:lv===98?'Sin ubicación':periodLabel(lv), k}); });
+  const W=LR?totalA:totalC, H=LR?totalC:totalA;
+  return {nodes, edges, heads, W, H, LR, nodeBy, nLevels:nCols};
+}
+// Color de cada caja: por área de conocimiento (del Maestro), por cuatrimestre o uno solo
+function mallaPaint(g,o){
+  const areas=[...new Set(g.nodes.map(n=>n.area).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+  const SIN=['#f1f1f1','#9a9a9a'];
+  g.fillOf = n => o.color==='area' ? (n.area ? MALLA_FILL[areas.indexOf(n.area)%MALLA_FILL.length] : SIN) : o.color==='nivel' ? MALLA_FILL[n.k%MALLA_FILL.length] : MALLA_FILL[0];
+  g.legend=[];
+  if (o.color==='area' && areas.length){
+    const items=areas.map(a=>({label:a, c:MALLA_FILL[areas.indexOf(a)%MALLA_FILL.length]})); if (g.nodes.some(n=>!n.area)) items.push({label:'Sin área de conocimiento', c:SIN});
+    let x=40, y=g.H-10; const maxW=Math.max(g.W-40, 600);
+    items.forEach(it=>{ const w=Math.min(360, 46+it.label.length*7.2); if (x+w>maxW){ x=40; y+=34; } g.legend.push(Object.assign(it,{x,y,w})); x+=w+14; });
+    g.H=y+54; g.W=Math.max(g.W, maxW+40);
+  }
+  return areas;
+}
+function mallaXML(g,o){
+  const X=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const uid=()=>Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,10);
+  const pf=uid(); let id=2; const cid={};
+  let out=`<mxCell id="${pf}-0"/><mxCell id="${pf}-1" parent="${pf}-0"/>`;
+  g.heads.forEach(h=>{ out+=`<mxCell id="${pf}-${id++}" value="${X(h.label)}" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=15;fontColor=#1c2131;strokeColor=none;fillColor=none;" vertex="1" parent="${pf}-1"><mxGeometry x="${h.x}" y="${h.y}" width="${h.w}" height="${h.h}" as="geometry"/></mxCell>`; });
+  (g.legend||[]).forEach(l=>{ out+=`<mxCell id="${pf}-${id++}" value="" style="rounded=1;arcSize=20;fillColor=${l.c[0]};strokeColor=${l.c[1]};strokeWidth=1.5;" vertex="1" parent="${pf}-1"><mxGeometry x="${l.x}" y="${l.y+4}" width="22" height="18" as="geometry"/></mxCell><mxCell id="${pf}-${id++}" value="${X(l.label)}" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor=#1c2131;strokeColor=none;fillColor=none;" vertex="1" parent="${pf}-1"><mxGeometry x="${l.x+30}" y="${l.y}" width="${l.w-30}" height="26" as="geometry"/></mxCell>`; });
+  g.nodes.forEach(n=>{ const [f,s]=g.fillOf(n); cid[n.id]=`${pf}-${id++}`;
+    const lab=`<div><b style="font-size:14px">${X(n.id)}</b></div><div style="font-size:12.5px">${X(n.name)}</div>`+(o.cred&&n.credits?`<div style="font-size:11px;color:#5a6377">${X(n.credits)} créditos</div>`:'');
+    out+=`<mxCell id="${cid[n.id]}" value="${X(lab)}" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=${f};strokeColor=${s};strokeWidth=1.5;fontSize=13;fontColor=#1c2131;verticalAlign=middle;align=center;" vertex="1" parent="${pf}-1"><mxGeometry x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" as="geometry"/></mxCell>`; });
+  g.edges.forEach(e=>{ const sc=o.edges==='color'?e.col:'#5a6377';
+    const ex=g.LR?`exitX=1;exitY=${e.fs.toFixed(4)};entryX=0;entryY=${e.ft.toFixed(4)};`:`exitX=${e.fs.toFixed(4)};exitY=1;entryX=${e.ft.toFixed(4)};entryY=0;`;
+    out+=`<mxCell id="${pf}-${id++}" style="edgeStyle=none;rounded=1;arcSize=10;html=1;endArrow=block;endFill=1;endSize=6;strokeWidth=1.6;strokeColor=${sc};${ex}exitDx=0;exitDy=0;entryDx=0;entryDy=0;" edge="1" parent="${pf}-1" source="${cid[e.s]}" target="${cid[e.t]}"><mxGeometry relative="1" as="geometry"><Array as="points">${e.pts.map(p=>`<mxPoint x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}"/>`).join('')}</Array></mxGeometry></mxCell>`; });
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<mxfile host="app.diagrams.net"><diagram name="${X(o.title||'Malla curricular')}" id="${uid()}"><mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="${Math.ceil(g.W)}" pageHeight="${Math.ceil(g.H)}" math="0" shadow="0"><root>${out}</root></mxGraphModel></diagram></mxfile>`;
+}
+function mallaSVG(g,o){
+  const X=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Math.ceil(g.W)} ${Math.ceil(g.H)}" width="${Math.ceil(g.W)}" height="${Math.ceil(g.H)}" font-family="Nunito Sans,Segoe UI,sans-serif"><rect width="100%" height="100%" fill="#fffdf8"/><defs>`;
+  const cols=[...new Set(g.edges.map(e=>o.edges==='color'?e.col:'#5a6377'))];
+  cols.forEach((c,i)=>s+=`<marker id="m${i}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="${c}"/></marker>`); s+='</defs>';
+  g.heads.forEach(h=>s+=`<text x="${h.x+h.w/2}" y="${h.y+h.h/2+5}" text-anchor="middle" font-weight="800" font-size="15" fill="#1c2131">${X(h.label)}</text>`);
+  g.edges.forEach(e=>{ const c=o.edges==='color'?e.col:'#5a6377'; const pts=[e.start,...e.pts,e.end].map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    s+=`<polyline points="${pts}" fill="none" stroke="${c}" stroke-width="1.6" stroke-linejoin="round" marker-end="url(#m${cols.indexOf(c)})"/>`; });
+  (g.legend||[]).forEach(l=>{ s+=`<rect x="${l.x}" y="${l.y+4}" width="22" height="18" rx="4" fill="${l.c[0]}" stroke="${l.c[1]}" stroke-width="1.5"/><text x="${l.x+30}" y="${l.y+18}" font-size="13" fill="#1c2131">${X(l.label)}</text>`; });
+  g.nodes.forEach(n=>{ const [f,st]=g.fillOf(n);
+    s+=`<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="10" fill="${f}" stroke="${st}" stroke-width="1.5"/>`;
+    const cx=n.x+n.w/2; const words=X(n.name).split(' '); const lines=[]; let cur=''; const maxc=g.LR?24:20;
+    words.forEach(w=>{ if((cur+' '+w).trim().length>maxc){ lines.push(cur.trim()); cur=w; } else cur+=' '+w; }); if(cur.trim()) lines.push(cur.trim());
+    const L=lines.slice(0,3); const tot=1+L.length+(o.cred&&n.credits?1:0); let y=n.y+n.h/2-(tot-1)*7.5+4;
+    s+=`<text x="${cx}" y="${y}" text-anchor="middle" font-weight="800" font-size="13" fill="#1c2131">${X(n.id)}</text>`; y+=15;
+    L.forEach(l=>{ s+=`<text x="${cx}" y="${y}" text-anchor="middle" font-size="11.5" fill="#1c2131">${l}</text>`; y+=14; });
+    if(o.cred&&n.credits) s+=`<text x="${cx}" y="${y}" text-anchor="middle" font-size="10.5" fill="#5a6377">${X(n.credits)} créditos</text>`; });
+  return s+'</svg>';
+}
+let mallaLast=null;
+function mallaRun(){ const o=mallaCfg(); const sig=mallaSiglas(); if(o.car&&!sig.includes(o.car)) o.car='';
+  const {list,fuera}=mallaCourses(o.car); if(!list.length){ mallaLast=null; return null; }
+  o.title=`Malla ${o.car||P()?.name||''}`.trim(); const g=mallaLayout(list,o); const areas=mallaPaint(g,o); mallaLast={g,o,xml:mallaXML(g,o),svg:mallaSVG(g,o),fuera,n:list.length,areas,sinArea:list.filter(c=>!c.area).length}; return mallaLast; }
+function dzSet(k,v){ const o=mallaCfg(); o[k]=v; mallaSave(o); refresh(); }
+function dzFile(){ const o=mallaCfg(); return `Malla curricular ${o.car||P()?.name||''}`.trim().replace(/[\\/:*?"<>|]+/g,'')+'.drawio'; }
+function dzDownload(){ const m=mallaLast||mallaRun(); if(!m) return; const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([m.xml],{type:'application/xml'})); a.download=dzFile(); a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); toast('✓ Malla descargada: abrila en draw.io','success'); const p=personByK('disenador'); if(p){ p.bub='ok'; p.bubT=2; } }
+async function dzCopy(){ const m=mallaLast||mallaRun(); if(!m) return; try{ await navigator.clipboard.writeText(m.xml); toast('✓ XML copiado. En draw.io: Extras → Editar diagrama','success'); }catch(e){ toast('No pude copiar. Usá «Descargar .drawio»','error'); } }
+function dzBig(){ const m=mallaLast||mallaRun(); if(!m) return; const w=window.open('','_blank'); if(!w){ toast('El navegador bloqueó la ventana nueva','error'); return; } w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(m.o.title)}</title><body style="margin:0;background:#eef3f6;padding:20px">${m.svg}</body>`); w.document.close(); }
+function panelDisenador(){
+  const all=allCourses||[]; if(!all.length) return head('disenador','Diseñador','Malla curricular en draw.io','Estoy esperando que carguen los cursos de la hoja Base.');
+  const o=mallaCfg(); const sig=mallaSiglas(); if(o.car&&!sig.includes(o.car)) o.car='';
+  const m=mallaRun();
+  const btn=(k,v,l)=>`<button class="of-btn sm ${o[k]===v?'ink':''}" aria-pressed="${o[k]===v}" onclick="Office.dzSet('${k}',${typeof v==='string'?`'${v}'`:v})">${esc(l)}</button>`;
+  const lv=m?m.g.nLevels:0, ne=m?m.g.edges.length:0;
+  return head('disenador','Diseñador','Malla curricular en draw.io', m?`Armé la malla con ${m.n} cursos en ${lv} columnas y ${ne} flechas de requisitos. Cada flecha va por los pasillos entre las cajitas, en su propio carril.`:'No encontré cursos para esa carrera en la hoja Base.')
+    + (sig.length>1?`<div class="of-sec"><h4>Carrera</h4><div class="of-row">${btn('car','','Todas')}${sig.map(s=>btn('car',s,s)).join('')}</div><div class="of-note">Sale de la columna «Carrera» de Base. Un curso de las dos carreras aparece en ambas mallas.</div></div>`:'')
+    + `<div class="of-sec"><h4>Estilo</h4>
+        <div class="of-row">${btn('orient','LR','→ Horizontal')}${btn('orient','TB','↓ Vertical')}</div>
+        <div class="of-row">${btn('color','area','Por área de conocimiento')}${btn('color','nivel','Por cuatrimestre')}${btn('color','uno','Un solo color')}</div>
+        ${o.color==='area'&&m?(m.areas.length?`<div class="of-note">${m.areas.length===1?'Una área':m.areas.length+' áreas'} de conocimiento, tomadas de la columna «Area Conocimiento» del Maestro.${m.sinArea?` ${m.sinArea===1?'Un curso no tiene':m.sinArea+' cursos no tienen'} área y ${m.sinArea===1?'queda':'quedan'} en gris.`:''}</div>`:'<div class="of-note">El Maestro todavía no tiene la columna «Area Conocimiento» llena para estos cursos, así que todo queda en gris. Tocá «Sincronizar Maestro» en tu escritorio si ya la llenaste.</div>'):''}
+        <div class="of-row">${btn('edges','color','Flechas de colores')}${btn('edges','gris','Flechas grises')}${btn('cred',!o.cred,o.cred?'Quitar créditos':'Mostrar créditos')}</div></div>`
+    + (m?`<div class="of-sec"><h4>Vista previa</h4><div style="background:#fffdf8;border:1px solid var(--o-line);border-radius:10px;overflow:auto;max-height:340px;cursor:zoom-in" onclick="Office.dzBig()" title="Abrir en grande">${m.svg.replace(/width="\d+" height="\d+"/,'style="width:100%;height:auto;display:block"')}</div>
+        ${m.fuera?`<div class="of-note">${m.fuera===1?'Un requisito apunta':m.fuera+' requisitos apuntan'} a cursos de la otra carrera y no se dibuja${m.fuera===1?'':'n'}.</div>`:''}
+        <div class="of-row"><button class="of-btn pri" onclick="Office.dzDownload()">Descargar .drawio</button><button class="of-btn" onclick="Office.dzCopy()">Copiar XML</button><button class="of-btn" onclick="Office.dzBig()">Ver en grande</button></div>
+        <div class="of-note">Si movés cajitas en draw.io, las flechas conservan su recorrido; para rehacerlo, generá la malla otra vez desde aquí.</div></div>`:'');
 }
 
 /* ---------- Registrador: carrera de cada curso ---------- */
@@ -7995,7 +8154,7 @@ FRAME.pac=(dt)=>{ const S=G.s, c=G.c, p=S.pac;
 })();
 
 return {enter,leave,classic,openAgent,openPanel,closePanel,paintHud,refresh,filterPick,pick,showAllPick,checkMail,requestMail,processMail,processAll,setMailCourse,setMailKind,dismissMail,
-  fixCopy,fixDownload,fixUpload,fixReview,fixDone,learnCopy,flowArchive,nuevoPrompt,nuevoImport,nuevoFile,nuevoOpen,nuevoMail,nuevoReset,biblioPick,biblioSave,careerSet,careerAll,ajustesSave,doSync,gameOpen,gameClose,gameStart,gameMode,gameMenu,gamePause,editStart,editEnd,editPick,editCancel,editRotate,editMove,editColor,editDelete,editReset,editToggle:()=>{ if(edit) editEnd(); else editStart(); },reloadLayout:()=>{ if(running&&!edit){ buildScene(); } else scenePid=null; },openRocola:()=>{ jbBox(); openPanel('rocola'); },jbPlay,jbToggle,jbStop,jbShow,jbVol,jbAdd,jbPlayInput,jbDel,jbPlayIdx,
+  fixCopy,fixDownload,fixUpload,fixReview,fixDone,learnCopy,flowArchive,nuevoPrompt,nuevoImport,nuevoFile,nuevoOpen,nuevoMail,nuevoReset,biblioPick,biblioSave,careerSet,careerAll,dzSet,dzDownload,dzCopy,dzBig,ajustesSave,doSync,gameOpen,gameClose,gameStart,gameMode,gameMenu,gamePause,editStart,editEnd,editPick,editCancel,editRotate,editMove,editColor,editDelete,editReset,editToggle:()=>{ if(edit) editEnd(); else editStart(); },reloadLayout:()=>{ if(running&&!edit){ buildScene(); } else scenePid=null; },openRocola:()=>{ jbBox(); openPanel('rocola'); },jbPlay,jbToggle,jbStop,jbShow,jbVol,jbAdd,jbPlayInput,jbDel,jbPlayIdx,
   _t:{tileScreen:(x,y)=>{ const [sx,sy]=iso(x+.5,y+.5,0); const r=cv.getBoundingClientRect(); return [r.left+cam.x+sx*cam.z, r.top+cam.y+sy*cam.z]; }, objsAt:(x,y)=>objs.filter(o=>o.x===x&&o.y===y).map(o=>o.t+':'+o.c), parseMail,stripQuoted,findCourseIn,needOf,people:()=>people,inbox,flows,jobs}};
 })();
 // Los flujos de la oficina reciben los campos que antes iban al panel de revisión
