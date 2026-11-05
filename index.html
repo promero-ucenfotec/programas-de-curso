@@ -2071,305 +2071,35 @@ const CRONOGRAMA_COLS = ['Sesion_1','Cronograma_Modulo_1','Cronograma_Subtema_1'
 /* ══════════════════════════════════════════════════════
    PROMPTS
 ══════════════════════════════════════════════════════ */
+// Prompts por sección: las reglas viven en las skills pc-*; aquí solo se indica
+// qué skill usar y se adjuntan los datos del curso.
+const SECTION_SKILL = {
+  objeto_estudio:['pc-descripcion','el OBJETO DE ESTUDIO'],
+  importancia:['pc-descripcion','la IMPORTANCIA'],
+  en_curso:['pc-descripcion','el párrafo "En el curso…"'],
+  rasgos:['pc-rasgos-perfil','los 3 RASGOS DEL PERFIL PROFESIONAL del grupo de cursos afines'],
+  competencia:['pc-competencia','la COMPETENCIA'],
+  ra:['pc-cuadro-competencia','el RESULTADO DE APRENDIZAJE {n}'],
+  cd:['pc-cuadro-competencia','los CRITERIOS DE DESEMPEÑO del RA {n}'],
+  ev:['pc-cuadro-competencia','la actividad y las EVIDENCIAS {n}'],
+  modulos:['pc-ficha','los MÓDULOS Y SUBTEMAS (temario ajustado)'],
+  metodologias:['pc-metodologias','las 6 METODOLOGÍAS'],
+  estrategias:['pc-estrategias-evaluacion','las ESTRATEGIAS DE APRENDIZAJE'],
+  eva_tabla:['pc-estrategias-evaluacion','la TABLA DE PORCENTAJES de evaluación'],
+  eva_tipo:['pc-estrategias-evaluacion','los TIPOS DE EVALUACIÓN'],
+  eva_desc:['pc-estrategias-evaluacion','la DESCRIPCIÓN de la evaluación {n}'],
+  rubricas:['pc-estrategias-evaluacion','las RÚBRICAS'],
+  recursos:['pc-recursos-didacticos','los RECURSOS DIDÁCTICOS'],
+};
 function buildPrompt(pkey, course, saved, secId) {
-  // Use custom prompt if set, interpolating course name
-  if (customPrompts[pkey]) {
-    const name = course['Curso']||course['Nombre']||'';
-    return customPrompts[pkey]
-      .replace(/\[NOMBRE DEL CURSO\]/g, name)
-      .replace(/\[CARRERA\]/g, projectCareers().join(' / '));
-  }
-  const c = course;
-  const s = saved;
+  const c = course||{}, s = saved||{};
   const name = c['Curso']||c['Nombre']||'';
-  const cr = c['Créditos']||'3';
-  const hd = c['Horas Docencia']||c['Lectivas']||'3';
-
-  const prompts = {
-    objeto_estudio:`Eres un experto en diseño curricular universitario.
-
-Crea el OBJETO DE ESTUDIO para el curso "${name}".
-
-ESTRUCTURA: Sujeto + Verbo copulativo (se define como / se concibe como) + Atributo robusto + Adverbio de propósito
-
-REGLAS ESTRICTAS:
-- Sin listas de más de dos elementos
-- Verbos SIEMPRE nominalizados
-- Sin conectores "mediante", "a través de"
-- Lenguaje cotidiano, sin tecnicismos excesivos
-- Una sola oración fluida y con peso disciplinar
-- Dice de qué trata el curso (no es una definición de diccionario), con un sustantivo preciso que se puede imaginar: "es esto para esto", directo ("la división de…", "los métodos de…", "las técnicas de…", "los procesos de…"); si el núcleo es una estructura, en singular, y si "la organización de la estructura de…" resulta pesado se usa el sustantivo directo; la definición no repite la palabra del núcleo que ya está en el sujeto; sin rellenos como "el conjunto de"; nunca una acción suelta ni "las capacidades de…", y sin nombrar "disciplina" ni "rama"
-  ✅ "La arquitectura de sistemas de software se define como la organización de la estructura de un sistema informático en componentes y en las relaciones entre ellos para la preservación de la calidad de las aplicaciones de una organización."
-  ✅ "La programación se define como las técnicas de codificación de algoritmos en un lenguaje formal y de verificación de su funcionamiento para la resolución de problemas cotidianos de procesamiento de datos."
-- Cursos de diseño o arquitectura: el inicio nombra la estructura que el curso produce ("la organización estructural de los componentes de un programa informático y de las conexiones entre ellos…"), no "las estrategias" ni "las técnicas"; las partes se nombran con el término del área ("los componentes", no "las partes")
-- Nada queda abierto en la diferencia específica: toda acción nominalizada dice de qué ("verificación del comportamiento esperado de…", no "verificación de los componentes") y ningún término paraguas va solo ("componentes", "elementos", "aspectos", "artefactos" → dos tipos concretos, como "los módulos de código y las bases de datos"). Si el revisor puede preguntar "¿de qué?" o "¿cuáles?", no está lista
-
-EJEMPLO:
-"El monitoreo de redes se define como la supervisión continua del comportamiento operativo de la infraestructura de comunicación para la detección temprana de anomalías que comprometan la disponibilidad del servicio."
-
-Crea el objeto de estudio para: [${name}]
-Créditos: ${cr} | Horas docencia: ${hd}`,
-
-    importancia:`Redacta la IMPORTANCIA del curso "${name}":
-
-ESTRUCTURA (una oración corta, de 3 a 4 líneas como máximo):
-"La importancia de esta asignatura en la formación del profesional radica en que [la acción general del curso, nominalizada] permite [una acción nominalizada de su trabajo]."
-
-REGLAS:
-- No uses "le permite + infinitivo": el sujeto de "permite" es la acción general del curso como sustantivo, y lo que permite también va nominalizado
-- Dice lo que el profesional logra en su trabajo, no una empresa u organización
-- Una sola idea: sin "y facilita…" ni un segundo beneficio
-- Genérica: sin ejemplos de una industria (ventas, fraudes, inventarios…)
-- No nombra el curso ni la profesión: la acción general del curso se dice con otras palabras
-- Acción concreta y propia del área, en lenguaje cotidiano; todo sustantivo abstracto con su complemento
-- Sin frases: "el aprendizaje", "el conocimiento", "los fundamentos", "el dominio"
-- Una acción que se ve en el trabajo, no una operación mental: nada de prever, anticipar, comprender ni "la predicción de…" (❌ "permite la predicción del efecto de una modificación en el resto del código" → ✅ "permite la incorporación de nuevas funciones en una aplicación sin alterar el funcionamiento de sus demás partes")
-- Un resultado positivo, no el mecanismo técnico que lo produce (❌ "permite la contención de una falla en una sola de ellas" → ✅ "permite la continuidad de los servicios informáticos")
-- El efecto sobre los usuarios se nombra como "su uso" o "su funcionamiento", nunca como una actividad supuesta de ellos (❌ "sin afectar el trabajo de sus usuarios" → ✅ "sin afectar su uso por parte de los usuarios")
-
-EJEMPLO:
-✅ "La importancia de esta asignatura en la formación del profesional radica en que la construcción ordenada del código de una aplicación permite la incorporación de nuevas funciones sin afectar su uso por parte de los usuarios."
-❌ "…radica en que le permite incorporar nuevas funciones a una aplicación…" (le permite + infinitivo)
-❌ "…radica en que la incorporación de modelos predictivos permite a una empresa la detección de fraudes en sus ventas y facilita…" (beneficio para la empresa, ejemplo de una industria, dos ideas y demasiado largo)
-
-OBJETO DE ESTUDIO YA CREADO:
-${s?.descripcion_objeto||'[Completa primero el objeto de estudio]'}`,
-
-    en_curso:`Redacta el fragmento "EN EL CURSO…" del curso "${name}":
-
-ESTRUCTURA:
-"En el curso “${name}”, los estudiantes [verbo activo] + [complemento directo] + para + [propósito] + con + [modo]"
-
-QUÉ DICE: es la COMPETENCIA del curso escrita de manera completamente diferente. Mantiene su sentido (qué hacen los estudiantes y para qué), pero con otras palabras: ningún verbo ni sustantivo de la competencia se repite, salvo el núcleo del curso. No describe el proyecto ni nombra ninguna actividad.
-
-REGLAS CRÍTICAS:
-- Usá la competencia VIGENTE que aparece abajo (no la de una versión anterior de la ficha); si la competencia cambió, el verbo de este párrafo también cambia por su sinónimo
-- El verbo es un sinónimo del verbo de la competencia y de nivel de maestría: para "Implementar", "integran" o "despliegan" (no "incorporan", que se queda corto); para "Diseñar", "elaboran"; para "Desarrollar", "elaboran"
-- Complemento directo concreto ("componentes predictivos"), no abstracciones ("mecanismos de mejora") ni rodeos ("sistemas que mejoran con la experiencia")
-- Corto: sin amontonar modificadores y sin repetir el núcleo del curso fuera de su nombre
-- Sin repetir sustantivos/verbos de las secciones anteriores
-- Sin coma antes del "con" del modo; el modo sin tecnologías ni "real"
-- PRUEBA DE IMAGINAR: cada sustantivo del propósito y del modo se puede ver o señalar. Nada de abstracciones como "la operación autónoma de los procesos" o "diagramas cercanos a su versión ejecutable"; decí qué se ve (por ejemplo, "modelos que se pueden ejecutar y probar")
-- Sin "mediante" ni conectores similares
-- Sin "comprenden", "aprenden", "desarrollan habilidades"
-- Propósito y modo nominalizados y en registro académico: ✅ "para la continuidad de su operación", "con criterios de segmentación…"; ❌ "para que siga activo", "con reglas de…"
-- PRUEBA DE EXACTITUD: la versión sencilla no cambia el concepto técnico (si lo cambia, volvé al término del área)
-
-COMPETENCIA VIGENTE: ${s?.competencia||'[Completa primero la competencia]'}
-OBJETO DE ESTUDIO: ${s?.descripcion_objeto||'[Pendiente]'}`,
-
-    rasgos:`Usá la skill pc-rasgos-perfil para crear los 3 RASGOS DEL PERFIL PROFESIONAL del grupo de cursos afines al que pertenece "${name}".
-${(()=>{ const m=maestroRasgos(s); return m ? `\nRASGOS ACTUALES EN EL MAESTRO (revisalos y mejoralos solo si incumplen alguna regla):\n1. ${m[0]||'—'}\n2. ${m[1]||'—'}\n3. ${m[2]||'—'}\n` : ''; })()}
-TIPOS (uno de cada uno):
-1. DECLARATIVO: Analizar / Examinar / Evaluar (o Interpretar) + objeto del área + para + sustantivo con su complemento
-2. PROCEDIMENTAL: Desarrollar / Emplear / Implementar / Administrar / Aplicar / Elaborar + producto del área + para + sustantivo
-3. ACTITUDINAL: Mostrar / Demostrar / Asumir / Ser / Evidenciar + UN valor + en + situación laboral + para + sustantivo
-
-REGLAS:
-- Amplios para todo el grupo de cursos afines, no exclusivos de este curso, y ligados al objeto de estudio de la carrera
-- Sin contenidos que el grupo no trabaja; verbos variados, sin patrón repetido
-- Comprensibles para cualquier lector, con un "para" claro
-
-ENTREGA:
-A) Para la hoja "Rasgos de Perfil" del Maestro: los tres rasgos, uno por línea, con mayúscula inicial y sin punto final.
-B) Para el programa: la oración con los rasgos en minúscula: "Este curso se relaciona con los siguientes rasgos del perfil profesional: “[rasgo 1]”, “[rasgo 2]” y “[rasgo 3]”."
-
-CURSO: ${name}
-OBJETO DE ESTUDIO: ${s?.descripcion_objeto||'[Pendiente]'}
-COMPETENCIA: ${s?.competencia||'[Pendiente]'}`,
-
-    competencia:`Crea la COMPETENCIA para el curso "${name}":
-
-ESTRUCTURA OBLIGATORIA:
-[Verbo infinitivo] + [Complemento directo] + para + [Propósito] + [Gerundio] + [Complemento del gerundio] + [Cláusula adverbial que + subjuntivo]
-
-PROHIBIDO:
-- Listas de 3+ elementos (máximo 2)
-- "mediante", "a través de", "por medio de"
-- Adjetivos valorativos: "adecuado", "correcto", "efectivo"
-- Repetir el verbo entre infinitivo y gerundio
-- Verbos que no combinan con su objeto (❌ "Diseñar la especificación" → ✅ "Especificar los requerimientos")
-- Artículo definido tras el verbo cuando el objeto es genérico (❌ "Desarrollar las aplicaciones" → ✅ "Desarrollar aplicaciones")
-- Cierres de disposición ("de manera ingeniosa", "de manera ética")
-- "Desarrollar" con prácticas, técnicas o métodos: se implementan o se aplican (❌ "Desarrollar las buenas prácticas de la construcción…" → ✅ "Implementar las buenas prácticas de la construcción…")
-
-EJEMPLO CORRECTO:
-✅ "Desarrollar modelos de simulación robótica para predecir comportamiento de máquinas autónomas implementando algoritmos de cinemática que aseguren precisión del movimiento articular."
-
-Curso: ${name} | Créditos: ${cr}`,
-
-    ra:(()=>{
-      const n=(secId||'ra1').replace('ra','');
-      return `Crea el RESULTADO DE APRENDIZAJE ${n} para el curso "${name}":
-
-ESTRUCTURA: Verbo + [complemento directo] + [gerundio único] + [complemento] + [frase adverbial]
-
-GERUNDIOS PERMITIDOS: aplicando, empleando, implementando, incorporando, ejecutando, utilizando, gestionando, justificando, argumentando
-
-REGLA: Si es proyecto → nombre directo. Si es otra actividad → agrega contexto con "sobre/relacionado con".
-
-EJEMPLOS:
-"Resuelve estudios de casos sobre la planificación de infraestructura, fundamentando decisiones con marcos de referencia que garanticen el diseño de sistemas escalables."
-"Desarrolla el prototipo de [nombre], implementando [técnica] que permita [resultado concreto del proyecto]."
-
-Curso: ${name} — genera RA${n} con su actividad de evaluación correspondiente.`;
-    })(),
-
-    cd:(()=>{
-      const n=(secId||'cd1').replace('cd','');
-      const raKey=`ra${n}`;
-      return `Crea los CRITERIOS DE DESEMPEÑO para RA${n} del curso "${name}":
-
-RA${n}: ${s?.[raKey]||'[Completa primero el RA'+n+']'}
-
-CANTIDAD:
-- Si es PROYECTO: 15 criterios secuenciales
-- Si es OTRA ACTIVIDAD: 8–10 criterios genéricos
-
-ESTRUCTURA: [Verbo en taxonomía ≤ al del RA] + complemento directo + información extra
-
-PROHIBIDO: "para", gerundios, adjetivos valorativos (bien, correcto, efectivo, adecuado), "mediante"
-
-EJEMPLO: "Examina los requerimientos y restricciones del diseño en el contexto organizacional."`;
-    })(),
-
-    ev:(()=>{
-      const n=(secId||'e1').replace('e','');
-      return `Define la EVIDENCIA ${n} del curso "${name}":
-
-RA${n}: ${s?.[`ra${n}`]||'[Pendiente]'}
-
-Responde SOLO con:
-- Nombre de la actividad (ej: "Proyecto integrador", "Estudio de casos", "Prácticas", "Portafolio de evidencias")
-- Tipo del entregable (ej: "Documento técnico escrito", "Presentación oral ante el grupo")
-
-Una línea por elemento, sin descripción extensa todavía.`;
-    })(),
-
-    modulos:`Diseña MÓDULOS Y SUBTEMAS para el curso "${name}":
-
-5–7 módulos, cada uno con:
-- Nombre del módulo (descriptivo, disciplinar, no genérico)
-- 4–6 subtemas específicos y evaluables
-
-REGLAS:
-- Progresión lógica: fundamentos → aplicación
-- Sin repetir conceptos entre módulos
-- Lenguaje disciplinar concreto
-
-Créditos: ${cr} | T: ${c['Horas teoría']||c['Teoria']||'1'}h | L: ${c['Horas laboratorio']||c['Lab']||'1'}h | P: ${c['Horas práctica']||c['Practica']||'1'}h`,
-
-    metodologias:`Redacta las 6 METODOLOGÍAS para el curso "${name}":
-
-ORDEN OBLIGATORIO:
-1. Enseñanza directa
-2. [Metodología adicional del pool]
-3. Aprendizaje basado en proyectos
-4. Aprendizaje autónomo
-5. Aprendizaje colaborativo
-6. Guía del docente
-
-POOL ADICIONAL (elige 1): Aprendizaje por descubrimiento · Aprendizaje interactivo · Aprendizaje experiencial · Enseñanza-aprendizaje indirecto · Estudio de casos
-
-LONGITUD: 200–260 caracteres por metodología (unas tres líneas, nunca cinco). Lenguaje sencillo y claro.
-Estudio de casos: el estudiante aplica técnicas para resolver el problema de una organización (no "empresas con necesidades de…").
-Guía del docente: "retroalimente el desarrollo de las actividades realizadas en el curso", "dé seguimiento a…" o "asesore las estrategias de evaluación realizadas en el curso" (no "acompañe", "oriente" ni "interpretación"). Proyecto con "elaboren", nunca "construyan". Enseñanza directa: "identifiquen los procedimientos de [objeto concreto]". Estudio de casos en presente y con el término preciso ("la medida de protección que evita cada vulnerabilidad"). Colaborativo sin "en conjunto" junto a "equipos".
-Registro académico, no coloquial: "componente de software" (no "pieza"), "de forma independiente" (no "por su cuenta"); artículo y no posesivo ambiguo ("los diseños de software", no "sus diseños").
-Orden natural: el verbo va justo después del sujeto, sin frases preposicionales en medio (❌ "los estudiantes durante las tareas indaguen…" → ✅ "los estudiantes indaguen… en los modelos de las tareas"); la actividad va en el complemento.
-
-ACTIVIDADES DEL CURSO:
-RA1: ${s?.ra1||'[Pendiente]'}
-RA2: ${s?.ra2||'[Pendiente]'}
-RA3: ${s?.ra3||'[Pendiente]'}
-Evidencias: ${s?.e1||'—'} / ${s?.e2||'—'} / ${s?.e3||'—'}
-
-Cada metodología se refiere a los resultados de aprendizaje y a las actividades del curso, no a los temas del temario (la enseñanza directa tampoco toma un tema del primer módulo).
-ALCANCE: la enseñanza directa dice la acción general del curso, no un producto ni una técnica puntual, y cierra con "para que los estudiantes identifiquen los procedimientos de…" (no "aprendan" ni imágenes abstractas como "el camino lógico"); la guía del docente "retroalimente el desarrollo de las actividades realizadas en el curso"; el aprendizaje colaborativo abarca todas las actividades grupales ("las responsabilidades de las actividades grupales"), y si hay una sola grupal se nombra exacta; el proyecto cierra con "para + el propósito nominalizado de su producto", nunca "un prototipo final"; el estudio de casos habla de "situaciones problema" (nunca "reales"): el estudiante diagnostica y propone la solución, y si es práctico no lleva "con respaldo en fuentes técnicas"; el aprendizaje autónomo se centra en la autorregulación del estudio independiente ("regulen los horarios de estudio independiente…"), ya no en la actividad formativa.${(()=>{const v=metodologiasVariationBlock(); return v?'\n\n'+v:'';})()}`,
-
-    estrategias:`Crea las ESTRATEGIAS DE APRENDIZAJE CON PROPÓSITO del curso "${name}":
-
-ESTRUCTURA: [Nombre actividad] + [permite/favorece/facilita/fomenta/propicia/promueve] + [sujeto] + [propósito educativo]
-
-LONGITUD: 40–50 palabras cada una.
-REGLA clave: verbos con artículos → ❌ "permite desarrollar" → ✅ "permite el desarrollo"
-VERBOS DE LA CATEGORÍA DE APLICAR para lo que hacen los estudiantes (utilicen, empleen, elaboren, diseñen, implementen, incorporen, desarrollen, integren, modelen, programen); nunca seleccionen, escriban, midan, identifiquen ni describan.
-OBJETO con un término del área ("segmentación funcional", "módulos autónomos", "unidad funcional del software"); nada de "separación", "parte" ni "pieza".
-
-Inicia cada estrategia con el nombre de la actividad.
-
-ACTIVIDADES:
-1. ${s?.e1||'[Evidencia 1 pendiente]'}
-2. ${s?.e2||'[Evidencia 2 pendiente]'}
-3. ${s?.e3||'[Evidencia 3 pendiente]'}`,
-
-    eva_tabla:`Define la TABLA DE EVALUACIONES del curso "${name}":
-
-Formato (3 actividades con):
-| Nombre de la actividad | Cantidad | Porcentaje |
-
-REGLAS:
-- Total = 100%
-- Actividad mayor (proyecto/entregable integrador) ≈ 40%
-- Actividades secundarias ≈ 30% cada una
-
-Evidencias identificadas:
-E1: ${s?.e1||'[Pendiente]'}
-E2: ${s?.e2||'[Pendiente]'}
-E3: ${s?.e3||'[Pendiente]'}`,
-
-    eva_tipo:`Crea los TIPOS DE EVALUACIÓN del curso "${name}":
-
-1. DIAGNÓSTICA — "La evaluación diagnóstica + [qué es]. Al inicio de cada lección, el docente [acción]. Esta evaluación [propósito]."
-2. FORMATIVA — "[qué es]. Durante el curso, se promueve [dos actividades formativas] sobre [relación disciplinar] con el propósito de [utilidad]."
-3. SUMATIVA — "[qué es]. En este curso, los estudiantes ponen en práctica lo aprendido + [lista actividades del curso]."
-
-REGLAS: Verbos nominalizados. Sin frases pedagógicas genéricas ("desarrollo del aprendizaje", "construcción del conocimiento").
-Actividades formativas según el grado: en maestría no se usan resúmenes ni glosarios (son muy básicos); se usan actividades que relacionan conceptos, como los diagramas conceptuales o los cuadros comparativos.
-
-Sumativas: ${s?.e1||''} / ${s?.e2||''} / ${s?.e3||''}${(()=>{const v=tiposVariationBlock(); return v?'\n\n'+v:'';})()}`,
-
-    eva_desc:(()=>{
-      const n=(secId||'eva_desc1').replace('eva_desc','');
-      return `Crea la DESCRIPCIÓN DE EVALUACIÓN ${n} del curso "${name}" (skill pc-estrategias-evaluacion, 4.1).
-
-PÁRRAFO (110 a 180 palabras, uno solo):
-1. Qué es: empieza con el nombre exacto y completo de la actividad y usa la nota de la ficha dicha como sustantivo. En el estudio de casos: "consiste en la resolución de problemas de [tipo concreto de problema] para [mejora observable]" (el tipo de problema va primero; "situaciones problema", nunca "reales").
-2. Cómo se hace: una sola oración ("Los estudiantes deben…"), sin narrar etapa por etapa y sin nombrar el software, con verbos académicos ("examinar la estructura del sistema de origen para su partición…", no "analizar el sistema de partida para proponer…").
-3. Qué se entrega: "Esta actividad se compone de [n] entregable(s) en el/los que el documento escrito contiene […], el código incluye […] y la defensa oral demuestra […]".
-4. Modalidad: "Se realiza de manera grupal." / "Se realiza de forma individual."
-
-CIERRE DEL MISMO PÁRRAFO (una sola oración):
-"Esta estrategia de evaluación requiere el uso de aplicaciones como [software o recurso informático]."
-
-No escribas "Esta estrategia de evaluación utiliza la siguiente rúbrica:": la app la agrega.
-SIN: "mediante", "a través de", gerundios dobles, comas antes de "para que" o "de manera que".
-
-Actividad ${n}: ${s?.[`e${n}`]||'[Pendiente]'}
-RA ${n}: ${s?.[`ra${n}`]||'[Pendiente]'}`;
-    })(),
-
-    recursos:`Crea los RECURSOS DIDÁCTICOS del curso "${name}":
-
-TIPO 1 — EXPERIENCIA PREVIA (1 recurso):
-"Los conocimientos [y la experiencia] previa sobre [requisito del curso] [facilita/permite] que los estudiantes [lo que eso les permite en el curso, en una sola oración]."
-
-TIPO 2 — SOFTWARE (de 2 a 4 recursos, uno por cada etapa del trabajo):
-"Las aplicaciones [A] y [B] de uso gratuito [permiten] que en este curso los estudiantes [lo que hacen con ellas en el curso, de forma general]."
-- Ejemplo: "Las aplicaciones Archi y Modelio de código abierto permiten que en este curso los estudiantes modelen las vistas de la arquitectura de un sistema de software."
-- Agrupar las herramientas por la etapa del trabajo en que se usan (escritura del código, puesta en funcionamiento, monitoreo…), no una oración por herramienta: eso parece un "picadillo de herramientas". Cada recurso nombra como máximo dos herramientas, ambas en el sujeto. Nunca cierres un recurso nombrando otra herramienta ("…en la herramienta SonarQube"): si no cabe en el sujeto, se omite y sale también de la oración del software de la actividad.
-- Herramientas especializadas del área; nada genérico como diagrams.net.
-
-TIPO 3 — INSTITUCIONALES (3 recursos, adaptados a este curso):
-"Las aulas de la Universidad [cuentan con/ofrecen] … que [uso concreto en este curso, por ejemplo, la proyección de los diagramas durante la revisión de los modelos]."
-"Los laboratorios de informática de la Universidad [ofrecen] … con [las herramientas especializadas del curso, sin marcas] para [lo que hacen los estudiantes]."
-"La plataforma eLibro [brinda] el acceso en línea a libros sobre [los temas del curso] para [la consulta de los estudiantes durante el curso]."
-No escribas la biblioteca ni Google Workspace for Education: ya están en la plantilla.
-
-REGLAS: Ningún recurso nombra ni alude a las evaluaciones del curso (ni el proyecto, las tareas, las prácticas o el estudio de casos): cada uno es una descripción transversal de lo que permite hacer en el curso. Una sola oración por recurso. Experiencia previa: si hay varios requisitos, un solo recurso que los una. Sin tecnicismos sin explicar: decilos en palabras precisas, con registro académico y sin términos coloquiales ("pieza", "puesta en marcha"). Ningún recurso cierra nombrando una tercera herramienta: si no cabe en el sujeto, se omite y sale también de la oración del software de la actividad. Verbos nominalizados. Sin gerundios.
-
-Requisitos del curso: ${c['Requisitos']?expandRequisitos(c['Requisitos']).replace(/\n/g,'; '):'No especificados'}`,
-
-    biblio:`Propón REFERENCIAS BIBLIOGRÁFICAS en APA 7 para el curso "${name}":
+  // Prompt personalizado (solo para los generales que siguen en el editor)
+  if (customPrompts[pkey] && PROMPT_META.some(p=>p.key===pkey)) {
+    return customPrompts[pkey].replace(/\[NOMBRE DEL CURSO\]/g, name).replace(/\[CARRERA\]/g, projectCareers().join(' / '));
+  }
+  if (pkey==='cronograma') return 'Panel de cronograma integrado debajo.';
+  if (pkey==='biblio') return `Propón REFERENCIAS BIBLIOGRÁFICAS en APA 7 para el curso "${name}":
 
 OBLIGATORIA (3 referencias):
 - Libros especializados del área
@@ -2381,15 +2111,26 @@ COMPLEMENTARIA (2 referencias):
 
 FORMATO: Apellido, N. (Año). Título en cursiva. Editorial. https://url
 
-Área disciplinar: ${name}`,
-
-    cronograma:`Panel de cronograma integrado debajo.`,
-  };
-
-  const base = prompts[pkey] || '(Sin prompt definido para esta sección.)';
-  // Competencias de la carrera: guían la competencia, los RA, los criterios y los rasgos
-  if (['competencia','ra','cd','rasgos'].includes(pkey)) { const cc=carreraCompBlock(s); if (cc) return base+'\n\n'+cc; }
-  return base;
+Área disciplinar: ${name}`;
+  const sk = SECTION_SKILL[pkey];
+  if (!sk) return '(Sin prompt definido para esta sección.)';
+  const n = String(secId||'').replace(/\D/g,'') || '1';
+  const what = sk[1].replace('{n}', n);
+  const parts = [`Usá la skill ${sk[0]} para redactar ${what} del curso "${name}". Seguí todas las reglas de la skill y entregá solo el texto final, listo para pegar.`];
+  const data = (typeof courseDataLines==='function') ? courseDataLines(c) : '';
+  if (data) parts.push('DATOS DEL CURSO:\n'+data);
+  const ctx = [];
+  if (s.descripcion_objeto) ctx.push('OBJETO DE ESTUDIO: '+s.descripcion_objeto);
+  if (s.competencia && pkey!=='competencia') ctx.push('COMPETENCIA: '+s.competencia);
+  if (pkey==='rasgos') { const m=maestroRasgos(s); if (m) ctx.push('RASGOS ACTUALES EN EL MAESTRO (revisalos y mejoralos solo si incumplen alguna regla de la skill):\n1. '+(m[0]||'—')+'\n2. '+(m[1]||'—')+'\n3. '+(m[2]||'—')); }
+  if (['cd','ev','eva_desc'].includes(pkey) && s['ra'+n]) ctx.push(`RA ${n}: `+s['ra'+n]);
+  if (!['objeto_estudio','importancia','rasgos','competencia','ra','cd','ev'].includes(pkey)) { const cu=cuadroText(s); if (cu) ctx.push('CUADRO DE COMPETENCIA:\n'+cu); }
+  if (['modulos','en_curso','metodologias','recursos'].includes(pkey)) { const t=currentTemarioText(c,s); if (t) ctx.push('TEMARIO ACTUAL:\n'+t); }
+  const cur = String(s[secId]||'').trim();
+  if (cur && pkey!=='rasgos') ctx.push('TEXTO ACTUAL DE LA SECCIÓN (mejoralo solo si incumple alguna regla):\n'+cur);
+  if (ctx.length) parts.push(ctx.join('\n\n'));
+  if (['competencia','ra','cd','rasgos'].includes(pkey)) { const cc=carreraCompBlock(s); if (cc) parts.push(cc); }
+  return parts.join('\n\n');
 }
 
 /* ══════════════════════════════════════════════════════
@@ -3930,22 +3671,8 @@ function closeFicha() {
    PROMPT EDITOR
 ══════════════════════════════════════════════════════ */
 // Prompt metadata — label + key mapping
+// Solo prompts generales: las secciones con skill (pc-*) se piden con un puntero a la skill
 const PROMPT_META = [
-  {key:'objeto_estudio',   label:'Objeto de estudio',          icon:'📖'},
-  {key:'importancia',      label:'Importancia',                icon:'⭐'},
-  {key:'en_curso',         label:'En el curso…',               icon:'🎯'},
-  {key:'rasgos',           label:'Rasgos de perfil',           icon:'👤'},
-  {key:'competencia',      label:'Competencia del curso',      icon:'🏆'},
-  {key:'ra',               label:'Resultado de Aprendizaje',   icon:'1️⃣'},
-  {key:'cd',               label:'Criterios de Desempeño',     icon:'📋'},
-  {key:'ev',               label:'Evidencia',                  icon:'📎'},
-  {key:'modulos',          label:'Módulos y Subtemas',         icon:'📚'},
-  {key:'metodologias',     label:'Metodologías',               icon:'🧠'},
-  {key:'estrategias',      label:'Estrategias de Aprendizaje', icon:'🎲'},
-  {key:'eva_tabla',        label:'Tabla de Evaluaciones',      icon:'📊'},
-  {key:'eva_tipo',         label:'Tipos de Evaluación',        icon:'🔍'},
-  {key:'eva_desc',         label:'Descripción de Evaluación',  icon:'📝'},
-  {key:'recursos',         label:'Recursos Didácticos',        icon:'🛠️'},
   {key:'biblio',           label:'Bibliografía',               icon:'📕'},
 ];
 
@@ -4158,39 +3885,7 @@ function buildFichaPrompt(){
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame la ficha completa, legible, para revisarla.
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
 ${FICHA_SCHEMA(code,name)}
-3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; las entregas suman 8 como máximo (el proyecto lleva siempre 3 avances) y cada actividad lleva de 1 a 3 evidencias breves que nombran lo que el estudiante entrega al docente ("Documento escrito que detalla el proceso y los resultados", "Presentación oral que defiende…", "Código base en el que…", "Simulación del…"); ninguna tecnología concreta en la competencia, los resultados de aprendizaje, los criterios ni las evidencias (usá el término genérico); actividades en minúscula y con artículo dentro de la oración; sin "dotar" ni "de modo". Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
-REDACCIÓN CLARA Y VARIADA (lo que más se corrige):
-- Oraciones cortas y sencillas: una idea por oración, sin colas ni rellenos ("por avances", "el conjunto de", "en la comunicación del trabajo de…").
-- Ninguna frase se repite entre secciones: lo que dice la competencia (por ejemplo, "el procesamiento de datos de problemas cotidianos") no se copia en los RA, las metodologías ni las descripciones; cada sección lo dice de otra manera o lo omite.
-- Variá los verbos y las estructuras: dos oraciones seguidas no empiezan igual, y el verbo de la competencia no se repite en los RA ni en los criterios (si la competencia dice "Desarrollar", el RA dice "Implementa" y un criterio "Incorpora", no "Desarrolla").
-- La competencia no usa el nombre del proyecto como objeto ("programas de computadora" → "aplicaciones informáticas").
-- RA 2 y RA 3 pueden nombrar su actividad de forma directa y sencilla ("Resuelve tareas de verificación del funcionamiento de un programa…", "Realiza un glosario de conceptos de programación…") en lugar de forzar una abstracción.
-- Verbos sencillos en los conectores ("permite", "favorece", "promueve"), sin rebuscados como "impulsa".
-5. Observaciones del revisor (versión RAM1), aplicalas sin excepción:
-- El verbo de la competencia combina con su objeto (nadie "diseña una especificación": se especifican los requerimientos; se desarrollan aplicaciones) y, si el objeto es genérico, va sin artículo ("Desarrollar aplicaciones de…", no "Desarrollar las aplicaciones de…").
-- Cada RA deja ver el asunto del curso: verbo disciplinar + objeto + "en" + el proceso del área donde se realiza (por ejemplo, "Realiza pruebas de funcionamiento en la verificación del rendimiento de la aplicación", "Especifica los requerimientos de un sistema informático en la formalización de las necesidades de un negocio"), no "Elabora el informe técnico…".
-- Criterios sin los verbos Reconoce, Construye, Configura ni Confirma (en su lugar, por ejemplo, Justifica).
-- La competencia no lleva frases que no aportan ("en el tiempo", "de forma determinada" ni ningún cierre de disposición).
-- Las tres actividades se pueden imaginar y no vuelven engorroso el curso: el componente de investigación ya lo cubre el estudio de casos, así que no se usa un artículo académico ni otra actividad de investigación; preferí actividades prácticas (por ejemplo, prácticas de prototipado). Excepción: si la investigación es el núcleo del curso (metodología de investigación, proyectos de investigación aplicada), las actividades sí son de investigación (propuesta, presentación, artículo…).
-- El módulo 1 se llama "Introducción a…" o "Fundamentos de…" el núcleo del curso (por ejemplo, "Fundamentos de la arquitectura de sistemas de software"), sin enfoques de nicho.
-- Todos los módulos tienen la misma forma gramatical: sustantivos ("Modelado para…"), nunca infinitivos mezclados ("Modelar para…").
-- El nombre del proyecto no repite el nombre del curso ni empieza con "Desarrollo de": nombra un producto o modelo específico (por ejemplo, "Modelo ejecutable de una aplicación informática"). Si el temario trabaja varios tipos de modelado, el RA del proyecto toma uno.
-- La competencia no lleva cláusulas adjetivas que la alarguen ("que reducen la brecha…") y su cláusula adverbial no queda al final como cola ("de manera detallada").
-- Tecnicismos en palabras precisas y académicas (no coloquiales) que se puedan imaginar: nada de "operación autónoma", "versión ejecutable", "fiel a" ni "brecha".
-6. Lecciones del diseño de fichas (aplicalas):
-- Lo sencillo pesa más que lo disciplinar: disciplinar es nombrar algo propio del área con palabras que cualquiera entiende ("los hallazgos de estudios previos en la explicación del problema planteado"). En los RA nada de jerga como "paradigma", "epistemológico", "ruta metodológica" o "fundamentación" (en el temario sí puede ir).
-- Fórmula del RA: verbo llano (Elabora, Realiza, Participa, Resuelve…) + la actividad con su contexto ("la presentación de la propuesta de investigación") + un gerundio común (utilizando, incorporando, usando, aplicando) + un recurso concreto + "en" + un proceso que se imagina. Por ejemplo: "Realiza la presentación de la propuesta de investigación, incorporando los hallazgos de estudios previos en la explicación del problema planteado". La sustancia va después del gerundio, no en un verbo llamativo. El verbo llano sirve cuando la actividad con su contexto y el "en" ya dejan ver el asunto del curso; si no, se usa el verbo disciplinar.
-- El contexto vale más que el nombre literal de la actividad: se agrega "de investigación" o lo que haga falta para entenderla, y se quita lo que la actividad ya dice ("ante un docente evaluador").
-- La claridad manda sobre no repetir palabras: si repetir un término ("fuentes académicas", "disciplina") se entiende mejor, se repite.
-- Criterios con un producto que el docente puede revisar: Define, Determina, Documenta, Delimita, Usa, Resume, Aplica, Redacta (cuando el producto es un texto). Nunca verbos argumentativos o vagos: Sustenta, Respalda, Defiende, Distingue, Sintetiza, Muestra ni Especifica.
-- Competencia con la forma: [verbo según el nivel y el tipo de curso] + [objeto] + para la formulación de… + empleando las metodologías de… + en el planteamiento de… (por ejemplo, "Aplicar procesos de… para la formulación de… empleando las metodologías de… en el planteamiento de…"), sin comas. El nivel del verbo depende del curso: en un curso metodológico de primer cuatrimestre "Aplicar" es válido aun en maestría. Revisá términos de doble sentido ("propuestas de valor" se lee como negocio).
-- La inteligencia artificial se destaca solo si el curso la trabaja como objeto o como herramienta central; si no, basta una mención puntual en un criterio.
-- Si cambia un RA o la competencia, revisá de nuevo sus criterios (ningún criterio repite el verbo nuevo del RA). Al final, comprobá que los porcentajes coincidan en la tabla, en las notas y en el bloque JSON.
-7. Lecciones de las revisiones de SOFT-205 y SOFT-206 (aplicalas):
-- RA sin verbos derivados de un sustantivo: "Elabora un prototipo", no "Prototipa" ni "Modulariza". "Elabora" se acepta cuando su complemento es el producto mismo.
-- Verbo de la competencia según el objeto: las prácticas, las técnicas o los métodos se implementan o se aplican, nunca se desarrollan ("Implementar las buenas prácticas de…", no "Desarrollar las buenas prácticas de…").
-- Nada de términos paraguas: "componentes", "elementos" o "aspectos" dicen cuáles, y toda acción nominalizada ("verificación", "gestión") dice de qué.
-4. Reglas del bloque: tres actividades en el orden del cuadro (la primera es el proyecto con 15 criterios; las otras dos llevan 8 criterios); porcentajes enteros que suman 100; cada elemento de una lista va sin viñetas ni numeración; los textos del bloque son idénticos a los de la ficha mostrada.`);
+3. Reglas del bloque: tres actividades en el orden del cuadro (la primera es el proyecto con 15 criterios; las otras dos llevan 8 criterios); porcentajes enteros que suman 100; cada elemento de una lista va sin viñetas ni numeración; los textos del bloque son idénticos a los de la ficha mostrada.`);
   return parts.join('\n\n');
 }
 
@@ -4215,8 +3910,8 @@ ${prev.map(p=>`— ${p.code} ${p.name}\n${p.text}`).join('\n\n')}
 
 Instrucción de variación: conservá las reglas y el estilo de la skill, pero redactá cada metodología con detalles sutilmente distintos a los de estos cursos, sobre todo en lo que se repite entre programas:
 - La acción del docente cambia: si arriba dice "permite que el docente exponga", aquí usá "demuestre", "ilustre", "ejemplifique", "presente" o "explique"; en la guía del docente alterná "retroalimente el desarrollo de", "dé seguimiento a" o "asesore" ("asesore las estrategias de evaluación realizadas en el curso"); nunca "acompañe" ni "oriente".
-- El verbo conector de cada metodología no coincide con el que usó la misma metodología arriba (permite, fomenta, posibilita, propicia, favorece, facilita, promueve, impulsa).
-- Alterná el cierre ("para que", "de manera que", "de forma que") y la acción de los estudiantes ("distribuyan con sus pares" → "se organicen en equipos", "elaboren" → "construyan" o "diseñen").
+- El verbo conector de cada metodología no coincide con el que usó la misma metodología arriba (permite, fomenta, posibilita, propicia, favorece, facilita, promueve).
+- Alterná el cierre ("para que", "de manera que", "de forma que") y la acción de los estudiantes ("distribuyan con sus pares" → "se organicen en equipos", "elaboren" → "diseñen" o "desarrollen").
 - Mantené una sola acción por metodología, el mismo registro formal y la misma longitud.`;
 }
 function tiposVariationBlock(){
@@ -4252,78 +3947,7 @@ function buildProgramaPrompt(){
 1. Ejecutá todas las fases de la skill sin detenerte y mostrame el programa completo, legible, para revisarlo.
 2. Al final de la respuesta agregá UN SOLO bloque \`\`\`json con exactamente esta estructura. La app Asistente Curricular lo importa, así que no escribas comentarios ni texto fuera de los valores:
 ${PROGRAMA_SCHEMA(code)}
-3. Recordá especialmente: redactá claro para un lector que no es del área: cada idea con su contexto (ficha de qué, proceso de qué), sin tecnicismos de más ni oraciones largas, por ejemplo "Elabora una ficha del proceso de la aplicación basado en la entrada del usuario"; el objeto de estudio va directo al objeto (sin "fundamentos de" ni "principios de"); ninguna tecnología concreta en la descripción, la competencia, los RA, las metodologías ni las estrategias de aprendizaje, pero el párrafo de cada actividad de evaluación cierra con una oración que nombra el software con que se hace ("Esta estrategia de evaluación requiere el uso de aplicaciones como …", el mismo de recursos didácticos); actividades en minúscula y con artículo dentro de la oración ("las prácticas", "Las tareas favorecen"); sin "dotar" ni "de modo"; la evaluación formativa usa actividades distintas de las sumativas (resúmenes, mapas mentales, fichas de conceptos, glosario…) y el aprendizaje autónomo se vincula con ella; cada descripción de actividad tiene tres bloques (en qué consiste, qué deben realizar, qué contiene el entregable); la descripción es UN solo párrafo: qué es, cómo se hace (una sola oración, sin narrar etapa por etapa y sin nombrar el software), "Esta actividad se compone de [n] entregables en los que el documento escrito contiene […], el código base incluye […] y la defensa oral […]" (aquí sí se enumeran los apartados de cada evidencia) y la modalidad, y cierra con "Esta estrategia de evaluación requiere el uso de aplicaciones como [software]." (la app agrega la oración de la rúbrica); ninguna palabra de contenido ni el nombre de una actividad se repite en oraciones vecinas (alterná con equivalentes como "el proyecto", "el sistema"); las metodologías tienen una sola acción del docente o de los estudiantes y un registro formal; "En el curso…" es la competencia escrita de manera completamente diferente (mismo sentido, otras palabras, sin repetir sus verbos ni sustantivos salvo el núcleo), no la descripción del proyecto; las temáticas y las estrategias de evaluación llevan siempre su artículo; las estrategias de aprendizaje dicen qué hacen los estudiantes ("permite que los estudiantes seleccionen…"); el estudio de casos solo resalta lo investigativo si la actividad es de investigación; el cronograma tiene una sola actividad por semana desde la sesión 2, entregas seguidas sin intercalar, duración fija en las dos actividades que no son el proyecto, ninguna entrega de más de 3 semanas, 8 entregas como máximo en total; el proyecto lleva siempre 3 avances repartidos a lo largo del curso, uno en cada tercio (el primero cierra a más tardar en la sesión 6, el segundo entre la 7 y la 10 y el tercero entre la 11 y la 14), nunca amontonados al final; y nunca dos entregas seguidas de la misma actividad (entre una etapa del proyecto y la siguiente va al menos otra actividad, para dar tiempo a la retroalimentación). Antes de entregar, revisá la redacción completa y reescribí lo que suene robótico.
-REDACCIÓN CLARA Y VARIADA (lo que más se corrige):
-- Oraciones cortas y sencillas: una idea por oración, sin colas ni rellenos ("por avances", "el conjunto de", "en la comunicación del trabajo de…").
-- Ninguna frase se repite entre secciones: lo que dice la competencia (por ejemplo, "el procesamiento de datos de problemas cotidianos") no se copia en los RA, las metodologías ni las descripciones; cada sección lo dice de otra manera o lo omite.
-- Variá los verbos y las estructuras: dos oraciones seguidas no empiezan igual, y el verbo de la competencia no se repite en los RA ni en los criterios (si la competencia dice "Desarrollar", el RA dice "Implementa" y un criterio "Incorpora", no "Desarrolla").
-- La competencia no usa el nombre del proyecto como objeto ("programas de computadora" → "aplicaciones informáticas").
-- RA 2 y RA 3 pueden nombrar su actividad de forma directa y sencilla ("Resuelve tareas de verificación del funcionamiento de un programa…", "Realiza un glosario de conceptos de programación…") en lugar de forzar una abstracción.
-- Verbos sencillos en los conectores ("permite", "favorece", "promueve"), sin rebuscados como "impulsa".
-5. Observaciones del revisor (versión RAM1), aplicalas sin excepción:
-- Objeto de estudio que se pueda imaginar: en singular, con un sustantivo que introduce la idea seguido de algo concreto (la organización de la estructura…, la división de…), nunca con una acción ni con "las capacidades de…", y sin nombrar "disciplina" ni "rama".
-- Importancia con componente laboral: una acción concreta y propia del área, nominalizada, sin nombrar la profesión (por ejemplo, "permite el acuerdo de las partes interesadas sobre las funciones de un producto antes de su programación").
-- Todo sustantivo abstracto lleva su complemento: consenso sobre qué, tiempos de respuesta en qué, reducción de qué.
-- Los rasgos del perfil no se redactan en el programa: vienen del Maestro (ver el bloque de rasgos).
-- Estrategias de aprendizaje con verbos de la categoría de aplicar (utilicen, empleen, elaboren, diseñen, implementen, incorporen, desarrollen, integren); nunca seleccionen, escriban, midan, identifiquen ni describan.
-- La metodología de estudio de casos describe la resolución del caso (diagnóstico y solución); la indagación en fuentes solo respalda esa solución.
-- El software de cada actividad de evaluación va en una sola oración al final de su párrafo: "Esta estrategia de evaluación requiere el uso de aplicaciones como [software]." Ese mismo software aparece en recursos didácticos; el resto del párrafo no lo nombra.
-- Objeto de estudio en singular y con un sustantivo que introduzca la idea (por ejemplo, "la organización de la estructura de un sistema informático…"): no es una definición de diccionario, es de lo que trata el curso.
-- La importancia y "En el curso…" hablan del núcleo de este curso (en arquitectura, de arquitectura; no de requerimientos). "En el curso…" es un parafraseo fuerte de la competencia: mismo sentido, con un verbo equivalente (diseñar → concebir, no prototipar).
-- Las metodologías se refieren a los resultados de aprendizaje y a las actividades, no a los temas del temario.
-- Recursos didácticos: ningún recurso nombra ni alude a las evaluaciones del curso (proyecto, tareas, prácticas, estudio de casos…); cada uno describe de forma transversal lo que permite hacer en el curso (por ejemplo, "permiten que en este curso los estudiantes modelen las vistas de la arquitectura de un sistema de software"). Si el curso no tiene requisitos, no lleva recurso de experiencia previa; cada software dice en pocas palabras qué hacen los estudiantes con él; unir en un mismo recurso las aplicaciones con un propósito similar y preferir herramientas especializadas del área (nada genérico como diagrams.net); con varios requisitos, un solo recurso de experiencia previa que los una. Incluí también los tres recursos institucionales adaptados al curso, una oración cada uno: las aulas (por ejemplo, para proyectar los diagramas durante las sesiones), los laboratorios de informática (con las herramientas especializadas del curso, sin marcas) y eLibro (con libros sobre los temas del curso). No escribas la biblioteca ni Google Workspace: ya están en la plantilla.
-- Cronograma: en "modulo" va solo el número del módulo; los subtemas ya no van en el cronograma. Las entregas se nombran con ordinales en palabras ("Empieza el primer avance…", "Realiza la primera entrega del glosario…"), nunca "el avance 1" ni "el glosario de los módulos 1 y 2", y se varía un poco la redacción entre avances ("Continúa con el desarrollo del segundo avance…").
-- Porcentaje en la descripción de la actividad: si las entregas no valen lo mismo (15 %, 15 % y 20 %), solo el total.
-- Importancia: una oración corta con la estructura "radica en que [la acción general del curso, nominalizada] permite [una acción nominalizada]" (nunca "le permite + infinitivo"), con una sola idea, de 3 a 4 líneas como máximo, no a una empresa; genérica, sin ejemplos de una industria y sin nombrar el curso ni su núcleo.
-- "En el curso…": verbo sinónimo del de la competencia y de nivel de maestría ("Implementar" → "integran" o "despliegan", no "incorporan"), complemento directo concreto ("componentes predictivos") y corto. El núcleo del curso no se repite en todo el párrafo de la descripción, salvo donde la estructura lo exige.
-- Metodologías de 200 a 260 caracteres (unas tres líneas). Estudio de casos: el estudiante aplica técnicas para resolver el problema de una organización. Guía del docente: retroalimentación o acompañamiento, no "interpretación".
-- La estrategia de aprendizaje del estudio de casos se orienta a resolver un problema ("…permite que los estudiantes resuelvan la necesidad de una organización con…"), no a emplear una herramienta.
-- Criterios sin el verbo "Confirma" (por ejemplo, "Justifica").
-- "En el curso…": cada sustantivo del propósito y del modo se puede imaginar; nada de "la operación autónoma de los procesos" ni "diagramas cercanos a su versión ejecutable".
-- Metodologías: el verbo va justo después del sujeto ("los estudiantes indaguen… en los modelos de las tareas", no "los estudiantes durante las tareas indaguen…").
-- Tecnicismos en palabras precisas, sin perder el registro académico (claro no es cotidiano): no "producto fiel a su diseño", "búsqueda automática de contraejemplos" ni "según la fase de su construcción"; decí qué hace el estudiante o qué se ve.
-- LECTURA FINAL COMO NO ESPECIALISTA: antes de entregar, leé todo como alguien que no es del área, buscá expresiones abstractas ("operación autónoma", "versión ejecutable", "fiel a", "brecha"…) y reescribilas en palabras que se puedan imaginar. En "observaciones", avisá si el nombre del proyecto repite el nombre del curso y si los módulos mezclan infinitivos ("Modelar…") con sustantivos ("Modelado…").
-- Rúbricas con el método cualitativo: cada nivel es el criterio completo seguido de "de manera …" (nivel 1 y 4 antónimos como escueta y profunda, insuficiente y suficiente, inadecuada y adecuada; nivel 2 básica, incipiente o limitada; nivel 3 aceptable, regular o parcial). Nunca cantidades como "1 o 2 de los 6".
-9. Lecciones de la revisión de SOFT-209 (correcciones de Pedro; mandan sobre las anteriores si chocan):
-- Entrada: antes de redactar, contrastá la tabla de evaluación con el cuadro de competencia. Si no coinciden, usá los nombres del cuadro, sacá la cantidad de entregas del cronograma y devolvé la tabla corregida en "tabla_evaluacion".
-- Objeto de estudio sin rango temporal: nada de colas como "desde la definición de sus requerimientos hasta su mantenimiento". Toda acción nominalizada dice de qué ("verificación de funcionamiento de…").
-- "En el curso…": el modo dice con qué se trabaja, como la base normativa ("con base en las normativas y estándares de protección de datos informáticos"), no sobre qué problema ("con normas técnicas sobre las vulnerabilidades halladas").
-- Temáticas: artículo en cada sustantivo coordinado, también dentro del nombre del módulo ("los requerimientos y la arquitectura", "la construcción y la verificación").
-- Metodologías: la guía del docente rota entre "retroalimente el desarrollo de", "dé seguimiento a" y "asesore las estrategias de evaluación realizadas en el curso" (no "oriente"); la enseñanza directa cierra con un objeto concreto ("identifiquen los procedimientos de protección de activos digitales"); el estudio de casos va en presente y con el término preciso ("la medida de protección que evita cada vulnerabilidad", no "que habría evitado cada falla"); el proyecto usa "elaboren" (nunca "construyan"); el colaborativo sin "en conjunto" junto a "equipos" y sin posesivos ("los integrantes").
-- Estrategias: la del estudio de casos no nombra la técnica ("con el modelado de amenazas"); se centra en resolver ("la medida de seguridad que asegura el desarrollo del sistema comprometido").
-- Descripciones: el "cómo se hace" usa verbos académicos con objeto claro ("analizar la cronología de cada incidente para la determinación de la fase en la que se omitió el control"); el "qué es" usa términos que el revisor entiende ("verificación del cumplimiento normativo con respecto a un estándar", no "auditoría documental"; "pruebas que respalden su seguridad", no "respaldo documental").
-- Recursos: la experiencia previa dice una acción visible con dos tipos concretos ("señalen en los diagramas los módulos y las bases de datos", no "reconozcan los componentes").
-- Cronograma: la sesión 1 va sin actividades propias ("actividades": []), porque la plantilla ya trae la inducción.
-- Claridad desde la primera versión: antes de entregar, releé cada oración como alguien que no es del área y reescribí la que necesite una segunda lectura.
-
-8. Lecciones de la revisión de SOFT-208 (correcciones de Pedro; mandan sobre las anteriores si chocan):
-- Claro no es cotidiano: usá nominalizaciones académicas precisas, no sustantivos coloquiales ni frases verbales. "distribución" (no "reparto"), "componente de software" (no "pieza"), "para la continuidad de su operación" (no "para que siga activo"), "intercambio de datos" (no "envío"), "segmentación funcional", "entorno de ejecución" (no "puesta en marcha"), "de forma independiente" (no "por su cuenta").
-- Exactitud técnica: una simplificación no puede cambiar el concepto ("equipos de cómputo" hizo pensar en varias computadoras).
-- Objeto de estudio: "es esto para esto", con un sustantivo directo ("la división de…"); no repitas en la definición la palabra del núcleo que ya está en el sujeto.
-- Importancia: un resultado positivo ("la continuidad de los servicios informáticos"), no el mecanismo técnico ("la contención de una falla").
-- "En el curso…": propósito y modo nominalizados ("para la continuidad de su operación", "con criterios de segmentación…"); "Diseñar" → "elaboran".
-- Metodologías: guía del docente "retroalimente el desarrollo de las actividades realizadas en el curso" (no "acompañe"); enseñanza directa "identifiquen los procedimientos de…" (no "aprendan"); sin posesivos ambiguos ("los diseños de software", no "sus diseños").
-- Evaluación: el "qué es" del estudio de casos dice "la resolución de problemas de [tipo concreto] para [mejora observable]"; el objeto de las estrategias es un término del área ("módulos autónomos", "unidad funcional del software"; no "separación", "parte" ni "pieza"); el "cómo se hace" usa verbos académicos ("examinar la estructura del sistema de origen para su partición…").
-- Recursos: sin tercera herramienta como complemento; si una herramienta sale de los recursos, sale también de la oración del software de la actividad.
-- Antes de entregar, revisá todo el programa buscando sustantivos coloquiales y frases verbales donde iría una nominalización.
-
-7. Lecciones de la revisión de SOFT-207 (correcciones de Pedro; mandan sobre las anteriores si chocan):
-- Objeto de estudio: "la organización de…" solo en cursos de estructura (arquitectura, diseño). En cursos de un tipo de sistema, empieza por el sistema concreto ("los programas de computadora que guardan…"). La definición es conceptualmente correcta (un sistema basado en conocimiento no es un sistema experto con reglas de especialistas: es saber escrito en conceptos y reglas más la deducción). La segunda acción pasa al propósito ("para la deducción de…"), no se encadena con "y con…".
-- Importancia: "radica en que [acción general del curso, nominalizada] permite [acción nominalizada]"; nunca "le permite + infinitivo".
-- Metodologías: el aprendizaje basado en proyectos cierra con "para + el propósito nominalizado del producto" ("para la respuesta a las consultas de los usuarios…"), nunca "un prototipo final". El estudio de casos práctico no lleva "con respaldo en fuentes técnicas": el estudiante diagnostica y propone la solución. El aprendizaje autónomo se centra en la autorregulación del estudio independiente ("regulen los horarios de estudio independiente…"), ya no en producir la actividad formativa. La guía del docente "dé seguimiento a las actividades realizadas en el curso". La enseñanza directa cierra con el procedimiento que aprende el estudiante ("los procedimientos de la definición de reglas y conceptos"), no con imágenes abstractas como "el camino lógico".
-- Descripción de cada actividad: el "qué es" usa la nota de diseño de la tabla de la ficha, dicha como sustantivo ("Depura" → "ejercicios de depuración de bases de conocimiento"). El estudio de casos habla de "situaciones problema", nunca de "reales" (esa palabra no va en ninguna parte del programa). El "cómo se hace" tiene registro académico ("codificar las reglas de inferencia", "contrastar la coherencia lógica de las respuestas con el juicio de un especialista"). La enumeración del entregable va solo con comas y la "y" final, sin punto y coma.
-- Estrategias de aprendizaje: el objeto es preciso ("un modelo de representación del conocimiento de la disciplina elegida", no "un modelo del tema elegido").
-- Recursos didácticos: sin jerga ("ontología", "clases", "razonador", "grafos de conocimiento", "lenguajes de consulta"); decí lo que se ve ("organicen los conceptos de un tema y sus relaciones", "una red de datos conectados"). Nunca agregues una tercera herramienta como complemento. El software de cada actividad corresponde a lo que de verdad se hace en ella: si el estudio de casos no es investigativo, nada de Scopus ni Google Académico, ni en su oración del software ni en recursos.
-6. Lecciones de las revisiones de SOFT-205 y SOFT-206 (la definición es concreta y la metodología es transversal):
-- Objeto de estudio: en cursos de diseño o arquitectura empieza por la estructura que el curso produce ("la organización estructural de los componentes de un programa informático y de las conexiones entre ellos…"), no por "las estrategias" ni "las técnicas". Toda acción nominalizada dice de qué ("verificación del comportamiento esperado de…") y ningún término paraguas va solo ("componentes", "elementos" → dos tipos concretos, como "los módulos de código y las bases de datos").
-- Importancia: una acción que se ve en el trabajo, no una operación mental ("la incorporación de nuevas funciones en una aplicación sin alterar el funcionamiento de sus demás partes", no "la predicción del efecto de una modificación"). El efecto sobre los usuarios va como "su uso" o "su funcionamiento", no "su trabajo".
-- "En el curso…": si la competencia cambió por una corrección, su verbo también cambia en la misma ronda por su sinónimo.
-- Metodologías transversales: la enseñanza directa dice la acción general del curso, no un producto ni una técnica puntual; la guía del docente retroalimenta cada entrega de todas las actividades, no solo el proyecto; el aprendizaje colaborativo abarca todas las actividades grupales ("las responsabilidades de las actividades grupales").
-- Evaluación formativa de maestría: sin resúmenes ni glosarios; diagramas conceptuales o cuadros comparativos.
-- Recursos de software agrupados por etapa del trabajo: de 2 a 4 recursos, como máximo dos herramientas, ambas en el sujeto (sin tercera herramienta como complemento); nunca un recurso por herramienta, y ninguno nombra una evaluación.
-- Si en la ficha hay un RA con un verbo derivado de un sustantivo ("Prototipa", "Modulariza"), avisalo en "observaciones".
-- Antes de entregar, preguntate: ¿hay algo que el revisor podría responder con "¿de qué?" o "¿cuáles?", o con "debería ser más general"? Corregilo.
-4. Reglas del bloque: "actividades" lleva las tres actividades en el orden del cuadro, cada una con sus evidencias (las de la ficha, o las que creaste si no tenía) y la rúbrica de todos sus criterios (en "titulo" va solo el título corto del criterio); "cronograma" lleva las sesiones 1 a 14 (la 15 es fija), "modulo" es el número del módulo y "actividades" contiene solo las líneas propias de la sesión (inicio o cierre de entregas), sin las dos líneas fijas de lectura y participación; cada elemento de una lista va sin viñetas ni numeración. No busques ni propongas bibliografía: esa sección la completa el curriculista por aparte.`);
+3. Reglas del bloque: "actividades" lleva las tres actividades en el orden del cuadro, cada una con sus evidencias (las de la ficha, o las que creaste si no tenía) y la rúbrica de todos sus criterios (en "titulo" va solo el título corto del criterio); "cronograma" lleva las sesiones 1 a 14 (la 15 es fija), "modulo" es el número del módulo y "actividades" contiene solo las líneas propias de la sesión (inicio o cierre de entregas), sin las dos líneas fijas de lectura y participación; cada elemento de una lista va sin viñetas ni numeración. No busques ni propongas bibliografía: esa sección la completa el curriculista por aparte.`);
   return parts.join('\n\n');
 }
 
@@ -6440,7 +6064,7 @@ function revPrompt(g){
     : g.secId==='_rubricas'
     ? 'Devolvé las rúbricas corregidas en un solo bloque ```json con la misma estructura del texto actual. Cada nivel es el criterio de desempeño textual + "de manera" + un adjetivo (niveles 1 y 4 antónimos del mismo par; 2 básica, incipiente o limitada; 3 aceptable, regular o parcial).'
     : 'Devolvé la sección completa ya corregida en un solo bloque ```text, con el mismo formato del texto actual (una línea por elemento, sin viñetas ni numeración).';
-  return `Usá la skill ${g.secId?REV_SKILL(g.secId):'pc-programa-completo'} para corregir ${g.secId?`la sección "${g.label}"`:`la parte "${g.label}"`} del programa de curso ${code} ${name}${ver}, según las observaciones del revisor.
+  return `Usá la skill pc-correcciones, junto con la skill ${g.secId?REV_SKILL(g.secId):'pc-programa-completo'}, para corregir ${g.secId?`la sección "${g.label}"`:`la parte "${g.label}"`} del programa de curso ${code} ${name}${ver}, según las observaciones del revisor.
 
 ${g.secId?'TEXTO ACTUAL DE LA SECCIÓN':'TEXTO DONDE ESTÁN LOS COMENTARIOS'}
 ${g.secId?cur:[...new Set(g.comments.map(x=>x.sentence||x.context).filter(Boolean))].join('\n')}
@@ -6451,12 +6075,9 @@ ${revObsText(g)}
 CONTEXTO DEL CURSO (para mantener la coherencia)
 ${revCourseContext()}
 
-INSTRUCCIONES
-1. Atendé cada observación y cambiá solo lo necesario; lo que no se observó queda igual, palabra por palabra.
-2. Si una observación es una pregunta ("¿Consenso de qué?"), respondela dentro del texto completando la idea.
-3. Aplicá todas las reglas de la skill y no introduzcas palabras repetidas, comas antes de "para que" o "de manera que", ni términos prohibidos.
-4. ${fmt}
-5. Después del bloque, una tabla breve: observación → qué cambiaste.`;
+INSTRUCCIONES DE ENTREGA
+1. ${fmt}
+2. Después del bloque, una tabla breve: observación → qué cambiaste.`;
 }
 function revCopyText(text, openAfter){
   const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select();
@@ -6494,7 +6115,7 @@ ${revCurrent(g)}
 OBSERVACIONES
 ${revObsText(g)}`).join('\n\n');
   const oth=other.length?`\n\nOTRAS OBSERVACIONES (no son de una sección editable; si afectan alguna de las anteriores, aplicalas ahí)\n${other.map(g=>`- ${g.label}: `+g.comments.map(x=>`${x.anchor?'«'+x.anchor+'» ':''}${x.text}`).join(' / ')).join('\n')}`:'';
-  return `Usá las skills pc-* que se indican en cada sección para corregir el programa de curso ${code} ${name}${ver} según las observaciones del revisor.
+  return `Usá la skill pc-correcciones, junto con la skill pc-* que se indica en cada sección, para corregir el programa de curso ${code} ${name}${ver} según las observaciones del revisor.
 
 CONTEXTO DEL CURSO
 ${revCourseContext()}
@@ -6502,12 +6123,9 @@ ${revCourseContext()}
 SECCIONES CON OBSERVACIONES
 ${secs}${oth}
 
-INSTRUCCIONES
-1. Atendé cada observación y cambiá solo lo necesario; lo que no se observó queda igual, palabra por palabra.
-2. Si una observación es una pregunta, respondela dentro del texto completando la idea.
-3. Mantené la coherencia entre secciones y todas las reglas de las skills.
-4. Mostrame primero una tabla breve: sección → observación → qué cambiaste.
-5. Al final, UN SOLO bloque \`\`\`json con esta estructura (la app lo importa): {"correcciones":[{"seccion":"id exacto de la sección","texto":"sección completa corregida, con el mismo formato del texto actual; una línea por elemento con \\n; el cronograma y las rúbricas como JSON en texto"}]}`;
+INSTRUCCIONES DE ENTREGA
+1. Mostrame primero una tabla breve: sección → observación → qué cambiaste.
+2. Al final, UN SOLO bloque \`\`\`json con esta estructura (la app lo importa): {"correcciones":[{"seccion":"id exacto de la sección","texto":"sección completa corregida, con el mismo formato del texto actual; una línea por elemento con \\n; el cronograma y las rúbricas como JSON en texto"}]}`;
 }
 function revImportAll(){
   const t=document.getElementById('rev-all-ta').value.trim();
@@ -7503,14 +7121,9 @@ function panelCartero(){
 }
 
 /* ---------- Corrector ---------- */
-const FIX_PROMPT=f=>`Te adjunto el ${f.kind==='ficha'?'documento de la ficha':'programa'} de curso ${f.code} con los comentarios del revisor.
+const FIX_PROMPT=f=>`Usá la skill pc-correcciones para atender los comentarios del revisor en el ${f.kind==='ficha'?'documento de la ficha':'programa'} de curso ${f.code} que te adjunto.
 
-1. Leé cada comentario del documento.
-2. Corregí exactamente lo que pide cada comentario, sin cambiar lo que no se pidió y siguiendo las reglas de las skills pc-* de CENFOTEC.
-3. Resaltá en amarillo todo texto que cambies.
-4. No borres los comentarios del revisor: dejalos en su lugar.
-
-Devolveme el .docx corregido con el mismo formato de la plantilla.`;
+Devolveme el .docx corregido con el mismo formato de la plantilla, con los cambios resaltados en amarillo y los comentarios en su lugar.`;
 const LEARN_PROMPT=f=>`Revisá las correcciones que hicimos en el ${f.kind==='ficha'?'documento de la ficha':'programa'} de curso ${f.code}: los comentarios del revisor y lo que cambiamos (resaltado en amarillo).
 
 Decime qué aprendiste de estas correcciones: los patrones que se repiten, no los casos sueltos. Después proponé cómo mejorar las skills pc-* (la ficha, el programa completo y la sección que corresponda) para no repetir estos errores, con el texto exacto de cada regla nueva o cambiada listo para pegar en la skill.`;
