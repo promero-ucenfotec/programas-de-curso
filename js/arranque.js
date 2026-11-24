@@ -14,3 +14,7 @@ initGoogleAuth();
 
 // Al saltar a una sección, el margen se ajusta a la altura real de la barra de herramientas del curso
 try{ const ct=document.querySelector('.course-tools'); if(ct&&window.ResizeObserver) new ResizeObserver(()=>document.documentElement.style.setProperty('--tools-h',ct.offsetHeight+'px')).observe(ct); }catch(e){}
+
+// Asistente de configuración: Escape o clic fuera lo cierran (el avance queda guardado)
+document.getElementById('modal-wizard').addEventListener('click',e=>{ if(e.target===e.currentTarget) closeSetupWizard(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && document.getElementById('modal-wizard').classList.contains('active')) closeSetupWizard(); });

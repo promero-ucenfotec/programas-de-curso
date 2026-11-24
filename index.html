@@ -11,9 +11,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Chakra+Petch:wght@500;600;700&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700;6..12,800&display=swap" rel="stylesheet">
 <!-- Google Identity Services -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<link rel="stylesheet" href="css/app.css?v=48">
-<link rel="stylesheet" href="css/inicio.css?v=48" id="home-office-css">
-<link rel="stylesheet" href="css/oficina.css?v=48">
+<link rel="stylesheet" href="css/app.css?v=49">
+<link rel="stylesheet" href="css/inicio.css?v=49" id="home-office-css">
+<link rel="stylesheet" href="css/oficina.css?v=49">
+<link rel="stylesheet" href="css/asistente.css?v=49">
 </head>
 <body>
 
@@ -40,7 +41,7 @@
         <h1 class="hm-title">¿A qué oficina vamos hoy?</h1>
         <p class="hm-lead">Cada edificio es un plan de estudios. Las ventanas son sus cursos: se encienden en celeste con la ficha y en amarillo con el programa completo.</p>
       </div>
-      <button class="hm-btn pri" onclick="openProjectModal(null)">+ Nuevo proyecto</button>
+      <button class="hm-btn pri" onclick="openSetupWizard(null)">+ Nuevo proyecto</button>
     </div>
     <div class="hm-street" id="projects-grid"></div>
     <div class="hm-legend" aria-hidden="true"><span><i class="w0"></i>Sin empezar</span><span><i class="w1"></i>Con ficha</span><span><i class="w2"></i>Con programa</span><span><i class="fl"></i>Bandera según el estado del proyecto</span></div>
@@ -299,10 +300,16 @@
     <div class="fg"><label>Carpeta de fichas en Google Drive <span style="font-weight:400;color:var(--ink-4)">(opcional)</span></label><input type="text" id="in-fold-fichas" placeholder="https://drive.google.com/drive/folders/…"></div>
     <div class="fg"><label>Carpeta de programas en Google Drive <span style="font-weight:400;color:var(--ink-4)">(opcional)</span></label><input type="text" id="in-fold-prog" placeholder="https://drive.google.com/drive/folders/…"><small>Al tocar <strong>Guardar en Maestro</strong>, la app sube o actualiza el Word del curso en estas carpetas: la ficha en la de fichas y el programa completo en la de programas.</small></div>
     <div class="modal-actions">
+      <button class="btn btn-quiet btn-sm" id="proj-modal-wz" onclick="openSetupWizard(editingProjectId)" style="margin-right:auto">Revisar paso a paso</button>
       <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
       <button class="btn btn-primary" id="proj-modal-btn" onclick="saveProjectModal()">Crear proyecto <span class="ic" aria-hidden="true">→</span></button>
     </div>
   </div>
+</div>
+
+<!-- Modal: asistente de configuración del proyecto -->
+<div class="overlay" id="modal-wizard" role="dialog" aria-modal="true" aria-label="Configurar el proyecto">
+  <div class="modal"><div id="wz-content"></div></div>
 </div>
 
 <!-- Modal: Claude flow -->
@@ -549,32 +556,33 @@
   </div>
 </div>
 
-<script src="js/config.js?v=48"></script>
-<script src="js/google-auth.js?v=48"></script>
-<script src="js/drive-respaldo.js?v=48"></script>
-<script src="js/sheets.js?v=48"></script>
-<script src="js/maestro.js?v=48"></script>
-<script src="js/secciones.js?v=48"></script>
-<script src="js/proyectos.js?v=48"></script>
-<script src="js/curso.js?v=48"></script>
-<script src="js/maestro-escritura.js?v=48"></script>
-<script src="js/cronograma.js?v=48"></script>
-<script src="js/toast.js?v=48"></script>
-<script src="js/fichas-parser.js?v=48"></script>
-<script src="js/tematicas.js?v=48"></script>
-<script src="js/prompts-editor.js?v=48"></script>
-<script src="js/flujo-claude.js?v=48"></script>
-<script src="js/fichas-lector.js?v=48"></script>
-<script src="js/esbozo-experto.js?v=48"></script>
-<script src="js/word-descarga.js?v=48"></script>
-<script src="js/rasgos.js?v=48"></script>
-<script src="js/tomo.js?v=48"></script>
-<script src="js/gmail.js?v=48"></script>
-<script src="js/plantilla-docx.js?v=48" defer></script>
-<script src="js/rubricas.js?v=48"></script>
-<script src="js/revisor.js?v=48"></script>
-<script src="js/drive-word.js?v=48"></script>
-<script src="js/arranque.js?v=48"></script>
+<script src="js/config.js?v=49"></script>
+<script src="js/google-auth.js?v=49"></script>
+<script src="js/drive-respaldo.js?v=49"></script>
+<script src="js/sheets.js?v=49"></script>
+<script src="js/maestro.js?v=49"></script>
+<script src="js/secciones.js?v=49"></script>
+<script src="js/proyectos.js?v=49"></script>
+<script src="js/curso.js?v=49"></script>
+<script src="js/maestro-escritura.js?v=49"></script>
+<script src="js/cronograma.js?v=49"></script>
+<script src="js/toast.js?v=49"></script>
+<script src="js/fichas-parser.js?v=49"></script>
+<script src="js/tematicas.js?v=49"></script>
+<script src="js/prompts-editor.js?v=49"></script>
+<script src="js/flujo-claude.js?v=49"></script>
+<script src="js/fichas-lector.js?v=49"></script>
+<script src="js/esbozo-experto.js?v=49"></script>
+<script src="js/word-descarga.js?v=49"></script>
+<script src="js/rasgos.js?v=49"></script>
+<script src="js/tomo.js?v=49"></script>
+<script src="js/gmail.js?v=49"></script>
+<script src="js/plantilla-docx.js?v=49" defer></script>
+<script src="js/rubricas.js?v=49"></script>
+<script src="js/revisor.js?v=49"></script>
+<script src="js/drive-word.js?v=49"></script>
+<script src="js/asistente-proyecto.js?v=49"></script>
+<script src="js/arranque.js?v=49"></script>
 <!-- ══════════════════════════════════════
      LA OFICINA (vista de juego del proyecto)
 ══════════════════════════════════════ -->
@@ -614,7 +622,7 @@
   </div>
 </div>
 
-<script src="js/oficina.js?v=48"></script>
+<script src="js/oficina.js?v=49"></script>
 
 </body>
 </html>

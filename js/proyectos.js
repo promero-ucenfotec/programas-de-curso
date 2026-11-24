@@ -82,7 +82,7 @@ function renderProjects(){
   const add=document.createElement('button');
   add.className='hm-lot'; add.type='button';
   add.innerHTML=`<svg viewBox="0 0 160 110" aria-hidden="true"><path d="M80 100 150 65 80 30 10 65Z" fill="#c9e3b8" stroke="#8fbf7c" stroke-width="2" stroke-dasharray="6 5"/><rect x="76" y="34" width="6" height="40" rx="2" fill="#8a6a4a"/><rect x="52" y="18" width="54" height="28" rx="5" fill="#fffdf8" stroke="#1c2131" stroke-opacity=".2"/><text x="79" y="37" text-anchor="middle" font-family="Chakra Petch" font-weight="700" font-size="17" fill="#ff6a3d">+</text><path d="M30 70l8-4 8 4-8 4Z" fill="#ff6a3d"/><path d="M118 74l8-4 8 4-8 4Z" fill="#ff6a3d"/></svg><span>Lote disponible: nuevo proyecto</span>`;
-  add.onclick=()=>openProjectModal(null);
+  add.onclick=()=>openSetupWizard(null);
   grid.appendChild(add);
   if(window.__renderIcons) window.__renderIcons();
 }
@@ -186,6 +186,7 @@ function openProjectModal(pid){
   document.getElementById('in-estado').value = estadoOf(p).v;
   document.getElementById('proj-modal-title').textContent = p ? 'Editar proyecto' : 'Nuevo proyecto';
   document.getElementById('proj-modal-btn').innerHTML = p ? 'Guardar cambios' : 'Crear proyecto <span class="ic" aria-hidden="true">→</span>';
+  const wzb=document.getElementById('proj-modal-wz'); if(wzb) wzb.style.display=p?'':'none';
   document.getElementById('modal-add').classList.add('active');
 }
 function saveProjectModal(){

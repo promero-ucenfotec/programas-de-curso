@@ -1091,7 +1091,7 @@ function panelAjustes(){
       <label class="of-lb" for="of-mcc">Con copia (opcional)</label><input class="of-in" id="of-mcc" value="${attr(m.cc)}">
       <div class="of-row"><button class="of-btn pri" onclick="Office.ajustesSave()">Guardar</button></div></div>
     <div class="of-sec"><h4>Proyecto</h4><div class="of-note" style="margin-top:0">Carpetas de Drive: ${P()?.folderFichas?'fichas ✓':'fichas ✗'} · ${P()?.folderProgramas?'programas ✓':'programas ✗'}</div>
-      <div class="of-row"><button class="of-btn sm" onclick="openProjectModal(currentProject.id)">Editar proyecto y carpetas</button><button class="of-btn sm" onclick="Office.classic()">Vista clásica</button></div></div>`;
+      <div class="of-row"><button class="of-btn sm pri" onclick="Office.closePanel();openSetupWizard(currentProject.id)">Revisar la configuración</button><button class="of-btn sm" onclick="openProjectModal(currentProject.id)">Editar proyecto y carpetas</button><button class="of-btn sm" onclick="Office.classic()">Vista clásica</button></div></div>`;
 }
 function panelTomo(){
   const all=allCourses||[]; const fin=all.filter(isFinalCourse); const np=all.filter(c=>courseStage(savedForCourse(c)).programa).length;

@@ -11,6 +11,7 @@ App web estática (GitHub Pages) para armar los programas de curso de CENFOTEC s
   - `arranque.js` va de último entre los archivos de la vista clásica: ahí están las instrucciones que se ejecutan al abrir la app. Todo lo demás solo declara funciones, para que el orden de carga no rompa nada.
   - `oficina.js` es la vista de juego; expone sus funciones en el objeto `Office`.
   - `plantilla-docx.js` guarda la plantilla institucional del Word en base64.
+  - `asistente-proyecto.js` es el asistente que configura un proyecto paso a paso (nuevo o existente).
 
 ## Al publicar una versión
 
