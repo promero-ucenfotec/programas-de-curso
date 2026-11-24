@@ -352,14 +352,25 @@ function drawSay(c,p){ if(!(p.sayT>0)||!p.say) return; c.save(); c.font='700 10p
   c.fillStyle='#1c2131'; c.textAlign='center'; c.textBaseline='top'; lines.forEach((l,i)=>c.fillText(l,x,y-h-1+i*13)); c.restore(); }
 function label(c,x,y,txt){ c.save(); c.font='700 10px "Nunito Sans",sans-serif'; const w=c.measureText(txt).width+14; c.fillStyle='rgba(28,33,49,.88)'; rr(c,x-w/2,y-17,w,17,8); c.fill(); c.fillStyle='#fff'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(txt,x,y-8.5); c.restore(); }
 let hover=null, hoverPerson=null, syncing=false;
+// Paredes, piso y alfombras se dibujan una vez en una capa aparte y se reusan
+// mientras no cambien la cámara, el minuto, el tamaño de la ventana ni las alfombras
+const bgLayer={cv:document.createElement('canvas'), key:'', glows:[]};
+function drawStatic(mod){
+  const rugs=objs.filter(o=>CAT[o.t].floor).map(o=>o.x+','+o.y+','+o.c).join('|');
+  const key=[W,H,DPR,cam.x,cam.y,cam.z,mod,P()?.id,P()?.sigla,P()?.name,rugs,document.fonts?.status].join(';');
+  if(key!==bgLayer.key){ const b=bgLayer.cv; b.width=cv.width; b.height=cv.height; const c=b.getContext('2d');
+    c.setTransform(DPR*cam.z,0,0,DPR*cam.z,DPR*cam.x,DPR*cam.y); const g0=GLOWS.length;
+    drawWalls(c,mod); drawFloor(c); for(const o of objs) if(CAT[o.t].floor) drawRug(c,o);
+    bgLayer.glows=GLOWS.slice(g0); GLOWS.length=g0; bgLayer.key=key; }
+  ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(bgLayer.cv,0,0); ctx.restore(); GLOWS.push(...bgLayer.glows);
+}
 function render(t){
   const now=new Date(); const mod=now.getHours()*60+now.getMinutes();
   ctx.setTransform(DPR,0,0,DPR,0,0);
   const sky=skyColors(mod); const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,sky[0]); g.addColorStop(1,sky[1]); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
   ctx.fillStyle=`rgba(255,255,255,${.35-darkness(mod)*.8})`; for(let i=0;i<4;i++){ const cx=((t*8+i*W/3.2)%(W+300))-150, cy=60+i*45+(i%2)*30; ctx.beginPath(); ctx.ellipse(cx,cy,70,16,0,0,Math.PI*2); ctx.ellipse(cx+40,cy-8,40,14,0,0,Math.PI*2); ctx.fill(); }
   ctx.setTransform(DPR*cam.z,0,0,DPR*cam.z,DPR*cam.x,DPR*cam.y);
-  GLOWS=[]; drawWalls(ctx,mod); drawFloor(ctx);
-  for(const o of objs) if(CAT[o.t].floor) drawRug(ctx,o);
+  GLOWS=[]; drawStatic(mod);
   if(edit){ ctx.strokeStyle='rgba(28,33,49,.16)'; ctx.lineWidth=1; for(let i=0;i<=N;i++){ let a=iso(i,0,.01),b=iso(i,N,.01); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); a=iso(0,i,.01); b=iso(N,i,.01); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); }
     const so=byId[edit.sel]; if(so) tileMark(ctx,so.x,so.y,'#ff6a3d','rgba(255,106,61,.18)');
     if(hover&&inB(hover.x,hover.y)){ const t=edit.mode==='place'?edit.type:edit.mode==='move'&&so?so.t:null; if(t){ const ok=canPlaceAt(t,hover.x,hover.y,edit.mode==='move'?so:null); tileMark(ctx,hover.x,hover.y,ok?'#1f9e8f':'#d6424a',ok?'rgba(31,158,143,.15)':'rgba(214,66,74,.18)'); } else tileMark(ctx,hover.x,hover.y,'rgba(28,33,49,.35)'); } }
@@ -427,11 +438,13 @@ function closePanel(){ panelKey=null; panel.hidden=true; sel=null; paintTools();
 function avatar(k){ const a=AGENTS.find(x=>x.k===k); if(!a) return ''; return `<canvas data-av="${k}" width="120" height="136" aria-hidden="true"></canvas>`; }
 function paintAvatars(){ panel.querySelectorAll('canvas[data-av]').forEach(cn=>{ const a=AGENTS.find(x=>x.k===cn.dataset.av); const c=cn.getContext('2d'); c.clearRect(0,0,120,136); c.save(); c.scale(2,2); c.translate(30,62); drawPerson(c,{id:1,k:a.k,look:a.look,face:0,ph:0},0,0,0,performance.now()/1000,{}); c.restore(); }); }
 function head(k,title,sub,say){ const ag=AGENTS.find(x=>x.k===k); if(ag) title=ag.n; return `<button class="of-close" onclick="Office.closePanel()" aria-label="Cerrar">×</button><div class="of-ph">${ag?`<button class="of-avbtn" onclick="Office.charOpen('${k}')" title="Editar a ${attr(ag.n)}" aria-label="Editar a ${attr(ag.n)}">${avatar(k)}</button>`:avatar(k)}<div><h3>${esc(title)}</h3><div class="sub">${esc(sub)}</div></div></div>${say?`<div class="of-say">${say}</div>`:''}`; }
-function renderPanel(){
+// Cambia el HTML solo si es distinto: evita repintar cada segundo y cerrar menús abiertos
+function setHTML(el,html){ if(el&&el._h!==html){ el.innerHTML=html; el._h=html; } }
+function renderPanel(soft){
   const k=panelKey; if(!k) return;
   const f={personajes:panelPersonajes,decorar:panelDecorar,rocola:panelRocola,carreras:panelCarreras,disenador:panelDisenador,peche:panelPeche,cartero:panelCartero,corrector:panelCorrector,programa:()=>panelNuevo('programa'),ficha:()=>panelNuevo('ficha'),recepcion:panelRecepcion,biblio:panelBiblio,ajustes:panelAjustes,tomo:panelTomo}[k];
   if(!f) return; const keepScroll=panel.scrollTop; const vals={}; panel.querySelectorAll('input[id],textarea[id],select[id]').forEach(el=>{ if(el.type==='file') return; vals[el.id]=el.type==='checkbox'?el.checked:el.value; }); const act=document.activeElement&&panel.contains(document.activeElement)?document.activeElement.id:'';
-  panel.innerHTML=f(); Object.entries(vals).forEach(([id,v])=>{ const el=document.getElementById(id); if(!el||!panel.contains(el)) return; if(el.type==='checkbox') el.checked=v; else el.value=v; if(el.dataset.pick) filterPick(el.dataset.pick,el.value); });
+  const html=f(); if(soft&&html===panel._h) return; panel.innerHTML=html; panel._h=html; Object.entries(vals).forEach(([id,v])=>{ const el=document.getElementById(id); if(!el||!panel.contains(el)) return; if(el.type==='checkbox') el.checked=v; else el.value=v; if(el.dataset.pick) filterPick(el.dataset.pick,el.value); });
   if(act){ const el=document.getElementById(act); if(el) el.focus(); } panel.scrollTop=keepScroll; paintAvatars(); paintDecorPreviews(); wireDrops();
 }
 function refresh(){ if(!panel.hidden) renderPanel(); paintHud(); paintTools(); }
@@ -1095,7 +1108,7 @@ async function doSync(){ if(needGoogle(()=>doSync())) return; syncing=true; floa
 const tools=document.getElementById('of-tools');
 function paintTools(){
   const badge=k=>{ const n=needOf(k); return n.alert?'<span class="bdg">!</span>':''; };
-  tools.innerHTML=AGENTS.map(a=>`<button class="of-tool${panelKey===a.k?' on':''}" onclick="Office.openAgent('${a.k}')" title="${attr(a.n+' · '+a.role)}"><span class="dot" style="background:${a.col}"></span><span class="l">${a.n}</span>${a.k==='peche'?'':badge(a.k)}</button>`).join('')
+  setHTML(tools, AGENTS.map(a=>`<button class="of-tool${panelKey===a.k?' on':''}" onclick="Office.openAgent('${a.k}')" title="${attr(a.n+' · '+a.role)}"><span class="dot" style="background:${a.col}"></span><span class="l">${a.n}</span>${a.k==='peche'?'':badge(a.k)}</button>`).join('')
     +`<span class="of-sep"></span>
     <button class="of-tool x${panelKey==='tomo'?' on':''}" onclick="Office.openPanel('tomo')" title="Tomo II"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v4a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/></svg><span class="l">Tomo II</span></button>
     <button class="of-tool x${panelKey==='rocola'?' on':''}" onclick="Office.openRocola()" title="Rocola: música de YouTube"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg><span class="l">Rocola</span></button>
@@ -1103,21 +1116,21 @@ function paintTools(){
     <button class="of-tool x" onclick="Office.gameOpen()" title="Arcade"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="7" width="18" height="11" rx="4"/><path d="M8 10.5v4M6 12.5h4M15.5 11.5h.01M17.5 13.5h.01"/></svg><span class="l">Jugar</span></button>
     <button class="of-tool x${panelKey==='ajustes'?' on':''}" onclick="Office.openPanel('ajustes')" title="Ajustes del proyecto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span class="l">Ajustes</span></button>
     <button class="of-tool x" onclick="Office.classic()" title="Vista clásica de la app"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 10h16M10 10v9"/></svg><span class="l">Clásica</span></button>
-    <button class="of-tool x" onclick="showHome()" title="Volver a los proyectos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"/></svg><span class="l">Salir</span></button>`;
+    <button class="of-tool x" onclick="showHome()" title="Volver a los proyectos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"/></svg><span class="l">Salir</span></button>`);
 }
 function paintHud(){
   const p=P(); if(!p) return; document.getElementById('of-title').textContent=p.name||'Oficina';
-  const s=document.getElementById('of-estado'); const e=estadoOf(p); s.innerHTML=ESTADOS.map(x=>`<option${x.v===e.v?' selected':''}>${x.v}</option>`).join(''); s.className='est-pill '+e.c;
+  const s=document.getElementById('of-estado'); const e=estadoOf(p); if(document.activeElement!==s){ setHTML(s,ESTADOS.map(x=>`<option${x.v===e.v?' selected':''}>${x.v}</option>`).join('')); s.value=e.v; } s.className='est-pill '+e.c;
   const all=allCourses||[]; const nf=all.filter(c=>courseStage(savedForCourse(c)).ficha).length, np=all.filter(c=>courseStage(savedForCourse(c)).programa).length, fin=all.filter(isFinalCourse).length;
   finalsRatio=all.length?fin/all.length:0; unreadN=inbox().filter(m=>m.status==='nuevo').length;
   document.getElementById('of-sf').textContent=all.length?`${nf}/${all.length}`:'—'; document.getElementById('of-sp').textContent=all.length?`${np}/${all.length}`:'—'; document.getElementById('of-sfin').textContent=all.length?String(fin):'—'; document.getElementById('of-smail').textContent=String(unreadN);
-  document.getElementById('of-auth').innerHTML=gAccessToken?`<span class="of-pill" title="${attr(gUserInfo?.email||'')}"><i></i>${esc((gUserInfo?.name||gUserInfo?.email||'Google').split(' ')[0])}</span>`:`<button class="of-btn pri sm" onclick="googleSignIn(()=>Office.enter(true))">Conectar Google</button>`;
+  setHTML(document.getElementById('of-auth'),gAccessToken?`<span class="of-pill" title="${attr(gUserInfo?.email||'')}"><i></i>${esc((gUserInfo?.name||gUserInfo?.email||'Google').split(' ')[0])}</span>`:`<button class="of-btn pri sm" onclick="googleSignIn(()=>Office.enter(true))">Conectar Google</button>`);
 }
 function tickClock(){ const d=new Date(); document.getElementById('of-clock').textContent=d.toLocaleDateString('es-CR',{weekday:'long',day:'numeric',month:'long'})+' · '+d.toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit'}); }
 
 /* ---------- Bucle ---------- */
 let running=false, last=0, hudT=0;
-function frame(ts){ if(!running) return; const t=ts/1000; const dt=Math.min(.1,last?t-last:0); last=t; tick(dt); for(let i=floats.length-1;i>=0;i--){ floats[i].life-=dt; if(floats[i].life<=0) floats.splice(i,1); } hudT-=dt; if(hudT<=0){ hudT=1; tickClock(); paintHud(); paintTools(); if(!panel.hidden&&['peche','tomo'].includes(panelKey)&&!panel.contains(document.activeElement)) renderPanel(); }
+function frame(ts){ if(!running) return; const t=ts/1000; const dt=Math.min(.1,last?t-last:0); last=t; tick(dt); for(let i=floats.length-1;i>=0;i--){ floats[i].life-=dt; if(floats[i].life<=0) floats.splice(i,1); } hudT-=dt; if(hudT<=0){ hudT=1; tickClock(); paintHud(); paintTools(); if(!panel.hidden&&['peche','tomo'].includes(panelKey)&&!panel.contains(document.activeElement)) renderPanel(true); }
   if(Date.now()-mailLast>5*60*1000&&!mailBusy&&gAccessToken&&mailReadOk()&&(allCourses||[]).length){ mailLast=Date.now(); checkMail(true); }
   render(t); requestAnimationFrame(frame); }
 let scenePid=null;

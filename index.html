@@ -11,9 +11,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Chakra+Petch:wght@500;600;700&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700;6..12,800&display=swap" rel="stylesheet">
 <!-- Google Identity Services -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<link rel="stylesheet" href="css/app.css?v=47">
-<link rel="stylesheet" href="css/inicio.css?v=47" id="home-office-css">
-<link rel="stylesheet" href="css/oficina.css?v=47">
+<link rel="stylesheet" href="css/app.css?v=48">
+<link rel="stylesheet" href="css/inicio.css?v=48" id="home-office-css">
+<link rel="stylesheet" href="css/oficina.css?v=48">
 </head>
 <body>
 
@@ -132,6 +132,7 @@
         <div class="sheets-dot" id="course-sheets-dot"></div>
         <span id="course-sheets-txt">Sin conexión Sheets</span>
       </div>
+      <button class="auto-btn" id="ab-word" onclick="openWordExport()"><span class="ic" aria-hidden="true">⤓</span> Word y correo</button>
       <button class="btn btn-primary btn-sm" onclick="pushToMaestro()" id="push-btn"><span class="ic" aria-hidden="true">↑</span> Guardar en Maestro</button>
     </div>
   </div>
@@ -182,9 +183,6 @@
       <button class="auto-btn" id="ab-ficha" onclick="openClaudeFlow('ficha')"><span class="step">1</span> Hacer la ficha</button>
       <button class="auto-btn" id="ab-prog" onclick="openClaudeFlow('programa')"><span class="step">2</span> Programa completo</button>
       <button class="auto-btn ghost" onclick="openClaudeFlow(null)"><span class="ic" aria-hidden="true">⇩</span> Pegar respuesta</button>
-    </div>
-    <div class="tool-group tool-end">
-      <button class="auto-btn" id="ab-word" onclick="openWordExport()"><span class="ic" aria-hidden="true">⤓</span> Word y correo</button>
     </div>
   </div>
 
@@ -551,32 +549,32 @@
   </div>
 </div>
 
-<script src="js/config.js?v=47"></script>
-<script src="js/google-auth.js?v=47"></script>
-<script src="js/drive-respaldo.js?v=47"></script>
-<script src="js/sheets.js?v=47"></script>
-<script src="js/maestro.js?v=47"></script>
-<script src="js/secciones.js?v=47"></script>
-<script src="js/proyectos.js?v=47"></script>
-<script src="js/curso.js?v=47"></script>
-<script src="js/maestro-escritura.js?v=47"></script>
-<script src="js/cronograma.js?v=47"></script>
-<script src="js/toast.js?v=47"></script>
-<script src="js/fichas-parser.js?v=47"></script>
-<script src="js/tematicas.js?v=47"></script>
-<script src="js/prompts-editor.js?v=47"></script>
-<script src="js/flujo-claude.js?v=47"></script>
-<script src="js/fichas-lector.js?v=47"></script>
-<script src="js/esbozo-experto.js?v=47"></script>
-<script src="js/word-descarga.js?v=47"></script>
-<script src="js/rasgos.js?v=47"></script>
-<script src="js/tomo.js?v=47"></script>
-<script src="js/gmail.js?v=47"></script>
-<script src="js/plantilla-docx.js?v=47"></script>
-<script src="js/rubricas.js?v=47"></script>
-<script src="js/revisor.js?v=47"></script>
-<script src="js/drive-word.js?v=47"></script>
-<script src="js/arranque.js?v=47"></script>
+<script src="js/config.js?v=48"></script>
+<script src="js/google-auth.js?v=48"></script>
+<script src="js/drive-respaldo.js?v=48"></script>
+<script src="js/sheets.js?v=48"></script>
+<script src="js/maestro.js?v=48"></script>
+<script src="js/secciones.js?v=48"></script>
+<script src="js/proyectos.js?v=48"></script>
+<script src="js/curso.js?v=48"></script>
+<script src="js/maestro-escritura.js?v=48"></script>
+<script src="js/cronograma.js?v=48"></script>
+<script src="js/toast.js?v=48"></script>
+<script src="js/fichas-parser.js?v=48"></script>
+<script src="js/tematicas.js?v=48"></script>
+<script src="js/prompts-editor.js?v=48"></script>
+<script src="js/flujo-claude.js?v=48"></script>
+<script src="js/fichas-lector.js?v=48"></script>
+<script src="js/esbozo-experto.js?v=48"></script>
+<script src="js/word-descarga.js?v=48"></script>
+<script src="js/rasgos.js?v=48"></script>
+<script src="js/tomo.js?v=48"></script>
+<script src="js/gmail.js?v=48"></script>
+<script src="js/plantilla-docx.js?v=48" defer></script>
+<script src="js/rubricas.js?v=48"></script>
+<script src="js/revisor.js?v=48"></script>
+<script src="js/drive-word.js?v=48"></script>
+<script src="js/arranque.js?v=48"></script>
 <!-- ══════════════════════════════════════
      LA OFICINA (vista de juego del proyecto)
 ══════════════════════════════════════ -->
@@ -616,7 +614,7 @@
   </div>
 </div>
 
-<script src="js/oficina.js?v=47"></script>
+<script src="js/oficina.js?v=48"></script>
 
 </body>
 </html>

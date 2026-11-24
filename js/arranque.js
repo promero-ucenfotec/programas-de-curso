@@ -11,3 +11,6 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeP
 renderProjects();
 try{ renderNavAuth(); }catch(e){}
 initGoogleAuth();
+
+// Al saltar a una sección, el margen se ajusta a la altura real de la barra de herramientas del curso
+try{ const ct=document.querySelector('.course-tools'); if(ct&&window.ResizeObserver) new ResizeObserver(()=>document.documentElement.style.setProperty('--tools-h',ct.offsetHeight+'px')).observe(ct); }catch(e){}
