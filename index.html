@@ -6386,6 +6386,15 @@ a.of-btn{display:inline-flex;align-items:center;justify-content:center;color:var
 #of-panel{position:absolute;right:16px;top:92px;bottom:80px;width:360px;max-width:calc(100% - 32px);padding:16px;z-index:7;overflow-y:auto;}
 .of-ph{display:flex;gap:12px;align-items:center;padding-right:28px;}
 .of-ph canvas{width:60px;height:68px;border-radius:12px;background:linear-gradient(180deg,#e9f3f6,#f6efe4);flex:none;}
+.of-avbtn{border:0;padding:0;background:none;cursor:pointer;border-radius:12px;flex:none;line-height:0;}
+.of-avbtn:hover canvas,.of-avbtn:focus-visible canvas{box-shadow:0 0 0 2px var(--o-ink);}
+.of-chars{display:flex;gap:6px;flex-wrap:wrap;}
+.of-chars button{border:1px solid var(--o-line);background:#fff;border-radius:10px;padding:3px;cursor:pointer;line-height:0;}
+.of-chars button.on{box-shadow:0 0 0 2px var(--o-ink);}
+.of-chars canvas{width:40px;height:45px;border-radius:8px;background:linear-gradient(180deg,#e9f3f6,#f6efe4);}
+.of-chbig{display:flex;justify-content:center;margin:6px 0 4px;}
+.of-chbig canvas{width:120px;height:136px;border-radius:14px;background:linear-gradient(180deg,#e9f3f6,#f6efe4);}
+.of-sw input[type=color]{width:26px;height:26px;border:0;padding:0;background:none;cursor:pointer;border-radius:50%;}
 .of-ph h3{margin:0;font-family:var(--o-fd);font-size:19px;font-weight:800;line-height:1.1;}
 .of-ph .sub{font-size:12.5px;color:var(--o-muted);margin-top:3px;}
 .of-close{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--o-muted);font-size:18px;}
@@ -6606,6 +6615,7 @@ function buildScene(){
   L.forEach(o=>{ if(CAT[o.t]&&inB(o.x,o.y)&&!(CAT[o.t].floor?rugAt(o.x,o.y):objAt(o.x,o.y))) add(o.t,o.x,o.y,o.r,o.c,{owner:o.owner||null}); });
   AGENTS.forEach(g=>{ if(!objs.some(o=>o.t==='desk'&&o.owner===g.k)){ const f=firstFree(g.desk[0],g.desk[1]); add('desk',f.x,f.y,g.desk[2],g.col,{owner:g.k}); } });
   ['jukebox','arcade','trophy','server','board','mailbox'].forEach(t=>{ if(!objs.some(o=>o.t===t)){ const d=defaultLayout().find(o=>o.t===t); const f=firstFree(d.x,d.y); add(t,f.x,f.y,d.r); } });
+  applyChars();
   people=AGENTS.map((a,i)=>{ const d=objs.find(o=>o.t==='desk'&&o.owner===a.k); const p={id:100+i,k:a.k,name:a.n,role:a.role,look:a.look,col:a.col,desk:d.id,x:0,y:0,z:0,face:0,path:[],state:'seated',sitting:null,alpha:1,ph:0,bub:null,bubT:0,say:'',sayT:0,timer:rnd(20,80),goal:null}; sitAt(p,d); return p; });
   recomputeSlots();
 }
@@ -6941,10 +6951,10 @@ function openPanel(k){ if(edit&&k!=='decorar'){ edit=null; saveLayout(); resettl
 function closePanel(){ panelKey=null; panel.hidden=true; sel=null; paintTools(); }
 function avatar(k){ const a=AGENTS.find(x=>x.k===k); if(!a) return ''; return `<canvas data-av="${k}" width="120" height="136" aria-hidden="true"></canvas>`; }
 function paintAvatars(){ panel.querySelectorAll('canvas[data-av]').forEach(cn=>{ const a=AGENTS.find(x=>x.k===cn.dataset.av); const c=cn.getContext('2d'); c.clearRect(0,0,120,136); c.save(); c.scale(2,2); c.translate(30,62); drawPerson(c,{id:1,k:a.k,look:a.look,face:0,ph:0},0,0,0,performance.now()/1000,{}); c.restore(); }); }
-function head(k,title,sub,say){ return `<button class="of-close" onclick="Office.closePanel()" aria-label="Cerrar">×</button><div class="of-ph">${avatar(k)}<div><h3>${esc(title)}</h3><div class="sub">${esc(sub)}</div></div></div>${say?`<div class="of-say">${say}</div>`:''}`; }
+function head(k,title,sub,say){ const ag=AGENTS.find(x=>x.k===k); if(ag) title=ag.n; return `<button class="of-close" onclick="Office.closePanel()" aria-label="Cerrar">×</button><div class="of-ph">${ag?`<button class="of-avbtn" onclick="Office.charOpen('${k}')" title="Editar a ${attr(ag.n)}" aria-label="Editar a ${attr(ag.n)}">${avatar(k)}</button>`:avatar(k)}<div><h3>${esc(title)}</h3><div class="sub">${esc(sub)}</div></div></div>${say?`<div class="of-say">${say}</div>`:''}`; }
 function renderPanel(){
   const k=panelKey; if(!k) return;
-  const f={decorar:panelDecorar,rocola:panelRocola,carreras:panelCarreras,disenador:panelDisenador,peche:panelPeche,cartero:panelCartero,corrector:panelCorrector,programa:()=>panelNuevo('programa'),ficha:()=>panelNuevo('ficha'),recepcion:panelRecepcion,biblio:panelBiblio,ajustes:panelAjustes,tomo:panelTomo}[k];
+  const f={personajes:panelPersonajes,decorar:panelDecorar,rocola:panelRocola,carreras:panelCarreras,disenador:panelDisenador,peche:panelPeche,cartero:panelCartero,corrector:panelCorrector,programa:()=>panelNuevo('programa'),ficha:()=>panelNuevo('ficha'),recepcion:panelRecepcion,biblio:panelBiblio,ajustes:panelAjustes,tomo:panelTomo}[k];
   if(!f) return; const keepScroll=panel.scrollTop; const vals={}; panel.querySelectorAll('input[id],textarea[id],select[id]').forEach(el=>{ if(el.type==='file') return; vals[el.id]=el.type==='checkbox'?el.checked:el.value; }); const act=document.activeElement&&panel.contains(document.activeElement)?document.activeElement.id:'';
   panel.innerHTML=f(); Object.entries(vals).forEach(([id,v])=>{ const el=document.getElementById(id); if(!el||!panel.contains(el)) return; if(el.type==='checkbox') el.checked=v; else el.value=v; if(el.dataset.pick) filterPick(el.dataset.pick,el.value); });
   if(act){ const el=document.getElementById(act); if(el) el.focus(); } panel.scrollTop=keepScroll; paintAvatars(); paintDecorPreviews(); wireDrops();
@@ -7650,6 +7660,46 @@ function leave(){ running=false; document.body.classList.remove('office-on'); wi
 function classic(){ try{ localStorage.setItem('dcd_view','classic'); }catch(e){} leave(); showScreen('project'); }
 window.addEventListener('resize',()=>{ if(running){ resize(); fitCam(); } });
 
+/* ---------- Personajes: nombre y apariencia de cada agente ---------- */
+const AGENT_DEF=AGENTS.map(a=>({k:a.k, n:a.n, look:Object.assign({},a.look)}));
+const HAIRS=[[0,'Corto'],[1,'Largo'],[2,'Moño'],[3,'Rapado']];
+const LOOK_PAL={
+  skin:['#f6dccb','#f3cdb0','#e7b896','#e2ae86','#c98c62','#a46f48','#76503a','#4e3326'],
+  hair:['#161616','#2b1d16','#4a2f22','#6b4423','#a8642c','#d9a441','#d9d2c3','#7d808c','#b0476a','#2e86ab'],
+  shirt:['#164a98','#2e86ab','#d6424a','#7b5ea7','#23a596','#f2a541','#3fa66f','#e86a92','#2b2b33','#f4f1ea'],
+  pants:['#2f3542','#34466b','#3f3f46','#5a4636','#6a5a48','#1f3b5c','#7d808c','#e9e2d3']};
+const LOOK_LBL={skin:'Piel',hair:'Cabello',shirt:'Camisa',pants:'Pantalón'};
+const HEX=/^#[0-9a-f]{6}$/i;
+let charSel='peche';
+// Lo guardado manda sobre lo de fábrica; un valor dañado vuelve al original
+function applyChars(){ const ch=officeCfg().chars||{};
+  AGENTS.forEach(a=>{ const d=AGENT_DEF.find(x=>x.k===a.k); const o=(ch[a.k]&&typeof ch[a.k]==='object')?ch[a.k]:{}; const L=Object.assign({},d.look);
+    Object.entries(o.look||{}).forEach(([k,v])=>{ if(k==='hs'){ if([0,1,2,3].includes(+v)) L.hs=+v; } else if(k in LOOK_PAL && HEX.test(String(v))) L[k]=String(v); });
+    a.n=String(o.n||'').replace(/\s+/g,' ').trim().slice(0,24)||d.n; a.look=L;
+    const p=people.find(q=>q.k===a.k); if(p){ p.look=L; p.name=a.n; } }); }
+function charPatch(k,fn){ const c=officeCfg(); c.chars=(c.chars&&typeof c.chars==='object')?c.chars:{}; const cur=Object.assign({look:{}},c.chars[k]||{}); fn(cur); c.chars[k]=cur; saveOfficeCfg(c); applyChars(); }
+function charOpen(k){ if(AGENTS.some(a=>a.k===k)) charSel=k; openPanel('personajes'); charFillName(); }
+function charPick(k){ charSel=k; renderPanel(); charFillName(); }
+function charFillName(){ const el=document.getElementById('of-chn'); const a=AGENTS.find(x=>x.k===charSel); if(el&&a) el.value=a.n; }
+function charLook(part,val){ if(part==='hs'){ val=+val; if(![0,1,2,3].includes(val)) return; } else if(!(part in LOOK_PAL)||!HEX.test(String(val))) return;
+  charPatch(charSel,o=>{ o.look=Object.assign({},o.look,{[part]:val}); }); refresh(); }
+function charName(){ const el=document.getElementById('of-chn'); if(!el) return; const v=el.value.replace(/\s+/g,' ').trim().slice(0,24);
+  charPatch(charSel,o=>{ o.n=v; }); refresh(); charFillName(); toast(v?`✓ Ahora se llama ${v}`:'✓ Volvió a su nombre original','success'); }
+function charRandom(){ const r=l=>l[Math.floor(Math.random()*l.length)];
+  charPatch(charSel,o=>{ o.look={skin:r(LOOK_PAL.skin),hair:r(LOOK_PAL.hair),shirt:r(LOOK_PAL.shirt),pants:r(LOOK_PAL.pants),hs:r(HAIRS)[0]}; }); refresh(); }
+function charReset(){ const c=officeCfg(); if(c.chars) delete c.chars[charSel]; saveOfficeCfg(c); applyChars(); refresh(); charFillName(); toast('✓ Personaje como al inicio','success'); }
+function panelPersonajes(){
+  const a=AGENTS.find(x=>x.k===charSel)||AGENTS[0]; const d=AGENT_DEF.find(x=>x.k===a.k); const L=a.look;
+  const sw=part=>`<div class="of-sw">${LOOK_PAL[part].map(c=>`<button style="background:${c}" class="${c.toLowerCase()===String(L[part]).toLowerCase()?'on':''}" aria-label="${LOOK_LBL[part]} ${c}" onclick="Office.charLook('${part}','${c}')"></button>`).join('')}<input type="color" value="${attr(L[part])}" aria-label="Otro color de ${LOOK_LBL[part].toLowerCase()}" title="Otro color" onchange="Office.charLook('${part}',this.value)"></div>`;
+  return `<button class="of-close" onclick="Office.closePanel()" aria-label="Cerrar">×</button><div class="of-ph"><div><h3>Personajes</h3><div class="sub">Se guardan en tu navegador y en tu respaldo de Drive</div></div></div>
+    <div class="of-chars">${AGENTS.map(x=>`<button class="${x.k===a.k?'on':''}" aria-pressed="${x.k===a.k}" onclick="Office.charPick('${x.k}')" title="${attr(x.n)}" aria-label="${attr(x.n)}">${avatar(x.k)}</button>`).join('')}</div>
+    <div class="of-chbig">${avatar(a.k)}</div>
+    <div class="of-note" style="text-align:center;margin-top:0">${esc(a.role)}</div>
+    <div class="of-sec"><h4>Nombre</h4><div class="of-row" style="margin-top:0"><input class="of-in" id="of-chn" maxlength="24" value="${attr(a.n)}" placeholder="${attr(d.n)}" aria-label="Nombre del personaje" onkeydown="if(event.key==='Enter')Office.charName()" style="flex:1"><button class="of-btn sm pri" onclick="Office.charName()">Guardar</button></div></div>
+    <div class="of-sec"><h4>Peinado</h4><div class="of-row" style="margin-top:0">${HAIRS.map(([v,n])=>`<button class="of-btn sm ${L.hs===v?'ink':''}" aria-pressed="${L.hs===v}" onclick="Office.charLook('hs',${v})">${n}</button>`).join('')}</div></div>
+    ${['skin','hair','shirt','pants'].map(part=>`<div class="of-sec"><h4>${LOOK_LBL[part]}</h4>${sw(part)}</div>`).join('')}
+    <div class="of-row" style="margin-top:14px"><button class="of-btn" onclick="Office.charRandom()">🎲 Al azar</button><button class="of-btn sm" onclick="Office.charReset()">Como al inicio</button></div>`;
+}
 /* ---------- Decorar la oficina ---------- */
 const DECOR=[ // lo que se puede agregar y quitar
   {t:'rug',n:'Alfombra'},{t:'plant',n:'Planta'},{t:'monstera',n:'Monstera'},{t:'lamp',n:'Lámpara'},{t:'sofa',n:'Sillón'},
@@ -7689,6 +7739,7 @@ function panelDecorar(){
   else if(o){ body+=`<div class="of-item"><div class="t">${esc(TNAME[o.t]||o.t)}${o.owner?' de '+esc(AGENTS.find(a=>a.k===o.owner)?.n||''):''}</div>${edit.mode==='move'?'<div class="of-warn">Tocá la casilla nueva.</div>':''}${colorable(o.t)?swatches(PALETTE[o.t],o.c,'editColor'):''}<div class="of-row"><button class="of-btn sm" onclick="Office.editRotate()">↻ Girar (R)</button><button class="of-btn sm ${edit.mode==='move'?'ink':''}" onclick="Office.editMove()">✥ Mover</button>${canDelete(o)?`<button class="of-btn sm" onclick="Office.editDelete()">Quitar</button>`:''}</div>${canDelete(o)?'':'<div class="of-note">Los escritorios de los agentes y los objetos con función se pueden mover y girar, pero no quitar.</div>'}</div>`; }
   else body+=`<div class="of-note">Tocá un mueble o una alfombra para girarlo, moverlo, cambiarle el color o quitarlo.</div>`;
   return `<button class="of-close" onclick="Office.editEnd()" aria-label="Terminar">×</button><div class="of-ph"><div><h3>Decorar la oficina</h3><div class="sub">Se guarda en tu navegador y en tu respaldo de Drive</div></div></div>${body}
+    <div class="of-sec"><h4>Personajes</h4><div class="of-chars">${AGENTS.map(a=>`<button onclick="Office.charOpen('${a.k}')" title="Editar a ${attr(a.n)}" aria-label="Editar a ${attr(a.n)}">${avatar(a.k)}</button>`).join('')}</div></div>
     <div class="of-row" style="margin-top:14px"><button class="of-btn pri" onclick="Office.editEnd()">Listo</button><button class="of-btn sm" onclick="Office.editReset()">Volver a la original</button></div>`;
 }
 function paintDecorPreviews(){ panel.querySelectorAll('canvas[data-dprev]').forEach(cn=>{ const t=cn.dataset.dprev; const c=cn.getContext('2d'); c.clearRect(0,0,96,84); c.save(); c.scale(1.5,1.5); c.translate(32,34); const o={id:7,t,x:-.5,y:-.5,r:0,c:PALETTE[t]?PALETTE[t][0]:null,occ:null}; if(CAT[t].floor){ poly(c,[iso(-.5,-.5),iso(.5,-.5),iso(.5,.5),iso(-.5,.5)],o.c); } else { const g0=GLOWS.length; drawObj(c,o,1); GLOWS.length=g0; } c.restore(); }); }
@@ -7921,7 +7972,7 @@ FRAME.pac=(dt)=>{ const S=G.s, c=G.c, p=S.pac;
 })();
 
 return {enter,leave,classic,openAgent,openPanel,closePanel,paintHud,refresh,filterPick,pick,showAllPick,checkMail,requestMail,processMail,processAll,setMailCourse,setMailKind,dismissMail,
-  fixCopy,fixDownload,fixUpload,fixReview,fixDone,learnCopy,flowArchive,nuevoPrompt,nuevoImport,nuevoFile,nuevoOpen,nuevoMail,nuevoReset,biblioPick,biblioSave,careerSet,careerAll,renPick,renApply,verSet,dzSet,dzDownload,dzCopy,dzBig,ajustesSave,doSync,gameOpen,gameClose,gameStart,gameMode,gameMenu,gamePause,editStart,editEnd,editPick,editCancel,editRotate,editMove,editColor,editDelete,editReset,editToggle:()=>{ if(edit) editEnd(); else editStart(); },reloadLayout:()=>{ if(running&&!edit){ buildScene(); } else scenePid=null; },openRocola:()=>{ jbBox(); openPanel('rocola'); },jbPlay,jbToggle,jbStop,jbShow,jbVol,jbAdd,jbPlayInput,jbDel,jbPlayIdx,
+  fixCopy,fixDownload,fixUpload,fixReview,fixDone,learnCopy,flowArchive,nuevoPrompt,nuevoImport,nuevoFile,nuevoOpen,nuevoMail,nuevoReset,biblioPick,biblioSave,careerSet,careerAll,renPick,renApply,verSet,charOpen,charPick,charLook,charName,charRandom,charReset,dzSet,dzDownload,dzCopy,dzBig,ajustesSave,doSync,gameOpen,gameClose,gameStart,gameMode,gameMenu,gamePause,editStart,editEnd,editPick,editCancel,editRotate,editMove,editColor,editDelete,editReset,editToggle:()=>{ if(edit) editEnd(); else editStart(); },reloadLayout:()=>{ if(running&&!edit){ buildScene(); } else scenePid=null; },openRocola:()=>{ jbBox(); openPanel('rocola'); },jbPlay,jbToggle,jbStop,jbShow,jbVol,jbAdd,jbPlayInput,jbDel,jbPlayIdx,
   _t:{tileScreen:(x,y)=>{ const [sx,sy]=iso(x+.5,y+.5,0); const r=cv.getBoundingClientRect(); return [r.left+cam.x+sx*cam.z, r.top+cam.y+sy*cam.z]; }, objsAt:(x,y)=>objs.filter(o=>o.x===x&&o.y===y).map(o=>o.t+':'+o.c), parseMail,stripQuoted,findCourseIn,needOf,people:()=>people,inbox,flows,jobs}};
 })();
 // Los flujos de la oficina reciben los campos que antes iban al panel de revisión
