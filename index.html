@@ -6576,7 +6576,7 @@ const AGENTS=[
   {k:'programa', n:'Programadora', role:'Programas de curso nuevos', desk:[5,4,2], col:'#7b5ea7', look:{skin:'#a46f48',hair:'#2b1d16',hs:1,shirt:'#7b5ea7',pants:'#5a4636'}},
   {k:'ficha', n:'Fichero', role:'Fichas de curso nuevas', desk:[6,4,2], col:'#23a596', look:{skin:'#e2ae86',hair:'#7d808c',hs:3,shirt:'#23a596',pants:'#3f3f46'}},
   {k:'recepcion', n:'Recepcionista', role:'Recibe el esbozo del experto (XLSX)', desk:[3,10,2], col:'#f2a541', look:{skin:'#f6dccb',hair:'#a8642c',hs:1,shirt:'#f2a541',pants:'#34466b'}},
-  {k:'carreras', n:'Registrador', role:'Asigna cada curso a su carrera', desk:[7,4,2], col:'#3fa66f', look:{skin:'#c98c62',hair:'#4a2f22',hs:0,shirt:'#3fa66f',pants:'#34466b'}},
+  {k:'carreras', n:'Registrador', role:'Asigna la carrera de cada curso y le cambia el nombre', desk:[7,4,2], col:'#3fa66f', look:{skin:'#c98c62',hair:'#4a2f22',hs:0,shirt:'#3fa66f',pants:'#34466b'}},
   {k:'disenador', n:'Diseñador', role:'Dibuja la malla curricular en draw.io', desk:[2,7,3], col:'#3a3a46', look:{skin:'#e7b896',hair:'#d9d2c3',hs:3,shirt:'#2b2b33',pants:'#6a5a48'}},
   {k:'biblio', n:'Bibliotecaria', role:'Bibliografía de los cursos', desk:[2,3,3], col:'#e86a92', look:{skin:'#76503a',hair:'#161616',hs:2,shirt:'#e86a92',pants:'#2f3542'}},
 ];
@@ -7444,16 +7444,113 @@ function setCareer(code,v){ const cars=projectCareers(); if(cars.length<2) retur
 function careerSet(code,v){ setCareer(code,v); refresh(); }
 function careerAll(v){ (allCourses||[]).forEach(c=>setCareer(c['Código'],v)); toast('✓ Todos los cursos asignados','success'); const r=personByK('carreras'); if(r){ r.bub='ok'; r.bubT=2; } refresh(); }
 function careerAbbr(name,i){ const sg=projectSiglas()[i]; if(sg) return sg; const a=String(name||'').split(/\s+/).filter(w=>/^[A-ZÁÉÍÓÚÑ]/.test(w)).map(w=>w[0]).join('').slice(0,5); return a||('Carrera '+(i+1)); }
+/* ---------- Registrador: cambiar el nombre de un curso en todo lado ---------- */
+let renCode='', renBusy=false, renLast=null;
+const reEsc=s=>String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+// El nombre completo, sin tocar nombres más largos que lo contengan (p. ej. «… 1» no toca «… 10»)
+function renRe(old){ return new RegExp('(?<![\\p{L}\\p{N}])'+String(old).trim().split(/\s+/).map(reEsc).join('\\s+')+'(?![\\p{L}\\p{N}])','gu'); }
+function renStr(v,re,nw){ let n=0; const r=String(v).replace(re,()=>{ n++; return nw; }); return {v:r,n}; }
+// Reemplaza en texto y también dentro de los campos guardados como JSON (datos generales, cronograma…)
+function renText(v,re,nw){
+  if(typeof v!=='string') return {v,n:0};
+  const t=v.trim();
+  if(t[0]==='{'||t[0]==='['){ try{ const o=JSON.parse(t); let n=0;
+    const walk=x=>{ if(typeof x==='string'){ const r=renStr(x,re,nw); n+=r.n; return r.v; } if(Array.isArray(x)) return x.map(walk); if(x&&typeof x==='object'){ const y={}; for(const [k,w] of Object.entries(x)) y[k]=walk(w); return y; } return x; };
+    const o2=walk(o); return n?{v:JSON.stringify(o2),n}:{v,n:0}; }catch(e){} }
+  return renStr(v,re,nw);
+}
+function renCount(re){ const md=maestroData[P()?.sheetId]||{}; let n=0; const cursos=new Set();
+  for(const [cd,s] of Object.entries(md)) for(const v of Object.values(s||{})){ const k=renText(v,re,'·').n; if(k){ n+=k; cursos.add(cd); } }
+  (allCourses||[]).forEach(c=>Object.values(c).forEach(v=>{ const k=renText(v,re,'·').n; if(k){ n+=k; cursos.add(c['Código']); } }));
+  return {n, cursos:cursos.size}; }
+function renPick(code){ renCode=code||''; renLast=null; refresh(); const el=document.getElementById('of-ren'); if(el){ const c=courseBy(code); el.value=c?cName(c):''; el.focus(); el.select(); el.scrollIntoView({block:'center',behavior:'smooth'}); } }
+const sheetRef=t=>`'${String(t).replace(/'/g,"''")}'`;
+// Todas las hojas del libro de Google: Base, Maestro, Rasgos de Perfil y las demás (las fórmulas no se tocan)
+async function renSheets(sid,re,nw){
+  const meta=await sheetsReq(`/${sid}?fields=sheets.properties(title,sheetType)`);
+  const titles=(meta.sheets||[]).filter(x=>(x.properties.sheetType||'GRID')==='GRID').map(x=>x.properties.title);
+  if(!titles.length) return {cells:0, hojas:[]};
+  const out=await sheetsReq(`/${sid}/values:batchGet?${titles.map(t=>'ranges='+encodeURIComponent(sheetRef(t))).join('&')}&valueRenderOption=FORMULA`);
+  const data=[], hojas=new Set();
+  (out.valueRanges||[]).forEach((vr,i)=>{ const t=titles[i];
+    (vr.values||[]).forEach((row,r)=>row.forEach((cell,ci)=>{ if(typeof cell!=='string'||cell.startsWith('=')) return; const x=renStr(cell,re,nw); if(x.n){ data.push({range:`${sheetRef(t)}!${colLetter(ci)}${r+1}`, values:[[x.v]]}); hojas.add(t); } })); });
+  for(let i=0;i<data.length;i+=400) await sheetsReq(`/${sid}/values:batchUpdate`,'POST',{valueInputOption:'RAW', data:data.slice(i,i+400)});
+  return {cells:data.length, hojas:[...hojas]};
+}
+// Los Word del curso en las carpetas de fichas y de programas
+async function renDrive(code,old,nw){
+  const san=s=>String(s).replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,' ').trim();
+  const so=san(old), sn=san(nw), cd=normCode(code); const p=P();
+  const folders=[...new Set([driveFolderId(p.folderFichas),driveFolderId(p.folderProgramas)].filter(Boolean))];
+  const done=[];
+  for(const fid of folders){
+    const q=encodeURIComponent(`'${fid}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'`); let files=[], tok='';
+    do{ const o=await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=nextPageToken,files(id,name)&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=allDrives${tok?'&pageToken='+tok:''}`); files=files.concat(o.files||[]); tok=o.nextPageToken||''; } while(tok);
+    for(const f of files){ const n=String(f.name||''); if(!n.includes(so)||!(driveNameFits(n,'ficha',cd)||driveNameFits(n,'programa',cd))) continue;
+      const name=n.split(so).join(sn);
+      await driveFetch(`https://www.googleapis.com/drive/v3/files/${f.id}?supportsAllDrives=true&fields=id,name`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+      done.push(name); }
+  }
+  const F=flows(); let ch=false; F.forEach(f=>{ if(f.fileName&&String(f.fileName).includes(so)){ f.fileName=String(f.fileName).split(so).join(sn); ch=true; } }); if(ch) saveFlows(F);
+  return done;
+}
+async function renApply(){
+  if(renBusy) return; const c=courseBy(renCode); if(!c) return;
+  const code=c['Código'], old=cName(c); const nw=String(document.getElementById('of-ren')?.value||'').replace(/\s+/g,' ').trim();
+  if(!nw){ toast('Escribí el nombre nuevo','error'); return; }
+  if(nw===old){ toast('El nombre nuevo es igual al de ahora',''); return; }
+  if(!old){ toast('Este curso no tiene nombre en la hoja Base','error'); return; }
+  const otro=(allCourses||[]).find(x=>x!==c&&normTxt(cName(x))===normTxt(nw)); if(otro){ toast(`Ese nombre ya lo tiene ${otro['Código']}`,'error'); return; }
+  if(needGoogle(()=>renApply())) return;
+  const re=renRe(old); const k=renCount(re);
+  if(!confirm(`¿Cambiar «${old}» por «${nw}» en todo lado?\n\nEn la app aparece ${k.n} ${k.n===1?'vez':'veces'} en ${k.cursos} curso${k.cursos===1?'':'s'}. También reviso todas las hojas del libro de Google y los Word del curso en Drive.`)) return;
+  renBusy=true; refresh();
+  const res={code, old, nw, loc:0, cursos:0, cells:0, hojas:[], drive:[], sheetErr:'', driveErr:'', driveSkip:false};
+  try{
+    // 1) La app: cursos de la hoja Base cargados y todo lo guardado de este proyecto
+    const md=maestroData[P().sheetId]||{}; const cur=new Set();
+    for(const [cd,s] of Object.entries(md)) for(const key of Object.keys(s||{})){ const r=renText(s[key],re,nw); if(r.n){ s[key]=r.v; res.loc+=r.n; cur.add(cd); } }
+    (allCourses||[]).forEach(x=>Object.keys(x).forEach(key=>{ const r=renText(x[key],re,nw); if(r.n){ x[key]=r.v; res.loc+=r.n; cur.add(x['Código']); } }));
+    if('Nombre' in c) c['Nombre']=nw; if('Curso' in c || !('Nombre' in c)) c['Curso']=nw;
+    res.cursos=cur.size;
+    localStorage.setItem('dcd_maestro',JSON.stringify(maestroData)); try{ autoBackup(); }catch(e){}
+    // 2) El libro de Google
+    try{ const r=await renSheets(extractSheetId(P().url),re,nw); res.cells=r.cells; res.hojas=r.hojas; }catch(e){ res.sheetErr=e.message; }
+    // 3) Drive
+    if(localStorage.getItem('dcd_drive_ok')==='1' && (P().folderFichas||P().folderProgramas)){ try{ res.drive=await renDrive(code,old,nw); }catch(e){ res.driveErr=e.message; } } else res.driveSkip=true;
+  } finally { renBusy=false; }
+  renLast=res; const r=personByK('carreras'); if(r){ r.bub=res.sheetErr?null:'ok'; r.bubT=2; }
+  toast(res.sheetErr?'El nombre cambió en la app, pero no pude escribir en el libro de Google':`✓ ${code} ahora se llama «${nw}»`, res.sheetErr?'error':'success');
+  try{ if(typeof renderCourseNav==='function') renderCourseNav(); }catch(e){}
+  refresh();
+}
+function renSection(){
+  const c=renCode?courseBy(renCode):null;
+  let h=`<div class="of-sec"><h4>Cambiar el nombre de un curso</h4>`;
+  if(!c) h+=`<div class="of-note" style="margin-top:0">Elegí el curso. El nombre nuevo llega a todos los lugares donde aparece el anterior, dentro y fuera de la app.</div>`+picker('ren',code=>renPick(code));
+  else h+=`<div class="of-item"><div class="t">${esc(c['Código'])} ${esc(cName(c))}</div></div>
+      <label class="of-lb" for="of-ren">Nombre nuevo</label><input class="of-in" id="of-ren" value="${attr(cName(c))}" onkeydown="if(event.key==='Enter')Office.renApply()">
+      <div class="of-row"><button class="of-btn pri" ${renBusy?'disabled':''} onclick="Office.renApply()">${renBusy?'Cambiando…':'Cambiar en todo lado'}</button><button class="of-btn" onclick="Office.renPick('')">Otro curso</button></div>
+      <div class="of-note">Cambia la hoja Base y el Maestro junto con las demás hojas del libro. Dentro de los textos guardados de cualquier curso también se reemplaza el nombre anterior.</div>`;
+  const L=renLast;
+  if(L){ const lines=[`✓ <strong>${esc(L.code)}</strong> pasó de «${esc(L.old)}» a «${esc(L.nw)}».`,
+      `En la app: ${L.loc} ${L.loc===1?'cambio':'cambios'} en ${L.cursos} curso${L.cursos===1?'':'s'}.`,
+      L.sheetErr?`⚠ Libro de Google: ${esc(L.sheetErr)}. Probá otra vez con «Cambiar en todo lado».`:`En el libro de Google: ${L.cells} celda${L.cells===1?'':'s'}${L.hojas.length?` (${esc(L.hojas.join(', '))})`:''}.`,
+      L.driveErr?`⚠ Drive: ${esc(L.driveErr)}`:L.driveSkip?'Drive: los Word toman el nombre nuevo la próxima vez que los subás.':`En Drive: ${L.drive.length?L.drive.map(esc).join('<br>'):'ningún Word llevaba el nombre anterior'}.`];
+    h+=`<div class="of-note">${lines.join('<br>')}</div>`; }
+  return h+'</div>';
+}
 function panelCarreras(){
   const cars=projectCareers();
-  if(cars.length<2) return head('carreras','Registrador','Carrera de cada curso','Estoy dormido porque el proyecto tiene una sola carrera. Si agregás una segunda carrera al proyecto, me despierto y te ayudo a decidir de cuál carrera es cada curso (o si es de las dos).')
-    + `<div class="of-row"><button class="of-btn pri" onclick="openProjectModal(currentProject.id)">Agregar la segunda carrera</button></div>`;
+  if(cars.length<2) return head('carreras','Registrador','Carrera y nombre de cada curso','Estoy dormido porque el proyecto tiene una sola carrera. Si agregás una segunda carrera al proyecto, me despierto y te ayudo a decidir de cuál carrera es cada curso (o si es de las dos). Mientras tanto, sí te ayudo a cambiarle el nombre a un curso.')
+    + `<div class="of-row"><button class="of-btn pri" onclick="openProjectModal(currentProject.id)">Agregar la segunda carrera</button></div>` + renSection();
   let ab=cars.map(careerAbbr); if(ab[0]===ab[1]) ab=['Carrera 1','Carrera 2'];
   const all=allCourses||[]; const sin=all.filter(c=>!careerOf(c['Código'])).length;
   const seg=(code,cur)=>[['c1',ab[0]],['c2',ab[1]],['both','Las dos']].map(([v,l])=>`<button class="of-btn sm ${cur===v?'ink':''}" aria-pressed="${cur===v}" onclick="Office.careerSet('${attr(code)}','${v}')" title="${attr(v==='both'?cars.join(' y '):cars[v==='c1'?0:1])}">${esc(l)}</button>`).join('');
-  return head('carreras','Registrador','Carrera de cada curso', sin?`Hay ${sin} curso${sin>1?'s':''} sin asignar. Elegí si cada uno es de una carrera o de las dos. Con «Las dos», el encabezado del Word lleva ambas carreras.`:'Todos los cursos tienen carrera. Podés cambiarla cuando quieras.')
+  return head('carreras','Registrador','Carrera y nombre de cada curso', sin?`Hay ${sin} curso${sin>1?'s':''} sin asignar. Elegí si cada uno es de una carrera o de las dos. Con «Las dos», el encabezado del Word lleva ambas carreras.`:'Todos los cursos tienen carrera. Podés cambiarla cuando quieras.')
     + `<div class="of-item"><div class="m" style="margin:0"><strong>${esc(ab[0])}</strong>: ${esc(cars[0])}<br><strong>${esc(ab[1])}</strong>: ${esc(cars[1])}</div><div class="of-row"><span class="of-note" style="margin:0;align-self:center">Asignar todos a</span>${[['c1',ab[0]],['c2',ab[1]],['both','Las dos']].map(([v,l])=>`<button class="of-btn sm" onclick="Office.careerAll('${v}')">${esc(l)}</button>`).join('')}</div></div>`
-    + `<div class="of-sec"><h4>Cursos</h4>${all.length?all.map(c=>{ const code=c['Código']; const cur=careerOf(code); return `<div class="of-item"><div class="t">${cur?'':'<span class="of-tag rev">SIN ASIGNAR</span>'}${esc(code)} ${esc(cName(c))}</div><div class="of-row">${seg(code,cur)}</div></div>`; }).join(''):'<div class="of-note">Cargando los cursos…</div>'}</div>`
+    + renSection()
+    + `<div class="of-sec"><h4>Cursos</h4>${all.length?all.map(c=>{ const code=c['Código']; const cur=careerOf(code); return `<div class="of-item"><div class="t">${cur?'':'<span class="of-tag rev">SIN ASIGNAR</span>'}${esc(code)} ${esc(cName(c))}</div><div class="of-row">${seg(code,cur)}<button class="of-btn sm" onclick="Office.renPick('${attr(code)}')" title="Cambiar el nombre de ${attr(code)}">✎ Nombre</button></div></div>`; }).join(''):'<div class="of-note">Cargando los cursos…</div>'}</div>`
     + `<div class="of-note">${projectSiglas().every(Boolean)?`Cada cambio se escribe también en la columna «Carrera» de la hoja Base (${esc(projectSiglas().join(', '))}).`:'Para que la carrera quede escrita en la columna «Carrera» de la hoja Base, poné las siglas de cada carrera en <a href="#" onclick="openProjectModal(currentProject.id);return false">Editar proyecto</a>.'} El encabezado del Word cambia la próxima vez que se genere o se suba a Drive.</div>`;
 }
 
@@ -7816,7 +7913,7 @@ FRAME.pac=(dt)=>{ const S=G.s, c=G.c, p=S.pac;
 })();
 
 return {enter,leave,classic,openAgent,openPanel,closePanel,paintHud,refresh,filterPick,pick,showAllPick,checkMail,requestMail,processMail,processAll,setMailCourse,setMailKind,dismissMail,
-  fixCopy,fixDownload,fixUpload,fixReview,fixDone,learnCopy,flowArchive,nuevoPrompt,nuevoImport,nuevoFile,nuevoOpen,nuevoMail,nuevoReset,biblioPick,biblioSave,careerSet,careerAll,dzSet,dzDownload,dzCopy,dzBig,ajustesSave,doSync,gameOpen,gameClose,gameStart,gameMode,gameMenu,gamePause,editStart,editEnd,editPick,editCancel,editRotate,editMove,editColor,editDelete,editReset,editToggle:()=>{ if(edit) editEnd(); else editStart(); },reloadLayout:()=>{ if(running&&!edit){ buildScene(); } else scenePid=null; },openRocola:()=>{ jbBox(); openPanel('rocola'); },jbPlay,jbToggle,jbStop,jbShow,jbVol,jbAdd,jbPlayInput,jbDel,jbPlayIdx,
+  fixCopy,fixDownload,fixUpload,fixReview,fixDone,learnCopy,flowArchive,nuevoPrompt,nuevoImport,nuevoFile,nuevoOpen,nuevoMail,nuevoReset,biblioPick,biblioSave,careerSet,careerAll,renPick,renApply,dzSet,dzDownload,dzCopy,dzBig,ajustesSave,doSync,gameOpen,gameClose,gameStart,gameMode,gameMenu,gamePause,editStart,editEnd,editPick,editCancel,editRotate,editMove,editColor,editDelete,editReset,editToggle:()=>{ if(edit) editEnd(); else editStart(); },reloadLayout:()=>{ if(running&&!edit){ buildScene(); } else scenePid=null; },openRocola:()=>{ jbBox(); openPanel('rocola'); },jbPlay,jbToggle,jbStop,jbShow,jbVol,jbAdd,jbPlayInput,jbDel,jbPlayIdx,
   _t:{tileScreen:(x,y)=>{ const [sx,sy]=iso(x+.5,y+.5,0); const r=cv.getBoundingClientRect(); return [r.left+cam.x+sx*cam.z, r.top+cam.y+sy*cam.z]; }, objsAt:(x,y)=>objs.filter(o=>o.x===x&&o.y===y).map(o=>o.t+':'+o.c), parseMail,stripQuoted,findCourseIn,needOf,people:()=>people,inbox,flows,jobs}};
 })();
 // Los flujos de la oficina reciben los campos que antes iban al panel de revisión
