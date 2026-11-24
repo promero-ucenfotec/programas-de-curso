@@ -673,7 +673,7 @@ function panelCorrector(){
     + (act.length?`<div class="of-sec"><h4>En corrección</h4>${act.map(card).join('')}</div>`:'')
     + (sent.length?`<div class="of-sec"><h4>Respondidos</h4>${sent.slice(-5).reverse().map(f=>`<div class="of-item"><div class="t">${esc(f.code)} · ${esc(f.next)} <span class="of-tag fin">respuesta en Gmail</span></div><div class="m">${f.draft?`<a href="${attr(f.draft)}" target="_blank" rel="noopener">Abrir el borrador</a> · `:''}<a href="${attr(docLink(f.fileId,f.link))}" target="_blank" rel="noopener">Ver en Drive</a>${f.savedAt?`<br>Adjunto: versión guardada a las ${hhmm(f.savedAt)}`:''}</div><div class="of-row"><button class="of-btn sm" ${busy['done:'+f.id]?'disabled':''} onclick="Office.fixDone('${f.id}',true)" title="Borra el borrador anterior, vuelve a leer Drive, actualiza el Maestro y crea la respuesta de nuevo">${busy['done:'+f.id]?'Trabajando…':'Rehacer con lo último de Drive'}</button><button class="of-btn sm ${f.learned?'':'pri'}" onclick="Office.learnCopy('${f.id}')">${f.learned?'Copiar de nuevo lo aprendido':'¿Qué aprendimos? Copiar prompt'}</button><button class="of-btn sm" onclick="Office.flowArchive('${f.id}')">Archivar</button></div></div>`).join('')}</div>`:'');
 }
-function wireDrops(){ panel.querySelectorAll('[data-drop]').forEach(el=>{ const id=el.dataset.drop; el.ondragover=e=>{ e.preventDefault(); el.classList.add('over'); }; el.ondragleave=()=>el.classList.remove('over'); el.ondrop=e=>{ e.preventDefault(); el.classList.remove('over'); const f=e.dataTransfer.files[0]; if(el.dataset.kind) nuevoFile(el.dataset.kind,f); else fixUpload(id,f); }; }); }
+function wireDrops(){ panel.querySelectorAll('[data-drop]').forEach(el=>{ const id=el.dataset.drop; el.ondragover=e=>{ e.preventDefault(); el.classList.add('over'); }; el.ondragleave=()=>el.classList.remove('over'); el.ondrop=e=>{ e.preventDefault(); el.classList.remove('over'); const f=e.dataTransfer.files[0]; if(id==='subir') subirAdd(e.dataTransfer.files); else if(el.dataset.kind) nuevoFile(el.dataset.kind,f); else fixUpload(id,f); }; }); }
 
 /* ---------- Programadora y Fichero ---------- */
 function nuevoPick(kind,code){ panel.innerHTML=''; const J=jobs(); J[kind]={code,stage:'prompt',t:Date.now()}; saveJobs(J); refresh(); }
@@ -1202,10 +1202,70 @@ function todoList(){
   return L;
 }
 let classicPick='';
+/* ---------- Peche: subir programas o fichas corregidos (.docx) ---------- */
+let upl={items:[], maestro:true, drive:true};
+// Reconoce el curso por el código escrito en el Word y, si no lo trae, por el nombre del archivo
+async function subirAdd(files){
+  const list=[...(files||[])].filter(f=>/\.docx$/i.test(f.name)); if(!list.length){ toast('Subí documentos de Word (.docx)','error'); return; }
+  for(const file of list){
+    const it={file, name:file.name, kind:/\bficha\b/i.test(file.name)?'ficha':'programa', code:'', on:true, status:'', msg:''};
+    let docCode=''; try{ const d=parseFichaDocx(await readDocxXml(file)); docCode=String(d.codigo||'').trim(); }catch(e){ it.msg='No pude leer el documento'; }
+    const byDoc=docCode?courseBy(docCode):null;
+    const byName=(allCourses||[]).find(c=>driveNameFits(file.name,'ficha',normCode(c['Código']))||driveNameFits(file.name,'programa',normCode(c['Código'])));
+    const c=byDoc||byName; it.code=c?c['Código']:'';
+    if(byDoc&&byName&&byDoc!==byName) it.msg=`El archivo dice ${byName['Código']}, pero el documento es de ${byDoc['Código']}. Uso el del documento.`;
+    if(!c) it.on=false;
+    upl.items=upl.items.filter(x=>x.name!==file.name); upl.items.push(it);
+  }
+  refresh();
+}
+function subirPick(inp){ subirAdd(inp.files); inp.value=''; }
+function subirSet(i,k,v){ const it=upl.items[i]; if(!it) return; it[k]=v; if(k==='code'){ it.on=!!v; it.msg=''; it.status=''; } if(k==='kind') it.status=''; refresh(); }
+function subirOpt(k,v){ upl[k]=v; refresh(); }
+function subirClear(){ upl.items=[]; refresh(); }
+function subirRun(){ const sel=upl.items.filter(it=>it.on&&it.code&&it.status!=='ok'); if(!sel.length){ toast('Marcá al menos un documento con su curso','error'); return; }
+  if(!upl.maestro&&!upl.drive){ toast('Elegí al menos un lugar para actualizar','error'); return; }
+  run('subir', async()=>{
+    if(needGoogle(()=>subirRun())) return; if(upl.drive&&!ensureDrive(()=>subirRun())) return;
+    let ok=0;
+    for(const it of sel){ it.status='busy'; it.msg=''; refresh();
+      try{ setCourse(it.code); const done=[];
+        if(upl.maestro){ const n=await syncFromBlob(it.file); done.push(`${n} secci${n===1?'ón':'ones'} en el Maestro`); }
+        if(upl.drive){ const folder=folderOf(it.kind);
+          if(!folder) done.push(`sin carpeta de ${it.kind==='ficha'?'fichas':'programas'} en Drive`);
+          else { const f=await driveFindCourseFile(folder,it.kind);
+            if(f){ const r=await driveReplace(f.id,it.file,f.name); try{ localStorage.setItem(driveFileKey(it.kind),r.id||f.id); }catch(e){} done.push('reemplazó al de Drive'); }
+            else { await driveUploadDocx(it.file, wordFileName(it.kind,courseVersion()), folder, it.kind); done.push('quedó nuevo en Drive'); } } }
+        it.status='ok'; it.msg=done.join(' · '); ok++;
+      }catch(e){ if(e.status===401||e.scope) { it.status=''; throw e; } it.status='err'; it.msg=e.message; }
+      refresh(); }
+    toast(ok===sel.length?`✓ ${ok} documento${ok===1?'':'s'} actualizado${ok===1?'':'s'}`:`Actualicé ${ok} de ${sel.length}. Revisá los que fallaron.`, ok===sel.length?'success':'error');
+    const pe=personByK('peche'); if(pe&&ok){ pe.bub='ok'; pe.bubT=2; }
+  }, ()=>subirRun());
+}
+function subirSection(){
+  const B=busy.subir, I=upl.items; const pend=I.filter(it=>it.on&&it.code&&it.status!=='ok').length;
+  const opts=code=>`<option value="">Elegí el curso…</option>`+(allCourses||[]).map(c=>`<option value="${attr(c['Código'])}"${c['Código']===code?' selected':''}>${esc(c['Código']+' '+cName(c))}</option>`).join('');
+  const ico={ok:'✓',err:'⚠',busy:'⟳'};
+  return `<div class="of-sec"><h4>Subir Word corregidos</h4>
+    <div class="of-note" style="margin-top:0">Para cuando corregís varios programas o fichas en Word. Reconozco el curso de cada uno y actualizo su información.</div>
+    <label class="of-drop" data-drop="subir">Soltá aquí los Word o tocá para elegirlos<input type="file" accept=".docx" multiple onchange="Office.subirPick(this)"></label>
+    ${I.length?`<div style="margin-top:8px">${I.map((it,i)=>`<div class="of-item"${it.status==='ok'?' style="opacity:.75"':''}>
+        <div class="t" style="display:flex;gap:8px;align-items:center"><input type="checkbox" ${it.on?'checked':''} ${it.code&&it.status!=='ok'?'':'disabled'} onchange="Office.subirSet(${i},'on',this.checked)" aria-label="Incluir ${attr(it.name)}"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${attr(it.name)}">${it.status?ico[it.status]+' ':''}${esc(it.name)}</span></div>
+        <div class="of-row" style="margin-top:6px"><select class="of-in" style="flex:1;min-width:0;padding:4px 8px;font-size:12px" aria-label="Curso del documento" onchange="Office.subirSet(${i},'code',this.value)" ${it.status==='ok'?'disabled':''}>${opts(it.code)}</select>
+          <select class="of-in" style="width:auto;padding:4px 8px;font-size:12px" aria-label="Tipo de documento" onchange="Office.subirSet(${i},'kind',this.value)" ${it.status==='ok'?'disabled':''}><option value="programa"${it.kind==='programa'?' selected':''}>Programa</option><option value="ficha"${it.kind==='ficha'?' selected':''}>Ficha</option></select></div>
+        ${it.msg?`<div class="m"${it.status==='err'?' style="color:#b3412a"':''}>${esc(it.msg)}</div>`:(!it.code?'<div class="m">No reconocí el curso: elegilo en la lista.</div>':'')}
+      </div>`).join('')}</div>
+      <label style="display:flex;gap:8px;align-items:center;font-size:12.5px;margin-top:8px"><input type="checkbox" ${upl.maestro?'checked':''} onchange="Office.subirOpt('maestro',this.checked)"> Actualizar el Maestro con lo que dice cada Word</label>
+      <label style="display:flex;gap:8px;align-items:center;font-size:12.5px;margin-top:6px"><input type="checkbox" ${upl.drive?'checked':''} onchange="Office.subirOpt('drive',this.checked)"> Reemplazar el documento de Drive (guarda la versión anterior)</label>
+      <div class="of-row"><button class="of-btn pri" ${B||!pend?'disabled':''} onclick="Office.subirRun()">${B?'Subiendo…':pend?`Subir ${pend} documento${pend===1?'':'s'}`:'Todo subido'}</button><button class="of-btn sm" ${B?'disabled':''} onclick="Office.subirClear()">Limpiar</button></div>`:''}
+  </div>`;
+}
 function panelPeche(){
   const L=todoList();
   return head('peche','Peche','Tu escritorio', L.length?'Esto es lo que tenés pendiente:':'Todo al día. Los agentes te avisan cuando haya algo.')
     + (L.length?`<div>${L.map(([k,t])=>`<div class="of-item" style="cursor:pointer" onclick="Office.openPanel('${k}')"><div class="t">${esc(t)}</div><div class="m">${esc(AGENTS.find(a=>a.k===k)?.n||'')} →</div></div>`).join('')}</div>`:'')
+    + subirSection()
     + `<div class="of-sec"><h4>Otras herramientas</h4><div class="of-row"><button class="of-btn sm" onclick="document.getElementById('bulk-file-input').click()">Importar varias fichas (.docx)</button><button class="of-btn sm" onclick="Office.openPanel('tomo')">Tomo II</button><button class="of-btn sm" onclick="Office.doSync()">Sincronizar Maestro</button></div></div>`
     + `<div class="of-sec"><h4>Abrir un curso en la vista clásica</h4><div class="of-note" style="margin-top:0">Para descargar el Word, ver el cronograma o cualquier otra opción de la vista de siempre.</div>${picker('cl', code=>{ const c=courseBy(code); if(c){ closePanel(); showCourseWork(c); } })}</div>`;
 }
@@ -1593,7 +1653,7 @@ FRAME.pac=(dt)=>{ const S=G.s, c=G.c, p=S.pac;
 })();
 
 return {enter,leave,classic,openAgent,openPanel,closePanel,paintHud,refresh,filterPick,pick,showAllPick,checkMail,requestMail,processMail,processAll,setMailCourse,setMailKind,dismissMail,
-  fixCopy,fixDownload,fixUpload,fixReview,fixDone,learnCopy,flowArchive,nuevoPrompt,nuevoImport,nuevoFile,nuevoOpen,nuevoMail,nuevoReset,biblioPick,biblioSave,biblioCheck,biblioFile,biblioToggle,biblioMode,biblioReset,biblioCopyPrompt,biblioExport,biblioImport,careerSet,careerAll,renPick,renApply,verSet,charOpen,charPick,charLook,charName,charRandom,charReset,dzSet,dzDownload,dzCopy,dzBig,ajustesSave,doSync,gameOpen,gameClose,gameStart,gameMode,gameMenu,gamePause,editStart,editEnd,editPick,editCancel,editRotate,editMove,editColor,editDelete,editReset,editToggle:()=>{ if(edit) editEnd(); else editStart(); },reloadLayout:()=>{ if(running&&!edit){ buildScene(); } else scenePid=null; },openRocola:()=>{ jbBox(); openPanel('rocola'); },jbPlay,jbToggle,jbStop,jbShow,jbVol,jbAdd,jbPlayInput,jbDel,jbPlayIdx,
+  fixCopy,fixDownload,fixUpload,fixReview,fixDone,learnCopy,flowArchive,nuevoPrompt,nuevoImport,nuevoFile,nuevoOpen,nuevoMail,nuevoReset,subirPick,subirSet,subirOpt,subirClear,subirRun,biblioPick,biblioSave,biblioCheck,biblioFile,biblioToggle,biblioMode,biblioReset,biblioCopyPrompt,biblioExport,biblioImport,careerSet,careerAll,renPick,renApply,verSet,charOpen,charPick,charLook,charName,charRandom,charReset,dzSet,dzDownload,dzCopy,dzBig,ajustesSave,doSync,gameOpen,gameClose,gameStart,gameMode,gameMenu,gamePause,editStart,editEnd,editPick,editCancel,editRotate,editMove,editColor,editDelete,editReset,editToggle:()=>{ if(edit) editEnd(); else editStart(); },reloadLayout:()=>{ if(running&&!edit){ buildScene(); } else scenePid=null; },openRocola:()=>{ jbBox(); openPanel('rocola'); },jbPlay,jbToggle,jbStop,jbShow,jbVol,jbAdd,jbPlayInput,jbDel,jbPlayIdx,
   _t:{tileScreen:(x,y)=>{ const [sx,sy]=iso(x+.5,y+.5,0); const r=cv.getBoundingClientRect(); return [r.left+cam.x+sx*cam.z, r.top+cam.y+sy*cam.z]; }, objsAt:(x,y)=>objs.filter(o=>o.x===x&&o.y===y).map(o=>o.t+':'+o.c), parseMail,stripQuoted,findCourseIn,needOf,people:()=>people,inbox,flows,jobs}};
 })();
 // Los flujos de la oficina reciben los campos que antes iban al panel de revisión
