@@ -60,7 +60,7 @@ const AGENTS=[
   {k:'programa', n:'Programadora', role:'Programas de curso nuevos', desk:[5,4,2], col:'#7b5ea7', look:{skin:'#a46f48',hair:'#2b1d16',hs:1,shirt:'#7b5ea7',pants:'#5a4636'}},
   {k:'ficha', n:'Fichero', role:'Fichas de curso nuevas', desk:[6,4,2], col:'#23a596', look:{skin:'#e2ae86',hair:'#7d808c',hs:3,shirt:'#23a596',pants:'#3f3f46'}},
   {k:'recepcion', n:'Recepcionista', role:'Recibe el esbozo del experto (XLSX)', desk:[3,10,2], col:'#f2a541', look:{skin:'#f6dccb',hair:'#a8642c',hs:1,shirt:'#f2a541',pants:'#34466b'}},
-  {k:'carreras', n:'Registrador', role:'Lleva la carrera, la versión y el nombre de cada curso', desk:[7,4,2], col:'#3fa66f', look:{skin:'#c98c62',hair:'#4a2f22',hs:0,shirt:'#3fa66f',pants:'#34466b'}},
+  {k:'carreras', n:'Registrador', role:'Lleva los datos de cada curso', desk:[7,4,2], col:'#3fa66f', look:{skin:'#c98c62',hair:'#4a2f22',hs:0,shirt:'#3fa66f',pants:'#34466b'}},
   {k:'disenador', n:'Diseñador', role:'Dibuja la malla curricular en draw.io', desk:[2,7,3], col:'#3a3a46', look:{skin:'#e7b896',hair:'#d9d2c3',hs:3,shirt:'#2b2b33',pants:'#6a5a48'}},
   {k:'biblio', n:'Bibliotecaria', role:'Bibliografía de los cursos', desk:[2,3,3], col:'#e86a92', look:{skin:'#76503a',hair:'#161616',hs:2,shirt:'#e86a92',pants:'#2f3542'}},
 ];
@@ -756,20 +756,118 @@ function panelRecepcion(){
 /* ---------- Bibliotecaria ---------- */
 let biblioCode='';
 function biblioPick(code){ biblioCode=code; panel.innerHTML=''; refresh(); }
-function biblioSave(){ const ob=document.getElementById('of-bob').value.trim(), co=document.getElementById('of-bco').value.trim(), upd=document.getElementById('of-bdrv').checked; run('bib', async()=>{
-  setCourse(biblioCode); if(needGoogle(null)) return;
-  if(upd&&!ensureDrive(null)) return;
-  const sid=P().sheetId, code=biblioCode; maestroData[sid]=maestroData[sid]||{}; const s=maestroData[sid][code]=maestroData[sid][code]||{};
+// Guarda la bibliografía de un curso en el Maestro y, si se pide, también en su programa de Drive
+async function biblioApply(code, ob, co, upd){
+  setCourse(code);
+  const sid=P().sheetId; maestroData[sid]=maestroData[sid]||{}; const s=maestroData[sid][code]=maestroData[sid][code]||{};
   let fileId=''; try{ fileId=localStorage.getItem(driveFileKey('programa'))||''; }catch(e){}
   if(upd&&folderOf('programa')){ const f=await driveFindCourseFile(folderOf('programa'),'programa'); if(f){ fileId=f.id; await syncFromBlob(await driveBlob(f.id),['biblio_ob','biblio_co']); } }
   s.biblio_ob=ob; s.biblio_co=co; localStorage.setItem('dcd_maestro',JSON.stringify(maestroData)); autoBackup();
   await writeMaestro();
-  if(upd&&fileId&&hasProgramSection(currentSaved())){ await uploadKind('programa'); toast(`✓ Bibliografía de ${code} en el Maestro y en el programa de Drive`,'success'); }
-  else toast(`✓ Bibliografía de ${code} guardada en el Maestro`,'success');
+  if(upd&&fileId&&hasProgramSection(currentSaved())){ await uploadKind('programa'); return 'drive'; }
+  return 'maestro';
+}
+function biblioSave(){ const ob=document.getElementById('of-bob').value.trim(), co=document.getElementById('of-bco').value.trim(), upd=document.getElementById('of-bdrv').checked; run('bib', async()=>{
+  if(needGoogle(null)) return; if(upd&&!ensureDrive(null)) return;
+  const code=biblioCode; const w=await biblioApply(code, ob, co, upd);
+  toast(w==='drive'?`✓ Bibliografía de ${code} en el Maestro y en el programa de Drive`:`✓ Bibliografía de ${code} guardada en el Maestro`,'success');
   const b=personByK('biblio'); if(b){ b.bub='ok'; b.bubT=2; }
 }); }
+
+/* Varios cursos a la vez, con un JSON */
+let bibImp=null;   // {items:[{code,name,ob,co,status,on}], sinCurso, mode, err, prog}
+const bibKey=x=>String(x||'').replace(/[\s-]+/g,'').toUpperCase();
+function bibLines(v){ const arr=Array.isArray(v)?v:String(v||'').split(/\n+/);
+  const out=[]; arr.forEach(x=>{ let t=String(typeof x==='object'&&x?(x.referencia||x.apa||x.texto||''):x||'').replace(/\s+/g,' ').trim(); t=t.replace(/^(\d+[.)]|[-–•*·])\s+/,''); if(t&&!out.includes(t)) out.push(t); }); return out; }
+function bibPick(o,keys){ for(const k of keys){ if(o[k]!=null) return o[k]; } const lk=Object.keys(o).find(k=>keys.includes(normTxt(k).replace(/\s+/g,'_'))); return lk?o[lk]:undefined; }
+function bibParse(txt){
+  let t=String(txt||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'');
+  const data=JSON.parse(t);
+  let list=Array.isArray(data)?data:Array.isArray(data.cursos)?data.cursos:Array.isArray(data.courses)?data.courses:null;
+  if(!list&&data&&typeof data==='object') list=Object.entries(data).filter(([k,v])=>v&&typeof v==='object'&&!Array.isArray(v)).map(([k,v])=>Object.assign({codigo:k},v));
+  if(!list) throw new Error('No encontré la lista de cursos. Revisá que tenga la forma del ejemplo.');
+  const items=list.map(o=>{
+    const code=String(bibPick(o,['codigo','código','code','Código','curso_codigo'])||'').trim();
+    const name=String(bibPick(o,['nombre','name','curso','Nombre'])||'').trim();
+    const ob=bibLines(bibPick(o,['obligatoria','bibliografia_obligatoria','obligatorias','required'])), co=bibLines(bibPick(o,['complementaria','bibliografia_complementaria','complementarias','optional']));
+    let c=code?(allCourses||[]).find(x=>bibKey(x['Código'])===bibKey(code)):null;
+    if(!c&&name) c=(allCourses||[]).find(x=>normTxt(cName(x))===normTxt(name));
+    return {code:c?c['Código']:code, name:c?cName(c):name, ob, co, found:!!c, on:!!c&&(ob.length+co.length>0)};
+  });
+  return {items, sinCurso:bibLines(data.sin_curso||[]).length};
+}
+function bibMerge(oldTxt, add, mode){ if(mode==='replace') return add.join('\n'); const cur=bibLines(oldTxt); add.forEach(x=>{ if(!cur.some(y=>normTxt(y)===normTxt(x))) cur.push(x); }); return cur.join('\n'); }
+function bibStatus(it){ if(!it.found) return ['no','No está en la hoja Base']; if(!it.ob.length&&!it.co.length) return ['no','Sin referencias'];
+  const s=savedForCourse(courseBy(it.code)); const mode=bibImp?.mode||'replace';
+  const nob=bibMerge(s.biblio_ob,it.ob,mode), nco=bibMerge(s.biblio_co,it.co,mode);
+  if(nob===String(s.biblio_ob||'').trim()&&nco===String(s.biblio_co||'').trim()) return ['igual','Ya está igual'];
+  return String(s.biblio_ob||s.biblio_co||'').trim()?['cambia','Cambia lo que tiene']:['nuevo','Nueva']; }
+function biblioCheck(){ const t=document.getElementById('of-bjson')?.value||''; if(!t.trim()){ toast('Pegá el JSON o elegí el archivo','error'); return; }
+  try{ const r=bibParse(t); bibImp={items:r.items, sinCurso:r.sinCurso, mode:bibImp?.mode||'replace'}; bibImp.items.forEach(it=>{ if(bibStatus(it)[0]==='igual') it.on=false; }); }
+  catch(e){ bibImp={items:[], err:/JSON|token|Unexpected/i.test(e.message)?'El texto no es un JSON válido. Copiá la respuesta completa de Claude, desde la primera llave hasta la última.':e.message, mode:bibImp?.mode||'replace'}; }
+  refresh(); }
+function biblioFile(inp){ const f=inp.files&&inp.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ const ta=document.getElementById('of-bjson'); if(ta) ta.value=String(r.result||''); biblioCheck(); }; r.readAsText(f); inp.value=''; }
+function biblioToggle(i,on){ if(bibImp&&bibImp.items[i]) bibImp.items[i].on=on; refresh(); }
+function biblioMode(m){ if(bibImp){ bibImp.mode=m; bibImp.items.forEach(it=>{ if(it.found) it.on=bibStatus(it)[0]!=='igual'&&(it.ob.length+it.co.length>0); }); } refresh(); }
+function biblioReset(){ bibImp=null; const ta=document.getElementById('of-bjson'); if(ta) ta.value=''; refresh(); }
+function biblioPrompt(){
+  const list=orderedCourses().map(({c})=>`${c['Código']} · ${cName(c)}`).join('\n');
+  const ej=orderedCourses().slice(0,1).map(({c})=>({codigo:c['Código'],nombre:cName(c),obligatoria:['Apellido, N. (Año). Título del libro (ed.). Editorial.'],complementaria:[]}));
+  return `Necesito ordenar la bibliografía de los cursos del plan «${P()?.name||''}» en un JSON para importarla en mi app.
+
+Te paso las referencias al final de este mensaje o en los archivos adjuntos. Organizalas por curso usando exactamente estos códigos:
+${list}
+
+Reglas:
+- Usá solo las referencias que te paso. No inventés libros ni completés datos que no aparezcan.
+- Cada referencia va completa en formato APA 7, como un solo texto, sin numeración ni viñetas.
+- Separá la bibliografía obligatoria de la complementaria. Si no se indica, dejala como obligatoria.
+- Si una referencia no corresponde a ningún código de la lista, ponela en "sin_curso".
+- Respondé solo con el JSON, sin texto antes ni después.
+
+Formato:
+${JSON.stringify({cursos:ej.length?ej:[{codigo:'SOFT-01',nombre:'Nombre del curso',obligatoria:['Apellido, N. (Año). Título del libro (ed.). Editorial.'],complementaria:[]}], sin_curso:[]},null,2)}
+
+REFERENCIAS:
+[pegá aquí la bibliografía]`;
+}
+function biblioCopyPrompt(){ copyText(biblioPrompt()); toast('✓ Prompt copiado. Pegalo en Claude junto con la bibliografía','success'); }
+function biblioExport(){ const cursos=orderedCourses().map(({c})=>{ const s=savedForCourse(c); return {codigo:c['Código'], nombre:cName(c), obligatoria:bibLines(s.biblio_ob), complementaria:bibLines(s.biblio_co)}; });
+  saveBlob(new Blob([JSON.stringify({cursos},null,2)],{type:'application/json'}), `Bibliografía ${P()?.name||''}.json`.replace(/[\\/:*?"<>|]+/g,'')); }
+function biblioImport(){ const sel=(bibImp?.items||[]).filter(it=>it.on&&it.found); if(!sel.length){ toast('Marcá al menos un curso','error'); return; }
+  const upd=!!document.getElementById('of-bidrv')?.checked;
+  run('bibimp', async()=>{
+    if(needGoogle(null)) return; if(upd&&!ensureDrive(null)) return;
+    const mode=bibImp.mode, errs=[]; let n=0, d=0;
+    for(const it of sel){ bibImp.prog=`Guardando ${n+1} de ${sel.length}: ${it.code}`; refresh();
+      try{ const s=savedForCourse(courseBy(it.code)); const w=await biblioApply(it.code, bibMerge(s.biblio_ob,it.ob,mode), bibMerge(s.biblio_co,it.co,mode), upd); n++; if(w==='drive') d++; it.on=false; it.done=true; }
+      catch(e){ if(e.status===401||e.scope) throw e; errs.push(`${it.code}: ${e.message}`); } }
+    bibImp.prog=''; bibImp.result={n, d, errs};
+    toast(errs.length?`Guardé ${n} de ${sel.length} cursos. Revisá los que fallaron.`:`✓ Bibliografía de ${n} curso${n===1?'':'s'} en el Maestro`, errs.length?'error':'success');
+    const b=personByK('biblio'); if(b){ b.bub='ok'; b.bubT=2; }
+  });
+}
+function biblioBulkSection(){
+  const I=bibImp, B=busy.bibimp;
+  let h=`<div class="of-sec"><h4>Varios cursos a la vez</h4>
+    <div class="of-note" style="margin-top:0">Copiá el prompt, pegalo en Claude con toda la bibliografía y pegá aquí el JSON que te devuelva.</div>
+    <div class="of-row"><button class="of-btn pri sm" onclick="Office.biblioCopyPrompt()">Copiar el prompt para Claude</button><button class="of-btn sm" onclick="Office.biblioExport()" title="Sirve de ejemplo y de respaldo">Descargar la actual (JSON)</button></div>
+    <label class="of-lb" for="of-bjson">JSON de Claude</label><textarea class="of-ta" id="of-bjson" placeholder='{ "cursos": [ { "codigo": "SOFT-01", "obligatoria": ["…"], "complementaria": [] } ] }'></textarea>
+    <div class="of-row"><button class="of-btn sm" onclick="Office.biblioCheck()">Revisar</button><button class="of-btn sm" onclick="this.nextElementSibling.click()">Abrir un archivo .json</button><input type="file" accept=".json,application/json,.txt" hidden onchange="Office.biblioFile(this)">${I?`<button class="of-btn sm" onclick="Office.biblioReset()">Limpiar</button>`:''}</div>`;
+  if(I&&I.err) h+=`<div class="of-warn">${esc(I.err)}</div>`;
+  if(I&&I.items.length){
+    const sel=I.items.filter(it=>it.on&&it.found).length;
+    h+=`<div class="of-row"><button class="of-btn sm ${I.mode==='replace'?'ink':''}" aria-pressed="${I.mode==='replace'}" onclick="Office.biblioMode('replace')">Reemplazar lo que hay</button><button class="of-btn sm ${I.mode==='add'?'ink':''}" aria-pressed="${I.mode==='add'}" onclick="Office.biblioMode('add')">Agregar sin repetir</button></div>
+      <div style="margin-top:8px">${I.items.map((it,i)=>{ const [st,lbl]=it.done?['ok','Guardada']:bibStatus(it); return `<label class="of-item" style="display:flex;gap:10px;align-items:flex-start;cursor:${it.found?'pointer':'default'};${it.found?'':'opacity:.6'}"><input type="checkbox" ${it.on?'checked':''} ${it.found&&!it.done?'':'disabled'} onchange="Office.biblioToggle(${i},this.checked)" style="margin-top:3px"><span style="flex:1;min-width:0"><span class="t" style="display:block">${esc(it.code||'(sin código)')} ${esc(it.name)}</span><span class="m">${it.ob.length} obligatoria${it.ob.length===1?'':'s'} y ${it.co.length} complementaria${it.co.length===1?'':'s'} · ${lbl}</span></span></label>`; }).join('')}</div>
+      ${I.sinCurso?`<div class="of-note">${I.sinCurso===1?'Una referencia quedó':I.sinCurso+' referencias quedaron'} sin curso en el JSON. Esas no se importan.</div>`:''}
+      <label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;margin-top:10px"><input type="checkbox" id="of-bidrv" checked> <span>Actualizar también los programas en Drive. Antes leo cada documento para no perder lo que corregiste ahí.</span></label>
+      <div class="of-row"><button class="of-btn pri" ${B||!sel?'disabled':''} onclick="Office.biblioImport()">${B?esc(I.prog||'Guardando…'):`Importar ${sel} curso${sel===1?'':'s'}`}</button></div>`;
+    if(I.result) h+=`<div class="of-note">✓ ${I.result.n} curso${I.result.n===1?'':'s'} en el Maestro${I.result.d?`, ${I.result.d} también en Drive`:''}.${I.result.errs.length?'<br>⚠ '+I.result.errs.map(esc).join('<br>⚠ '):''}</div>`;
+  }
+  return h+'</div>';
+}
 function panelBiblio(){
-  if(!biblioCode) return head('biblio','Bibliotecaria','Bibliografía de los cursos','Elegí un curso y pegá sus referencias. Una por línea, en APA.')+`<div class="of-sec"><h4>Elegí el curso</h4>${picker('bb', biblioPick)}</div>`;
+  if(!biblioCode) return head('biblio','Bibliotecaria','Bibliografía de los cursos','Puedo cargar la bibliografía de un curso o de todos a la vez. Las referencias van en APA, una por línea.')+biblioBulkSection()+`<div class="of-sec"><h4>Un solo curso</h4>${picker('bb', biblioPick)}</div>`;
   const c=courseBy(biblioCode); const s=c?savedForCourse(c):{};
   return head('biblio','Bibliotecaria','Bibliografía', `Referencias de <strong>${esc(biblioCode)}</strong> ${esc(cName(c))}. Una por línea.`)
     + `<label class="of-lb" for="of-bob">Bibliografía obligatoria</label><textarea class="of-ta" id="of-bob" style="font-family:inherit">${esc(s.biblio_ob||'')}</textarea>
@@ -961,7 +1059,7 @@ function renCount(re){ const md=maestroData[P()?.sheetId]||{}; let n=0; const cu
   for(const [cd,s] of Object.entries(md)) for(const v of Object.values(s||{})){ const k=renText(v,re,'·').n; if(k){ n+=k; cursos.add(cd); } }
   (allCourses||[]).forEach(c=>Object.values(c).forEach(v=>{ const k=renText(v,re,'·').n; if(k){ n+=k; cursos.add(c['Código']); } }));
   return {n, cursos:cursos.size}; }
-function renPick(code){ renCode=code||''; renLast=null; refresh(); const el=document.getElementById('of-ren'); if(el){ const c=courseBy(code); el.value=c?cName(c):''; el.focus(); el.select(); el.scrollIntoView({block:'center',behavior:'smooth'}); } }
+function renPick(code){ renCode=code||''; renLast=null; refresh(); const c=courseBy(code); const ec=document.getElementById('of-renc'); if(ec) ec.value=c?c['Código']:''; const el=document.getElementById('of-ren'); if(el){ el.value=c?cName(c):''; el.focus(); el.select(); el.scrollIntoView({block:'center',behavior:'smooth'}); } }
 const sheetRef=t=>`'${String(t).replace(/'/g,"''")}'`;
 // Todas las hojas del libro de Google: Base, Maestro, Rasgos de Perfil y las demás (las fórmulas no se tocan)
 async function renSheets(sid,re,nw){
@@ -975,10 +1073,10 @@ async function renSheets(sid,re,nw){
   for(let i=0;i<data.length;i+=400) await sheetsReq(`/${sid}/values:batchUpdate`,'POST',{valueInputOption:'RAW', data:data.slice(i,i+400)});
   return {cells:data.length, hojas:[...hojas]};
 }
-// Los Word del curso en las carpetas de fichas y de programas
-async function renDrive(code,old,nw){
-  const san=s=>String(s).replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,' ').trim();
-  const so=san(old), sn=san(nw), cd=normCode(code); const p=P();
+// Los Word del curso en las carpetas de fichas y de programas: cambia «from» por «to» en el nombre del archivo
+async function renDrive(code,from,to,isName){
+  const san=x=>String(x).replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,' ').trim();
+  const so=isName?san(from):String(from), sn=isName?san(to):String(to), cd=normCode(code); const p=P();
   const folders=[...new Set([driveFolderId(p.folderFichas),driveFolderId(p.folderProgramas)].filter(Boolean))];
   const done=[];
   for(const fid of folders){
@@ -992,49 +1090,84 @@ async function renDrive(code,old,nw){
   const F=flows(); let ch=false; F.forEach(f=>{ if(f.fileName&&String(f.fileName).includes(so)){ f.fileName=String(f.fileName).split(so).join(sn); ch=true; } }); if(ch) saveFlows(F);
   return done;
 }
+// El código completo, sin tocar códigos más largos (SOFT-01 no toca SOFT-010 ni SOFT-01-C1)
+function renCodeRe(code){ return new RegExp('(?<![\\p{L}\\p{N}])'+reEsc(String(code).trim())+'(?![\\p{L}\\p{N}]|-[\\p{L}\\p{N}])','gu'); }
+const CODE_OK=/^[A-ZÁÉÍÓÚÑ]{2,8}-?\d{1,4}(-?[A-Z0-9]{1,4})?$/;
+// Reemplaza en todo lo guardado de este proyecto y en la hoja Base cargada
+function renLocal(re,nw,res){ const md=maestroData[P().sheetId]||{}; const cur=new Set();
+  for(const [cd,s] of Object.entries(md)) for(const key of Object.keys(s||{})){ const r=renText(s[key],re,nw); if(r.n){ s[key]=r.v; res.loc+=r.n; cur.add(cd); } }
+  (allCourses||[]).forEach(x=>Object.keys(x).forEach(key=>{ const r=renText(x[key],re,nw); if(r.n){ x[key]=r.v; res.loc+=r.n; cur.add(x['Código']); } }));
+  cur.forEach(x=>res.cursos.add(x)); }
+// Lo que la app guarda con el código como llave
+function renCodeKeys(old,nw){ const sid=P().sheetId, pid=P().id; const md=maestroData[sid]||{};
+  if(md[old]){ md[nw]=md[old]; delete md[old]; }
+  const moves=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i)||'';
+    if(k==='dcd_ver_'+old||k==='dcd_comun_'+old) moves.push([k,k.slice(0,-old.length)+nw,false]);   // se copian: un curso común puede estar en otro proyecto
+    else if(k.startsWith('dcd_drivefile_')&&k.endsWith('_'+pid+'_'+old)) moves.push([k,k.slice(0,-old.length)+nw,true]);
+    else if(k.startsWith(`dcd_vsnap_${pid}_${old}_`)) moves.push([k,`dcd_vsnap_${pid}_${nw}_`+k.slice(`dcd_vsnap_${pid}_${old}_`.length),true]); }
+  moves.forEach(([a,b,mv])=>{ try{ localStorage.setItem(b,localStorage.getItem(a)); if(mv) localStorage.removeItem(a); }catch(e){} });
+  const same=x=>normCode(x)===normCode(old);
+  (P().rasgosGrupos||[]).forEach(g=>{ g.cursos=(g.cursos||[]).map(x=>same(x)?nw:x); }); saveProjects();
+  const F=flows(); F.forEach(f=>{ if(same(f.code)) f.code=nw; }); saveFlows(F);
+  const I=inbox(); I.forEach(m=>{ if(same(m.code)) m.code=nw; }); saveInbox(I);
+  const J=jobs(); Object.values(J).forEach(j=>{ if(j&&same(j.code)) j.code=nw; }); saveJobs(J);
+  if(same(biblioCode)) biblioCode=nw;
+}
 async function renApply(){
   if(renBusy) return; const c=courseBy(renCode); if(!c) return;
-  const code=c['Código'], old=cName(c); const nw=String(document.getElementById('of-ren')?.value||'').replace(/\s+/g,' ').trim();
-  if(!nw){ toast('Escribí el nombre nuevo','error'); return; }
-  if(nw===old){ toast('El nombre nuevo es igual al de ahora',''); return; }
-  if(!old){ toast('Este curso no tiene nombre en la hoja Base','error'); return; }
-  const otro=(allCourses||[]).find(x=>x!==c&&normTxt(cName(x))===normTxt(nw)); if(otro){ toast(`Ese nombre ya lo tiene ${otro['Código']}`,'error'); return; }
+  const oldCode=String(c['Código']).trim(), oldName=cName(c);
+  const nwCode=String(document.getElementById('of-renc')?.value||'').replace(/\s+/g,'').toUpperCase();
+  const nwName=String(document.getElementById('of-ren')?.value||'').replace(/\s+/g,' ').trim();
+  const doCode=nwCode&&nwCode!==oldCode, doName=nwName&&nwName!==oldName;
+  if(!nwCode){ toast('Escribí el código','error'); return; }
+  if(!nwName){ toast('Escribí el nombre','error'); return; }
+  if(!doCode&&!doName){ toast('El código y el nombre son iguales a los de ahora',''); return; }
+  if(doCode&&!CODE_OK.test(nwCode)){ toast('El código no parece válido. Ejemplo: SOFT-201','error'); return; }
+  if(doCode){ const o=(allCourses||[]).find(x=>x!==c&&normCode(x['Código'])===normCode(nwCode)); if(o){ toast(`El código ${nwCode} ya lo tiene «${cName(o)}»`,'error'); return; } }
+  if(doName){ if(!oldName){ toast('Este curso no tiene nombre en la hoja Base','error'); return; } const o=(allCourses||[]).find(x=>x!==c&&normTxt(cName(x))===normTxt(nwName)); if(o){ toast(`Ese nombre ya lo tiene ${o['Código']}`,'error'); return; } }
   if(needGoogle(()=>renApply())) return;
-  const re=renRe(old); const k=renCount(re);
-  if(!confirm(`¿Cambiar «${old}» por «${nw}» en todo lado?\n\nEn la app aparece ${k.n} ${k.n===1?'vez':'veces'} en ${k.cursos} curso${k.cursos===1?'':'s'}. También reviso todas las hojas del libro de Google y los Word del curso en Drive.`)) return;
+  const reC=doCode?renCodeRe(oldCode):null, reN=doName?renRe(oldName):null;
+  const kc=reC?renCount(reC):{n:0,cursos:0}, kn=reN?renCount(reN):{n:0,cursos:0};
+  const que=[doCode?`el código ${oldCode} por ${nwCode}`:'', doName?`«${oldName}» por «${nwName}»`:''].filter(Boolean).join(' y ');
+  if(!confirm(`¿Cambiar ${que} en todo lado?\n\nEn la app aparece${doCode&&doName?'n':''} ${kc.n+kn.n} ${kc.n+kn.n===1?'vez':'veces'}. También reviso todas las hojas del libro de Google y los Word del curso en Drive.`)) return;
   renBusy=true; refresh();
-  const res={code, old, nw, loc:0, cursos:0, cells:0, hojas:[], drive:[], sheetErr:'', driveErr:'', driveSkip:false};
+  const res={oldCode, nwCode:doCode?nwCode:oldCode, oldName, nwName:doName?nwName:oldName, doCode, doName, loc:0, cursos:new Set(), cells:0, hojas:new Set(), drive:[], sheetErr:'', driveErr:'', driveSkip:false};
+  const sid=extractSheetId(P().url), driveOn=localStorage.getItem('dcd_drive_ok')==='1' && (P().folderFichas||P().folderProgramas);
   try{
-    // 1) La app: cursos de la hoja Base cargados y todo lo guardado de este proyecto
-    const md=maestroData[P().sheetId]||{}; const cur=new Set();
-    for(const [cd,s] of Object.entries(md)) for(const key of Object.keys(s||{})){ const r=renText(s[key],re,nw); if(r.n){ s[key]=r.v; res.loc+=r.n; cur.add(cd); } }
-    (allCourses||[]).forEach(x=>Object.keys(x).forEach(key=>{ const r=renText(x[key],re,nw); if(r.n){ x[key]=r.v; res.loc+=r.n; cur.add(x['Código']); } }));
-    if('Nombre' in c) c['Nombre']=nw; if('Curso' in c || !('Nombre' in c)) c['Curso']=nw;
-    res.cursos=cur.size;
+    if(doCode){
+      renLocal(reC,nwCode,res); c['Código']=nwCode; renCodeKeys(oldCode,nwCode); renCode=nwCode;
+      try{ const r=await renSheets(sid,reC,nwCode); res.cells+=r.cells; r.hojas.forEach(h=>res.hojas.add(h)); }catch(e){ res.sheetErr=e.message; }
+      if(driveOn){ try{ res.drive.push(...await renDrive(oldCode,oldCode,nwCode,false)); }catch(e){ res.driveErr=e.message; } }
+    }
+    if(doName){
+      renLocal(reN,nwName,res); if('Nombre' in c) c['Nombre']=nwName; if('Curso' in c || !('Nombre' in c)) c['Curso']=nwName;
+      if(!res.sheetErr){ try{ const r=await renSheets(sid,reN,nwName); res.cells+=r.cells; r.hojas.forEach(h=>res.hojas.add(h)); }catch(e){ res.sheetErr=e.message; } }
+      if(driveOn&&!res.driveErr){ try{ res.drive.push(...await renDrive(c['Código'],oldName,nwName,true)); }catch(e){ res.driveErr=e.message; } }
+    }
+    if(!driveOn) res.driveSkip=true;
     localStorage.setItem('dcd_maestro',JSON.stringify(maestroData)); try{ autoBackup(); }catch(e){}
-    // 2) El libro de Google
-    try{ const r=await renSheets(extractSheetId(P().url),re,nw); res.cells=r.cells; res.hojas=r.hojas; }catch(e){ res.sheetErr=e.message; }
-    // 3) Drive
-    if(localStorage.getItem('dcd_drive_ok')==='1' && (P().folderFichas||P().folderProgramas)){ try{ res.drive=await renDrive(code,old,nw); }catch(e){ res.driveErr=e.message; } } else res.driveSkip=true;
   } finally { renBusy=false; }
+  res.cursos=res.cursos.size; res.hojas=[...res.hojas]; res.drive=[...new Set(res.drive)];
   renLast=res; const r=personByK('carreras'); if(r){ r.bub=res.sheetErr?null:'ok'; r.bubT=2; }
-  toast(res.sheetErr?'El nombre cambió en la app, pero no pude escribir en el libro de Google':`✓ ${code} ahora se llama «${nw}»`, res.sheetErr?'error':'success');
+  toast(res.sheetErr?'El cambio quedó en la app, pero no pude escribir en el libro de Google':`✓ ${res.nwCode} ${res.nwName}`, res.sheetErr?'error':'success');
   try{ if(typeof renderCourseNav==='function') renderCourseNav(); }catch(e){}
   refresh();
 }
 function renSection(){
   const c=renCode?courseBy(renCode):null;
-  let h=`<div class="of-sec"><h4>Cambiar el nombre de un curso</h4>`;
-  if(!c) h+=`<div class="of-note" style="margin-top:0">Elegí el curso. El nombre nuevo llega a todos los lugares donde aparece el anterior, dentro y fuera de la app.</div>`+picker('ren',code=>renPick(code));
+  let h=`<div class="of-sec"><h4>Cambiar el código o el nombre de un curso</h4>`;
+  if(!c) h+=`<div class="of-note" style="margin-top:0">Elegí el curso. El cambio llega a todos los lugares donde aparece el anterior, dentro y fuera de la app.</div>`+picker('ren',code=>renPick(code));
   else h+=`<div class="of-item"><div class="t">${esc(c['Código'])} ${esc(cName(c))}</div></div>
-      <label class="of-lb" for="of-ren">Nombre nuevo</label><input class="of-in" id="of-ren" value="${attr(cName(c))}" onkeydown="if(event.key==='Enter')Office.renApply()">
+      <div style="display:grid;grid-template-columns:120px 1fr;gap:0 8px">
+        <div><label class="of-lb" for="of-renc">Código</label><input class="of-in" id="of-renc" value="${attr(c['Código'])}" style="text-transform:uppercase" onkeydown="if(event.key==='Enter')Office.renApply()"></div>
+        <div><label class="of-lb" for="of-ren">Nombre</label><input class="of-in" id="of-ren" value="${attr(cName(c))}" onkeydown="if(event.key==='Enter')Office.renApply()"></div></div>
       <div class="of-row"><button class="of-btn pri" ${renBusy?'disabled':''} onclick="Office.renApply()">${renBusy?'Cambiando…':'Cambiar en todo lado'}</button><button class="of-btn" onclick="Office.renPick('')">Otro curso</button></div>
-      <div class="of-note">Cambia la hoja Base y el Maestro junto con las demás hojas del libro. Dentro de los textos guardados de cualquier curso también se reemplaza el nombre anterior.</div>`;
+      <div class="of-note">Cambia la hoja Base y el Maestro junto con las demás hojas del libro. También se reemplaza dentro de lo guardado de cualquier curso, por ejemplo en los requisitos.</div>`;
   const L=renLast;
-  if(L){ const lines=[`✓ <strong>${esc(L.code)}</strong> pasó de «${esc(L.old)}» a «${esc(L.nw)}».`,
+  if(L){ const lines=[`✓ ${L.doCode?`<strong>${esc(L.oldCode)}</strong> ahora es <strong>${esc(L.nwCode)}</strong>.`:''}${L.doName?` «${esc(L.oldName)}» ahora se llama «${esc(L.nwName)}».`:''}`,
       `En la app: ${L.loc} ${L.loc===1?'cambio':'cambios'} en ${L.cursos} curso${L.cursos===1?'':'s'}.`,
       L.sheetErr?`⚠ Libro de Google: ${esc(L.sheetErr)}. Probá otra vez con «Cambiar en todo lado».`:`En el libro de Google: ${L.cells} celda${L.cells===1?'':'s'}${L.hojas.length?` (${esc(L.hojas.join(', '))})`:''}.`,
-      L.driveErr?`⚠ Drive: ${esc(L.driveErr)}`:L.driveSkip?'Drive: los Word toman el nombre nuevo la próxima vez que los subás.':`En Drive: ${L.drive.length?L.drive.map(esc).join('<br>'):'ningún Word llevaba el nombre anterior'}.`];
+      L.driveErr?`⚠ Drive: ${esc(L.driveErr)}`:L.driveSkip?'Drive: los Word toman el cambio la próxima vez que los subás.':`En Drive: ${L.drive.length?L.drive.map(esc).join('<br>'):'ningún Word llevaba el dato anterior'}.`];
     h+=`<div class="of-note">${lines.join('<br>')}</div>`; }
   return h+'</div>';
 }
@@ -1043,7 +1176,7 @@ function curVer(code){ try{ return (localStorage.getItem('dcd_ver_'+code)||'').t
 function verSet(code,v){ const c=courseBy(code); if(!c) return; const prev=currentCourse; currentCourse=c; try{ setVersion(v); }finally{ currentCourse=prev; } try{ if(prev&&normCode(prev['Código'])===normCode(code)&&typeof refreshVersionUI==='function') refreshVersionUI(); }catch(e){}
   toast(`✓ ${c['Código']} en versión ${v}`,'success'); try{ if(typeof renderCourseNav==='function') renderCourseNav(); }catch(e){} refresh(); }
 function verSel(code){ const cur=curVer(code); return `<select class="of-in" style="width:auto;padding:4px 8px;font-size:12px" aria-label="Versión de ${attr(code)}" title="Versión del programa" onchange="Office.verSet('${attr(code)}',this.value)">${VERSIONES.map(v=>`<option${v===cur?' selected':''}>${v}</option>`).join('')}</select>`; }
-const renBtn=code=>`<button class="of-btn sm" onclick="Office.renPick('${attr(code)}')" title="Cambiar el nombre de ${attr(code)}">✎ Nombre</button>`;
+const renBtn=code=>`<button class="of-btn sm" onclick="Office.renPick('${attr(code)}')" title="Cambiar el código o el nombre de ${attr(code)}">✎ Código y nombre</button>`;
 function panelCarreras(){
   const cars=projectCareers();
   if(cars.length<2) return head('carreras','Registrador','Datos de cada curso','Estoy dormido porque el proyecto tiene una sola carrera. Si agregás una segunda carrera al proyecto, me despierto y te ayudo a decidir de cuál carrera es cada curso (o si es de las dos). Mientras tanto, sí te ayudo con la versión y el nombre de cada curso.')
@@ -1460,7 +1593,7 @@ FRAME.pac=(dt)=>{ const S=G.s, c=G.c, p=S.pac;
 })();
 
 return {enter,leave,classic,openAgent,openPanel,closePanel,paintHud,refresh,filterPick,pick,showAllPick,checkMail,requestMail,processMail,processAll,setMailCourse,setMailKind,dismissMail,
-  fixCopy,fixDownload,fixUpload,fixReview,fixDone,learnCopy,flowArchive,nuevoPrompt,nuevoImport,nuevoFile,nuevoOpen,nuevoMail,nuevoReset,biblioPick,biblioSave,careerSet,careerAll,renPick,renApply,verSet,charOpen,charPick,charLook,charName,charRandom,charReset,dzSet,dzDownload,dzCopy,dzBig,ajustesSave,doSync,gameOpen,gameClose,gameStart,gameMode,gameMenu,gamePause,editStart,editEnd,editPick,editCancel,editRotate,editMove,editColor,editDelete,editReset,editToggle:()=>{ if(edit) editEnd(); else editStart(); },reloadLayout:()=>{ if(running&&!edit){ buildScene(); } else scenePid=null; },openRocola:()=>{ jbBox(); openPanel('rocola'); },jbPlay,jbToggle,jbStop,jbShow,jbVol,jbAdd,jbPlayInput,jbDel,jbPlayIdx,
+  fixCopy,fixDownload,fixUpload,fixReview,fixDone,learnCopy,flowArchive,nuevoPrompt,nuevoImport,nuevoFile,nuevoOpen,nuevoMail,nuevoReset,biblioPick,biblioSave,biblioCheck,biblioFile,biblioToggle,biblioMode,biblioReset,biblioCopyPrompt,biblioExport,biblioImport,careerSet,careerAll,renPick,renApply,verSet,charOpen,charPick,charLook,charName,charRandom,charReset,dzSet,dzDownload,dzCopy,dzBig,ajustesSave,doSync,gameOpen,gameClose,gameStart,gameMode,gameMenu,gamePause,editStart,editEnd,editPick,editCancel,editRotate,editMove,editColor,editDelete,editReset,editToggle:()=>{ if(edit) editEnd(); else editStart(); },reloadLayout:()=>{ if(running&&!edit){ buildScene(); } else scenePid=null; },openRocola:()=>{ jbBox(); openPanel('rocola'); },jbPlay,jbToggle,jbStop,jbShow,jbVol,jbAdd,jbPlayInput,jbDel,jbPlayIdx,
   _t:{tileScreen:(x,y)=>{ const [sx,sy]=iso(x+.5,y+.5,0); const r=cv.getBoundingClientRect(); return [r.left+cam.x+sx*cam.z, r.top+cam.y+sy*cam.z]; }, objsAt:(x,y)=>objs.filter(o=>o.x===x&&o.y===y).map(o=>o.t+':'+o.c), parseMail,stripQuoted,findCourseIn,needOf,people:()=>people,inbox,flows,jobs}};
 })();
 // Los flujos de la oficina reciben los campos que antes iban al panel de revisión
