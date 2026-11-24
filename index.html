@@ -6576,7 +6576,7 @@ const AGENTS=[
   {k:'programa', n:'Programadora', role:'Programas de curso nuevos', desk:[5,4,2], col:'#7b5ea7', look:{skin:'#a46f48',hair:'#2b1d16',hs:1,shirt:'#7b5ea7',pants:'#5a4636'}},
   {k:'ficha', n:'Fichero', role:'Fichas de curso nuevas', desk:[6,4,2], col:'#23a596', look:{skin:'#e2ae86',hair:'#7d808c',hs:3,shirt:'#23a596',pants:'#3f3f46'}},
   {k:'recepcion', n:'Recepcionista', role:'Recibe el esbozo del experto (XLSX)', desk:[3,10,2], col:'#f2a541', look:{skin:'#f6dccb',hair:'#a8642c',hs:1,shirt:'#f2a541',pants:'#34466b'}},
-  {k:'carreras', n:'Registrador', role:'Asigna la carrera de cada curso y le cambia el nombre', desk:[7,4,2], col:'#3fa66f', look:{skin:'#c98c62',hair:'#4a2f22',hs:0,shirt:'#3fa66f',pants:'#34466b'}},
+  {k:'carreras', n:'Registrador', role:'Lleva la carrera, la versión y el nombre de cada curso', desk:[7,4,2], col:'#3fa66f', look:{skin:'#c98c62',hair:'#4a2f22',hs:0,shirt:'#3fa66f',pants:'#34466b'}},
   {k:'disenador', n:'Diseñador', role:'Dibuja la malla curricular en draw.io', desk:[2,7,3], col:'#3a3a46', look:{skin:'#e7b896',hair:'#d9d2c3',hs:3,shirt:'#2b2b33',pants:'#6a5a48'}},
   {k:'biblio', n:'Bibliotecaria', role:'Bibliografía de los cursos', desk:[2,3,3], col:'#e86a92', look:{skin:'#76503a',hair:'#161616',hs:2,shirt:'#e86a92',pants:'#2f3542'}},
 ];
@@ -7540,17 +7540,25 @@ function renSection(){
     h+=`<div class="of-note">${lines.join('<br>')}</div>`; }
   return h+'</div>';
 }
+/* ---------- Registrador: versión de cada curso ---------- */
+function curVer(code){ try{ return (localStorage.getItem('dcd_ver_'+code)||'').trim()||'PRL1'; }catch(e){ return 'PRL1'; } }
+function verSet(code,v){ const c=courseBy(code); if(!c) return; const prev=currentCourse; currentCourse=c; try{ setVersion(v); }finally{ currentCourse=prev; } try{ if(prev&&normCode(prev['Código'])===normCode(code)&&typeof refreshVersionUI==='function') refreshVersionUI(); }catch(e){}
+  toast(`✓ ${c['Código']} en versión ${v}`,'success'); try{ if(typeof renderCourseNav==='function') renderCourseNav(); }catch(e){} refresh(); }
+function verSel(code){ const cur=curVer(code); return `<select class="of-in" style="width:auto;padding:4px 8px;font-size:12px" aria-label="Versión de ${attr(code)}" title="Versión del programa" onchange="Office.verSet('${attr(code)}',this.value)">${VERSIONES.map(v=>`<option${v===cur?' selected':''}>${v}</option>`).join('')}</select>`; }
+const renBtn=code=>`<button class="of-btn sm" onclick="Office.renPick('${attr(code)}')" title="Cambiar el nombre de ${attr(code)}">✎ Nombre</button>`;
 function panelCarreras(){
   const cars=projectCareers();
-  if(cars.length<2) return head('carreras','Registrador','Carrera y nombre de cada curso','Estoy dormido porque el proyecto tiene una sola carrera. Si agregás una segunda carrera al proyecto, me despierto y te ayudo a decidir de cuál carrera es cada curso (o si es de las dos). Mientras tanto, sí te ayudo a cambiarle el nombre a un curso.')
-    + `<div class="of-row"><button class="of-btn pri" onclick="openProjectModal(currentProject.id)">Agregar la segunda carrera</button></div>` + renSection();
+  if(cars.length<2) return head('carreras','Registrador','Datos de cada curso','Estoy dormido porque el proyecto tiene una sola carrera. Si agregás una segunda carrera al proyecto, me despierto y te ayudo a decidir de cuál carrera es cada curso (o si es de las dos). Mientras tanto, sí te ayudo con la versión y el nombre de cada curso.')
+    + `<div class="of-row"><button class="of-btn pri" onclick="openProjectModal(currentProject.id)">Agregar la segunda carrera</button></div>` + renSection()
+    + `<div class="of-sec"><h4>Versión de cada curso</h4>${(allCourses||[]).length?(allCourses||[]).map(c=>{ const code=c['Código']; return `<div class="of-item"><div class="t">${esc(code)} ${esc(cName(c))}</div><div class="of-row">${verSel(code)}${renBtn(code)}</div></div>`; }).join(''):'<div class="of-note">Cargando los cursos…</div>'}</div>`
+    + `<div class="of-note">La versión se escribe también en la columna «Estado» de la hoja Base. PRL2 y PRL3 resaltan en el Word lo diferente a la versión anterior; la Final queda sin resaltar.</div>`;
   let ab=cars.map(careerAbbr); if(ab[0]===ab[1]) ab=['Carrera 1','Carrera 2'];
   const all=allCourses||[]; const sin=all.filter(c=>!careerOf(c['Código'])).length;
   const seg=(code,cur)=>[['c1',ab[0]],['c2',ab[1]],['both','Las dos']].map(([v,l])=>`<button class="of-btn sm ${cur===v?'ink':''}" aria-pressed="${cur===v}" onclick="Office.careerSet('${attr(code)}','${v}')" title="${attr(v==='both'?cars.join(' y '):cars[v==='c1'?0:1])}">${esc(l)}</button>`).join('');
-  return head('carreras','Registrador','Carrera y nombre de cada curso', sin?`Hay ${sin} curso${sin>1?'s':''} sin asignar. Elegí si cada uno es de una carrera o de las dos. Con «Las dos», el encabezado del Word lleva ambas carreras.`:'Todos los cursos tienen carrera. Podés cambiarla cuando quieras.')
+  return head('carreras','Registrador','Datos de cada curso', sin?`Hay ${sin} curso${sin>1?'s':''} sin asignar. Elegí si cada uno es de una carrera o de las dos. Con «Las dos», el encabezado del Word lleva ambas carreras.`:'Todos los cursos tienen carrera. Podés cambiarla cuando quieras.')
     + `<div class="of-item"><div class="m" style="margin:0"><strong>${esc(ab[0])}</strong>: ${esc(cars[0])}<br><strong>${esc(ab[1])}</strong>: ${esc(cars[1])}</div><div class="of-row"><span class="of-note" style="margin:0;align-self:center">Asignar todos a</span>${[['c1',ab[0]],['c2',ab[1]],['both','Las dos']].map(([v,l])=>`<button class="of-btn sm" onclick="Office.careerAll('${v}')">${esc(l)}</button>`).join('')}</div></div>`
     + renSection()
-    + `<div class="of-sec"><h4>Cursos</h4>${all.length?all.map(c=>{ const code=c['Código']; const cur=careerOf(code); return `<div class="of-item"><div class="t">${cur?'':'<span class="of-tag rev">SIN ASIGNAR</span>'}${esc(code)} ${esc(cName(c))}</div><div class="of-row">${seg(code,cur)}<button class="of-btn sm" onclick="Office.renPick('${attr(code)}')" title="Cambiar el nombre de ${attr(code)}">✎ Nombre</button></div></div>`; }).join(''):'<div class="of-note">Cargando los cursos…</div>'}</div>`
+    + `<div class="of-sec"><h4>Carrera y versión de cada curso</h4>${all.length?all.map(c=>{ const code=c['Código']; const cur=careerOf(code); return `<div class="of-item"><div class="t">${cur?'':'<span class="of-tag rev">SIN ASIGNAR</span>'}${esc(code)} ${esc(cName(c))}</div><div class="of-row">${seg(code,cur)}${verSel(code)}${renBtn(code)}</div></div>`; }).join(''):'<div class="of-note">Cargando los cursos…</div>'}</div>`
     + `<div class="of-note">${projectSiglas().every(Boolean)?`Cada cambio se escribe también en la columna «Carrera» de la hoja Base (${esc(projectSiglas().join(', '))}).`:'Para que la carrera quede escrita en la columna «Carrera» de la hoja Base, poné las siglas de cada carrera en <a href="#" onclick="openProjectModal(currentProject.id);return false">Editar proyecto</a>.'} El encabezado del Word cambia la próxima vez que se genere o se suba a Drive.</div>`;
 }
 
@@ -7913,7 +7921,7 @@ FRAME.pac=(dt)=>{ const S=G.s, c=G.c, p=S.pac;
 })();
 
 return {enter,leave,classic,openAgent,openPanel,closePanel,paintHud,refresh,filterPick,pick,showAllPick,checkMail,requestMail,processMail,processAll,setMailCourse,setMailKind,dismissMail,
-  fixCopy,fixDownload,fixUpload,fixReview,fixDone,learnCopy,flowArchive,nuevoPrompt,nuevoImport,nuevoFile,nuevoOpen,nuevoMail,nuevoReset,biblioPick,biblioSave,careerSet,careerAll,renPick,renApply,dzSet,dzDownload,dzCopy,dzBig,ajustesSave,doSync,gameOpen,gameClose,gameStart,gameMode,gameMenu,gamePause,editStart,editEnd,editPick,editCancel,editRotate,editMove,editColor,editDelete,editReset,editToggle:()=>{ if(edit) editEnd(); else editStart(); },reloadLayout:()=>{ if(running&&!edit){ buildScene(); } else scenePid=null; },openRocola:()=>{ jbBox(); openPanel('rocola'); },jbPlay,jbToggle,jbStop,jbShow,jbVol,jbAdd,jbPlayInput,jbDel,jbPlayIdx,
+  fixCopy,fixDownload,fixUpload,fixReview,fixDone,learnCopy,flowArchive,nuevoPrompt,nuevoImport,nuevoFile,nuevoOpen,nuevoMail,nuevoReset,biblioPick,biblioSave,careerSet,careerAll,renPick,renApply,verSet,dzSet,dzDownload,dzCopy,dzBig,ajustesSave,doSync,gameOpen,gameClose,gameStart,gameMode,gameMenu,gamePause,editStart,editEnd,editPick,editCancel,editRotate,editMove,editColor,editDelete,editReset,editToggle:()=>{ if(edit) editEnd(); else editStart(); },reloadLayout:()=>{ if(running&&!edit){ buildScene(); } else scenePid=null; },openRocola:()=>{ jbBox(); openPanel('rocola'); },jbPlay,jbToggle,jbStop,jbShow,jbVol,jbAdd,jbPlayInput,jbDel,jbPlayIdx,
   _t:{tileScreen:(x,y)=>{ const [sx,sy]=iso(x+.5,y+.5,0); const r=cv.getBoundingClientRect(); return [r.left+cam.x+sx*cam.z, r.top+cam.y+sy*cam.z]; }, objsAt:(x,y)=>objs.filter(o=>o.x===x&&o.y===y).map(o=>o.t+':'+o.c), parseMail,stripQuoted,findCourseIn,needOf,people:()=>people,inbox,flows,jobs}};
 })();
 // Los flujos de la oficina reciben los campos que antes iban al panel de revisión
